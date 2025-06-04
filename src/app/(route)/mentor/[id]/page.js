@@ -100,6 +100,9 @@ export default function MentorDetailPage() {
                     },
                 ],
             },
+            // 상세 소개
+            detailedIntroduction:
+                "저는 7년간의 프로게이머 경력을 바탕으로 정글 포지션에서의 전문적인 코칭을 제공합니다.",
         },
         2: {
             id: 2,
@@ -284,7 +287,7 @@ export default function MentorDetailPage() {
                                 <div className="md:col-span-2 flex flex-col">
                                     <div className="flex-1">
                                         <h3 className="font-semibold text-gray-900 mb-2">
-                                            한줄소개
+                                            한줄 소개
                                         </h3>
                                         <p className="text-gray-700 mb-4">
                                             {mentor.oneLineIntro}
@@ -426,15 +429,6 @@ export default function MentorDetailPage() {
                                 커리큘럼
                             </h2>
 
-                            <div className="mb-4">
-                                <h3 className="text-xl font-bold text-gray-900 mb-2">
-                                    {mentor.curriculum.title}
-                                </h3>
-                                <p className="text-gray-600">
-                                    {mentor.curriculum.description}
-                                </p>
-                            </div>
-
                             <div className="space-y-4">
                                 {mentor.curriculum.sessions.map(
                                     (session, index) => (
@@ -467,6 +461,17 @@ export default function MentorDetailPage() {
                                     )
                                 )}
                             </div>
+                        </section>
+
+                        {/* 6. 상세 소개 영역 */}
+                        <section className="bg-white rounded-xl border border-gray-200 p-6">
+                            <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                                상세 소개
+                            </h2>
+                            <p className="text-gray-700">
+                                {mentor.detailedIntroduction ||
+                                    "상세 소개가 등록되지 않았습니다."}
+                            </p>
                         </section>
 
                         {/* 5. 탭 영역 */}
