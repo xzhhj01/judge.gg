@@ -1,283 +1,353 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import PostCard from "../../../components/PostCard";
 import PostFilter from "../../../components/PostFilter";
 import CommunityHeader from "../../../components/CommunityHeader";
+import communityTags from "@/data/communityTags.json";
 
 export default function ValorantCommunityPage() {
-    const [selectedCategory, setSelectedCategory] = useState("all");
-    const [selectedSituation, setSelectedSituation] = useState("");
-    const [selectedMap, setSelectedMap] = useState("");
-    const [selectedAgentCategory, setSelectedAgentCategory] = useState("");
-    const [selectedAgent, setSelectedAgent] = useState("");
+    const [selectedSituations, setSelectedSituations] = useState([]);
+    const [selectedMaps, setSelectedMaps] = useState([]);
+    const [selectedAgents, setSelectedAgents] = useState([]);
     const [agentSearch, setAgentSearch] = useState("");
+    const [showMoreAgents, setShowMoreAgents] = useState(false);
     const [sortBy, setSortBy] = useState("latest");
     const [searchQuery, setSearchQuery] = useState("");
-    const [showMoreAgents, setShowMoreAgents] = useState(false);
+    const [posts, setPosts] = useState([]);
+    const [loading, setLoading] = useState(true);
 
-    // 더미 데이터
-    const mockPosts = [
-        {
-            id: 1,
-            title: "스파이크 설치 후 팀원이 이상한 곳에서 수비하는 상황",
-            votes: 31,
-            views: 203,
-            tags: ["스파이크", "포지셔닝", "팀워크"],
-            author: { nickname: "레이나마스터", tier: "Diamond" },
-            commentCount: 18,
-            createdAt: new Date(Date.now() - 1000 * 60 * 45), // 45분 전
-        },
-        {
-            id: 2,
-            title: "듀얼리스트가 엔트리 안 하고 뒤에서 킬 스틸만 하는 경우",
-            votes: 52,
-            views: 341,
-            tags: ["듀얼리스트", "엔트리", "역할"],
-            author: { nickname: "제트원챔", tier: "Immortal" },
-            commentCount: 27,
-            createdAt: new Date(Date.now() - 1000 * 60 * 60 * 1), // 1시간 전
-        },
-        {
-            id: 3,
-            title: "센티넬이 사이트 안 지키고 로밍하는 상황",
-            votes: 24,
-            views: 127,
-            tags: ["센티넬", "사이트 수비", "로밍"],
-            author: { nickname: "사이퍼장인", tier: "Ascendant" },
-            commentCount: 12,
-            createdAt: new Date(Date.now() - 1000 * 60 * 60 * 3), // 3시간 전
-        },
-    ];
+    // 태그 데이터
+    const tagData = communityTags.valorant;
 
-    const situations = [];
+    // 역할군별 요원 그룹화
+    const agentsByRole = {
+        타격대: tagData.agents
+            .filter((agent) => agent.role === "타격대")
+            .map((agent) => agent.name),
+        감시자: tagData.agents
+            .filter((agent) => agent.role === "감시자")
+            .map((agent) => agent.name),
+        척후대: tagData.agents
+            .filter((agent) => agent.role === "척후대")
+            .map((agent) => agent.name),
+        전략가: tagData.agents
+            .filter((agent) => agent.role === "전략가")
+            .map((agent) => agent.name),
+    };
 
-    const maps = [];
+    // 요원의 역할군 찾기
+    const getAgentRole = (agentName) => {
+        const agent = tagData.agents.find((a) => a.name === agentName);
+        return agent ? agent.role : null;
+    };
 
-    const agentCategories = [];
+    // 검색어에 맞는 요원 필터링
+    const filteredAgents = agentSearch
+        ? Object.entries(agentsByRole).reduce((acc, [role, agents]) => {
+              const filtered = agents.filter((agent) =>
+                  agent.toLowerCase().includes(agentSearch.toLowerCase())
+              );
+              if (filtered.length > 0) {
+                  acc[role] = filtered;
+              }
+              return acc;
+          }, {})
+        : agentsByRole;
+
+    // 필터 변경 시 API 호출
+    useEffect(() => {
+        const fetchPosts = async () => {
+            setLoading(true);
+            try {
+                // TODO: 실제 API 호출로 대체
+                const filters = {
+                    situations: selectedSituations,
+                    maps: selectedMaps,
+                    agents: selectedAgents,
+                    sortBy,
+                    search: searchQuery,
+                };
+                console.log("Fetching posts with filters:", filters);
+
+                // 임시 데이터
+                const mockPosts = [
+                    {
+                        id: 1,
+                        title: "스파이크 설치 후 팀원이 이상한 곳에서 수비하는 상황",
+                        votes: 31,
+                        views: 203,
+                        tags: ["스파이크", "포지셔닝", "팀워크"],
+                        author: { nickname: "레이나마스터", tier: "Diamond" },
+                        commentCount: 18,
+                        createdAt: new Date(Date.now() - 1000 * 60 * 45),
+                    },
+                    {
+                        id: 2,
+                        title: "듀얼리스트가 엔트리 안 하고 뒤에서 킬 스틸만 하는 경우",
+                        votes: 52,
+                        views: 341,
+                        tags: ["듀얼리스트", "엔트리", "역할"],
+                        author: { nickname: "제트원챔", tier: "Immortal" },
+                        commentCount: 27,
+                        createdAt: new Date(Date.now() - 1000 * 60 * 60 * 1),
+                    },
+                    {
+                        id: 3,
+                        title: "센티넬이 사이트 안 지키고 로밍하는 상황",
+                        votes: 24,
+                        views: 127,
+                        tags: ["센티넬", "사이트 수비", "로밍"],
+                        author: { nickname: "사이퍼장인", tier: "Ascendant" },
+                        commentCount: 12,
+                        createdAt: new Date(Date.now() - 1000 * 60 * 60 * 3),
+                    },
+                ];
+
+                setPosts(mockPosts);
+            } catch (error) {
+                console.error("Error fetching posts:", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchPosts();
+    }, [selectedSituations, selectedMaps, selectedAgents, sortBy, searchQuery]);
 
     // 필터 핸들러 함수들
     const handleSortChange = (sortType) => {
-        console.log("정렬 변경:", sortType);
-        // TODO: 백엔드 API 호출
+        setSortBy(sortType);
     };
 
     const handleSearchChange = (query) => {
-        console.log("검색어 변경:", query);
-        // TODO: 백엔드 API 호출
+        setSearchQuery(query);
+    };
+
+    // 필터 토글 핸들러
+    const toggleSituation = (situation) => {
+        setSelectedSituations((prev) =>
+            prev.includes(situation)
+                ? prev.filter((s) => s !== situation)
+                : [...prev, situation]
+        );
+    };
+
+    const toggleMap = (map) => {
+        setSelectedMaps((prev) =>
+            prev.includes(map) ? prev.filter((m) => m !== map) : [...prev, map]
+        );
+    };
+
+    const toggleAgent = (agent) => {
+        setSelectedAgents((prev) =>
+            prev.includes(agent)
+                ? prev.filter((a) => a !== agent)
+                : [...prev, agent]
+        );
+    };
+
+    // 전체 필터 초기화
+    const clearAllFilters = () => {
+        setSelectedSituations([]);
+        setSelectedMaps([]);
+        setSelectedAgents([]);
     };
 
     return (
         <div className="min-h-screen bg-gray-50">
-            {/* 1. Community Info */}
             <CommunityHeader
                 gameType="valorant"
                 title="발로란트 법원"
-                description="전술적 FPS에서 발생한 분쟁을 공정하게 심판합니다"
+                description="발로란트에서 발생한 분쟁을 공정하게 심판합니다"
             />
 
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                <div className="flex gap-8">
-                    {/* 2. Sidebar */}
-                    <div className="w-64 flex-shrink-0">
-                        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sticky top-24">
-                            <h3 className="font-semibold text-gray-900 mb-4">
-                                카테고리
-                            </h3>
-
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+                <div className="flex gap-6">
+                    {/* 왼쪽 필터 */}
+                    <div className="w-48 flex-shrink-0">
+                        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-2 sticky top-24">
                             {/* 전체 */}
-                            <button
-                                onClick={() => setSelectedCategory("all")}
-                                className={`w-full text-left px-3 py-2 rounded-lg mb-2 transition-colors ${
-                                    selectedCategory === "all"
-                                        ? "bg-valorant-100 text-valorant-700 font-medium"
-                                        : "hover:bg-gray-100"
-                                }`}
-                            >
-                                전체
-                            </button>
+                            <label className="flex items-center px-2 py-1 hover:bg-gray-50 rounded cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    checked={
+                                        !selectedSituations.length &&
+                                        !selectedMaps.length &&
+                                        !selectedAgents.length
+                                    }
+                                    onChange={() => {
+                                        if (
+                                            selectedSituations.length ||
+                                            selectedMaps.length ||
+                                            selectedAgents.length
+                                        ) {
+                                            clearAllFilters();
+                                        }
+                                    }}
+                                    className="w-4 h-4 mr-2 rounded border-gray-300 text-valorant-600 focus:ring-valorant-500"
+                                />
+                                <span className="text-sm">전체</span>
+                            </label>
 
                             {/* 상황별 */}
-                            <div className="mb-4">
-                                <button
-                                    onClick={() =>
-                                        setSelectedCategory("situation")
-                                    }
-                                    className={`w-full text-left px-3 py-2 rounded-lg mb-2 transition-colors ${
-                                        selectedCategory === "situation"
-                                            ? "bg-valorant-100 text-valorant-700 font-medium"
-                                            : "hover:bg-gray-100"
-                                    }`}
-                                >
+                            <div className="mt-3">
+                                <h3 className="font-medium text-gray-900 px-2 mb-2 text-sm">
                                     상황별
-                                </button>
-
-                                {selectedCategory === "situation" && (
-                                    <div className="ml-4 space-y-1">
-                                        {situations.map((situation) => (
-                                            <button
-                                                key={situation}
-                                                onClick={() =>
-                                                    setSelectedSituation(
-                                                        situation
-                                                    )
-                                                }
-                                                className={`w-full text-left px-2 py-1 text-sm rounded transition-colors ${
-                                                    selectedSituation ===
+                                </h3>
+                                <div>
+                                    {tagData.situations.map((situation) => (
+                                        <label
+                                            key={situation}
+                                            className="flex items-center px-2 py-0.5 hover:bg-gray-50 rounded cursor-pointer"
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedSituations.includes(
                                                     situation
-                                                        ? "bg-valorant-50 text-valorant-600"
-                                                        : "hover:bg-gray-50"
-                                                }`}
-                                            >
+                                                )}
+                                                onChange={() =>
+                                                    toggleSituation(situation)
+                                                }
+                                                className="w-4 h-4 mr-2 rounded border-gray-300 text-valorant-600 focus:ring-valorant-500"
+                                            />
+                                            <span className="text-sm">
                                                 {situation}
-                                            </button>
-                                        ))}
-                                    </div>
-                                )}
+                                            </span>
+                                        </label>
+                                    ))}
+                                </div>
                             </div>
 
                             {/* 맵별 */}
-                            <div className="mb-4">
-                                <button
-                                    onClick={() => setSelectedCategory("map")}
-                                    className={`w-full text-left px-3 py-2 rounded-lg mb-2 transition-colors ${
-                                        selectedCategory === "map"
-                                            ? "bg-valorant-100 text-valorant-700 font-medium"
-                                            : "hover:bg-gray-100"
-                                    }`}
-                                >
+                            <div className="mt-3">
+                                <h3 className="font-medium text-gray-900 px-2 mb-2 text-sm">
                                     맵별
-                                </button>
-
-                                {selectedCategory === "map" && (
-                                    <div className="ml-4 space-y-1">
-                                        {maps.map((map) => (
-                                            <button
-                                                key={map}
-                                                onClick={() =>
-                                                    setSelectedMap(map)
-                                                }
-                                                className={`w-full text-left px-2 py-1 text-sm rounded transition-colors ${
-                                                    selectedMap === map
-                                                        ? "bg-valorant-50 text-valorant-600"
-                                                        : "hover:bg-gray-50"
-                                                }`}
-                                            >
+                                </h3>
+                                <div>
+                                    {tagData.maps.map((map) => (
+                                        <label
+                                            key={map}
+                                            className="flex items-center px-2 py-0.5 hover:bg-gray-50 rounded cursor-pointer"
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedMaps.includes(
+                                                    map
+                                                )}
+                                                onChange={() => toggleMap(map)}
+                                                className="w-4 h-4 mr-2 rounded border-gray-300 text-valorant-600 focus:ring-valorant-500"
+                                            />
+                                            <span className="text-sm">
                                                 {map}
-                                            </button>
-                                        ))}
-                                    </div>
-                                )}
+                                            </span>
+                                        </label>
+                                    ))}
+                                </div>
                             </div>
 
-                            {/* 에이전트별 */}
-                            <div>
-                                <button
-                                    onClick={() => setSelectedCategory("agent")}
-                                    className={`w-full text-left px-3 py-2 rounded-lg mb-2 transition-colors ${
-                                        selectedCategory === "agent"
-                                            ? "bg-valorant-100 text-valorant-700 font-medium"
-                                            : "hover:bg-gray-100"
-                                    }`}
-                                >
-                                    에이전트별
-                                </button>
-
-                                {selectedCategory === "agent" && (
-                                    <div className="ml-4">
-                                        {/* 에이전트 검색 */}
-                                        <input
-                                            type="text"
-                                            placeholder="에이전트 검색..."
-                                            value={agentSearch}
-                                            onChange={(e) =>
-                                                setAgentSearch(e.target.value)
-                                            }
-                                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg mb-3 focus:ring-2 focus:ring-valorant-500 focus:border-transparent"
-                                        />
-
-                                        {/* 에이전트 카테고리 */}
-                                        <div className="space-y-2">
-                                            {agentCategories.map((category) => (
-                                                <div key={category.key}>
-                                                    <button
-                                                        onClick={() =>
-                                                            setSelectedAgentCategory(
-                                                                category.key
-                                                            )
-                                                        }
-                                                        className={`w-full text-left px-2 py-1 text-sm rounded transition-colors ${
-                                                            selectedAgentCategory ===
-                                                            category.key
-                                                                ? "bg-valorant-50 text-valorant-600 font-medium"
-                                                                : "hover:bg-gray-50"
-                                                        }`}
-                                                    >
-                                                        {category.name}
-                                                    </button>
-
-                                                    {selectedAgentCategory ===
-                                                        category.key && (
-                                                        <div className="ml-4 mt-1">
-                                                            <div className="text-xs text-gray-500 text-center py-2">
-                                                                에이전트 데이터
-                                                                준비중...
-                                                            </div>
-                                                        </div>
-                                                    )}
+                            {/* 요원별 */}
+                            <div className="mt-3">
+                                <h3 className="font-medium text-gray-900 px-2 mb-2 text-sm">
+                                    요원별
+                                </h3>
+                                <div className="px-2 mb-2">
+                                    <input
+                                        type="text"
+                                        placeholder="요원 검색..."
+                                        value={agentSearch}
+                                        onChange={(e) =>
+                                            setAgentSearch(e.target.value)
+                                        }
+                                        className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-valorant-500"
+                                    />
+                                </div>
+                                <div className="max-h-48 overflow-y-auto">
+                                    {Object.entries(filteredAgents).map(
+                                        ([role, agents]) => (
+                                            <div key={role} className="mb-2">
+                                                <div className="px-2 py-1 text-xs font-medium text-gray-500">
+                                                    {role}
                                                 </div>
-                                            ))}
-                                        </div>
-
-                                        {!showMoreAgents && (
-                                            <button
-                                                onClick={() =>
-                                                    setShowMoreAgents(true)
-                                                }
-                                                className="w-full text-sm text-valorant-600 hover:text-valorant-700 py-2 mt-2"
-                                            >
-                                                더보기
-                                            </button>
-                                        )}
-                                    </div>
-                                )}
+                                                {agents.map((agent) => (
+                                                    <label
+                                                        key={agent}
+                                                        className="flex items-center px-2 py-0.5 hover:bg-gray-50 rounded cursor-pointer"
+                                                    >
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={selectedAgents.includes(
+                                                                agent
+                                                            )}
+                                                            onChange={() =>
+                                                                toggleAgent(
+                                                                    agent
+                                                                )
+                                                            }
+                                                            className="w-4 h-4 mr-2 rounded border-gray-300 text-valorant-600 focus:ring-valorant-500"
+                                                        />
+                                                        <span className="text-sm">
+                                                            {agent}
+                                                        </span>
+                                                    </label>
+                                                ))}
+                                            </div>
+                                        )
+                                    )}
+                                </div>
+                                {!showMoreAgents &&
+                                    Object.values(agentsByRole).flat().length >
+                                        10 && (
+                                        <button
+                                            onClick={() =>
+                                                setShowMoreAgents(true)
+                                            }
+                                            className="w-full text-xs text-valorant-600 hover:text-valorant-700 mt-1 px-2"
+                                        >
+                                            더 보기
+                                        </button>
+                                    )}
                             </div>
                         </div>
                     </div>
 
                     {/* 메인 컨텐츠 */}
                     <div className="flex-1">
-                        {/* 3. Filter */}
                         <PostFilter
                             gameType="valorant"
                             onSortChange={handleSortChange}
                             onSearchChange={handleSearchChange}
                         />
 
-                        {/* 4. Body - 게시글 목록 */}
-                        <div className="space-y-4">
-                            {mockPosts.map((post) => (
-                                <PostCard
-                                    key={post.id}
-                                    post={post}
-                                    gameType="valorant"
-                                />
-                            ))}
-                        </div>
+                        {loading ? (
+                            <div className="flex items-center justify-center h-48">
+                                <div className="text-gray-500">로딩 중...</div>
+                            </div>
+                        ) : (
+                            <>
+                                <div className="space-y-4">
+                                    {posts.map((post) => (
+                                        <PostCard
+                                            key={post.id}
+                                            post={post}
+                                            gameType="valorant"
+                                        />
+                                    ))}
+                                </div>
 
-                        {/* 더 보기 버튼 */}
-                        <div className="text-center mt-8">
-                            <button className="px-6 py-3 bg-valorant-500 text-white rounded-lg hover:bg-valorant-600 transition-colors">
-                                더 많은 게시글 보기
-                            </button>
-                        </div>
+                                <div className="text-center mt-8">
+                                    <button className="px-6 py-3 bg-valorant-500 text-white rounded-lg hover:bg-valorant-600 transition-colors">
+                                        더 많은 게시글 보기
+                                    </button>
+                                </div>
+                            </>
+                        )}
                     </div>
                 </div>
             </div>
 
             {/* 플로팅 글쓰기 버튼 */}
             <div className="fixed bottom-6 right-32 z-50 group flex flex-col items-center">
-                {/* 말풍선 툴팁 */}
                 <div
                     className="mb-4 bg-gray-800 text-white px-3 py-2 rounded-lg text-sm whitespace-nowrap transition-all duration-200"
                     style={{
@@ -285,7 +355,6 @@ export default function ValorantCommunityPage() {
                     }}
                 >
                     ⚖️ 새 재판 열기
-                    {/* 말풍선 꼬리 */}
                     <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800"></div>
                 </div>
 
@@ -322,7 +391,6 @@ export default function ValorantCommunityPage() {
                 </button>
             </div>
 
-            {/* CSS 애니메이션 정의 */}
             <style jsx>{`
                 @keyframes float {
                     0%,

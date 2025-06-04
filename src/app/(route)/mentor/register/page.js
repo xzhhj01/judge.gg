@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 
 export default function MentorRegisterPage() {
-    const [selectedGame, setSelectedGame] = useState("");
+    const [selectedGame, setSelectedGame] = useState("lol");
     const [profileImage, setProfileImage] = useState(null);
     const [nickname, setNickname] = useState("");
     const [oneLineIntro, setOneLineIntro] = useState("");
@@ -18,6 +18,92 @@ export default function MentorRegisterPage() {
     const [newCharacterTag, setNewCharacterTag] = useState("");
     const [newLineTag, setNewLineTag] = useState("");
     const [newExperienceTag, setNewExperienceTag] = useState("");
+
+    const [championSearch, setChampionSearch] = useState("");
+
+    const [selectedCurriculums, setSelectedCurriculums] = useState([]);
+
+    const curriculumOptions = [
+        "영상 피드백",
+        "실시간 원포인트 피드백",
+        "실시간 1:1 강의",
+    ];
+
+    const toggleCurriculum = (curriculum) => {
+        setSelectedCurriculums((prev) => {
+            if (prev.includes(curriculum)) {
+                return prev.filter((item) => item !== curriculum);
+            } else {
+                return [...prev, curriculum];
+            }
+        });
+    };
+
+    const tagData = {
+        lol: {
+            lanes: ["탑", "정글", "미드", "원딜", "서폿"],
+        },
+        valorant: {
+            agents: [
+                "제트",
+                "레이나",
+                "피닉스",
+                "레이즈",
+                "요루",
+                "네온",
+                "세이지",
+                "킬조이",
+                "사이퍼",
+                "소바",
+                "오멘",
+                "브림스톤",
+                "바이퍼",
+                "아스트라",
+            ],
+            maps: [
+                "바인드",
+                "헤이븐",
+                "스플릿",
+                "어센트",
+                "아이스박스",
+                "브리즈",
+                "프랙처",
+                "펄",
+            ],
+        },
+    };
+
+    const featureTags = [
+        "친절함",
+        "열정적임",
+        "전문적임",
+        "유머러스함",
+        "인내심 강함",
+    ];
+
+    const [selectedTags, setSelectedTags] = useState({
+        champions: [],
+        lanes: [],
+        situations: [],
+        maps: [],
+        agents: [],
+        experience: [],
+    });
+
+    const experienceTagList = [
+        "프로게이머",
+        "코치",
+        "연습생",
+        "스트리머",
+        "유튜버",
+        "대회 입상",
+        "고티어",
+    ];
+
+    // 태그 상태 변경 시 강제 렌더링
+    useEffect(() => {
+        console.log("selectedTags changed:", selectedTags);
+    }, [selectedTags]);
 
     // 계정 추가
     const addAccount = () => {
@@ -41,28 +127,32 @@ export default function MentorRegisterPage() {
     };
 
     // 태그 추가
-    const addTag = (type) => {
-        if (type === "character" && newCharacterTag.trim()) {
-            setCharacterTags([...characterTags, newCharacterTag.trim()]);
-            setNewCharacterTag("");
-        } else if (type === "line" && newLineTag.trim()) {
-            setLineTags([...lineTags, newLineTag.trim()]);
-            setNewLineTag("");
-        } else if (type === "experience" && newExperienceTag.trim()) {
-            setExperienceTags([...experienceTags, newExperienceTag.trim()]);
-            setNewExperienceTag("");
+    const addTag = (category, tag) => {
+        if (!selectedTags[category].includes(tag)) {
+            setSelectedTags((prev) => ({
+                ...prev,
+                [category]: [...prev[category], tag],
+            }));
         }
     };
 
     // 태그 제거
-    const removeTag = (type, index) => {
-        if (type === "character") {
-            setCharacterTags(characterTags.filter((_, i) => i !== index));
-        } else if (type === "line") {
-            setLineTags(lineTags.filter((_, i) => i !== index));
-        } else if (type === "experience") {
-            setExperienceTags(experienceTags.filter((_, i) => i !== index));
+    const removeTag = (category, tag) => {
+        setSelectedTags((prev) => ({
+            ...prev,
+            [category]: prev[category].filter((t) => t !== tag),
+        }));
+    };
+
+    // 태그 토글
+    const toggleTag = (category, tag) => {
+        console.log(`Toggling tag: ${tag} in category: ${category}`);
+        if (selectedTags[category].includes(tag)) {
+            removeTag(category, tag);
+        } else {
+            addTag(category, tag);
         }
+        console.log("Updated selectedTags:", selectedTags);
     };
 
     // 경력 상세 추가
@@ -95,23 +185,102 @@ export default function MentorRegisterPage() {
         }
     };
 
-    // 폼 제출
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        // 폼 검증 및 제출 로직
-        console.log({
-            selectedGame,
-            profileImage,
-            nickname,
-            oneLineIntro,
-            accounts,
-            characterTags,
-            lineTags,
-            experienceTags,
-            experienceDetails,
-            detailedIntro,
+    // 게임 선택 시 태그 초기화
+    const handleGameSelection = (game) => {
+        setSelectedGame(game);
+        setSelectedTags({
+            champions: [],
+            lanes: [],
+            situations: [],
+            maps: [],
+            agents: [],
+            experience: [],
         });
-        alert("멘토 등록이 완료되었습니다!");
+    };
+
+    // 폼 제출
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+
+        // 필수 항목 검증
+        if (!nickname.trim()) {
+            alert("닉네임을 입력해주세요.");
+            return;
+        }
+        if (!oneLineIntro.trim()) {
+            alert("한줄 소개를 입력해주세요.");
+            return;
+        }
+        if (!detailedIntro.trim()) {
+            alert("상세 소개를 입력해주세요.");
+            return;
+        }
+        if (!profileImage) {
+            alert("프로필 사진을 업로드해주세요.");
+            return;
+        }
+        if (selectedCurriculums.length === 0) {
+            alert("최소 1개 이상의 커리큘럼을 선택해주세요.");
+            return;
+        }
+        if (!accounts[0].name || !accounts[0].screenshot) {
+            alert("최소 1개의 Riot ID와 스크린샷을 등록해주세요.");
+            return;
+        }
+
+        try {
+            // FormData 객체 생성
+            const formData = new FormData();
+
+            // 기본 정보 추가
+            formData.append("selectedGame", selectedGame);
+            formData.append("nickname", nickname);
+            formData.append("oneLineIntro", oneLineIntro);
+            formData.append("detailedIntro", detailedIntro);
+            formData.append("profileImage", profileImage);
+
+            // 선택된 태그들 추가
+            formData.append("tags", JSON.stringify(selectedTags));
+
+            // 선택된 커리큘럼 추가
+            formData.append("curriculums", JSON.stringify(selectedCurriculums));
+
+            // 계정 정보 추가
+            accounts.forEach((account, index) => {
+                if (account.name && account.screenshot) {
+                    formData.append(`account_${index}_name`, account.name);
+                    formData.append(
+                        `account_${index}_screenshot`,
+                        account.screenshot
+                    );
+                }
+            });
+
+            // 경력 상세 정보 추가
+            formData.append(
+                "experienceDetails",
+                JSON.stringify(experienceDetails)
+            );
+
+            // API 엔드포인트로 데이터 전송
+            const response = await fetch("/api/mentor/register", {
+                method: "POST",
+                body: formData,
+            });
+
+            if (!response.ok) {
+                throw new Error("멘토 등록에 실패했습니다.");
+            }
+
+            const data = await response.json();
+            alert("멘토 등록이 완료되었습니다!");
+
+            // 등록 완료 후 멘토 목록 페이지로 이동
+            window.location.href = "/mentor";
+        } catch (error) {
+            console.error("Error:", error);
+            alert(error.message);
+        }
     };
 
     return (
@@ -155,7 +324,7 @@ export default function MentorRegisterPage() {
                         <div className="grid grid-cols-2 gap-4">
                             <button
                                 type="button"
-                                onClick={() => setSelectedGame("lol")}
+                                onClick={() => handleGameSelection("lol")}
                                 className={`p-4 border-2 rounded-lg transition-colors ${
                                     selectedGame === "lol"
                                         ? "border-blue-500 bg-blue-50"
@@ -171,7 +340,7 @@ export default function MentorRegisterPage() {
                             </button>
                             <button
                                 type="button"
-                                onClick={() => setSelectedGame("valorant")}
+                                onClick={() => handleGameSelection("valorant")}
                                 className={`p-4 border-2 rounded-lg transition-colors ${
                                     selectedGame === "valorant"
                                         ? "border-red-500 bg-red-50"
@@ -230,11 +399,11 @@ export default function MentorRegisterPage() {
                                 />
                                 <label
                                     htmlFor="profile-upload"
-                                    className="bg-primary-500 hover:bg-primary-600 text-black border border-gray-300 px-4 py-2 rounded-lg cursor-pointer transition-colors"
+                                    className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 px-4 py-2 rounded-lg cursor-pointer transition-colors mb-4"
                                 >
                                     사진 업로드
                                 </label>
-                                <p className="text-sm text-gray-500 mt-2">
+                                <p className="text-sm text-gray-500 mt-4">
                                     JPG, PNG 파일만 업로드 가능합니다.
                                 </p>
                             </div>
@@ -278,12 +447,18 @@ export default function MentorRegisterPage() {
                     {/* 계정 정보 */}
                     <section className="bg-white rounded-xl border border-gray-200 p-6">
                         <div className="flex justify-between items-center mb-4">
-                            <h2 className="text-lg font-semibold text-gray-900">
-                                {selectedGame === "lol"
-                                    ? "소환사명"
-                                    : "배틀태그"}{" "}
-                                <span className="text-red-500">*</span>
-                            </h2>
+                            <div>
+                                <h2 className="text-lg font-semibold text-gray-900 mb-2">
+                                    Riot ID{" "}
+                                    <span className="text-red-500">*</span>
+                                </h2>
+                                <p className="text-sm text-gray-500">
+                                    - Riot ID 전적 공개가 되어 있는지 확인해
+                                    주세요.
+                                    <br />- 인증을 위해 Riot ID 마이페이지 캡처
+                                    화면을 업로드해주세요.
+                                </p>
+                            </div>
                             <button
                                 type="button"
                                 onClick={addAccount}
@@ -329,7 +504,7 @@ export default function MentorRegisterPage() {
                                         )}
                                     </div>
 
-                                    <div className="space-y-3">
+                                    <div className="flex items-center space-x-2">
                                         <input
                                             type="text"
                                             value={account.name}
@@ -340,53 +515,31 @@ export default function MentorRegisterPage() {
                                                     e.target.value
                                                 )
                                             }
-                                            placeholder={
-                                                selectedGame === "lol"
-                                                    ? "소환사명을 입력해주세요"
-                                                    : "배틀태그를 입력해주세요"
-                                            }
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                                            placeholder="플레이어 이름 + #태그"
+                                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                                             required
                                         />
-
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                                인증 캡처 화면{" "}
-                                                <span className="text-red-500">
-                                                    *
-                                                </span>
-                                            </label>
-                                            <input
-                                                type="file"
-                                                accept="image/*"
-                                                onChange={(e) =>
-                                                    handleFileUpload(
-                                                        e.target.files[0],
-                                                        "screenshot",
-                                                        index
-                                                    )
-                                                }
-                                                className="hidden"
-                                                id={`screenshot-${index}`}
-                                            />
-                                            <label
-                                                htmlFor={`screenshot-${index}`}
-                                                className="inline-block bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg cursor-pointer transition-colors"
-                                            >
-                                                {account.screenshot
-                                                    ? "파일 변경"
-                                                    : "파일 선택"}
-                                            </label>
-                                            {account.screenshot && (
-                                                <p className="text-sm text-green-600 mt-1">
-                                                    {account.screenshot.name}
-                                                </p>
-                                            )}
-                                            <p className="text-xs text-gray-500 mt-1">
-                                                라이엇 아이디 마이페이지 캡처
-                                                화면을 업로드해주세요
-                                            </p>
-                                        </div>
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            onChange={(e) =>
+                                                handleFileUpload(
+                                                    e.target.files[0],
+                                                    "screenshot",
+                                                    index
+                                                )
+                                            }
+                                            className="hidden"
+                                            id={`screenshot-${index}`}
+                                        />
+                                        <label
+                                            htmlFor={`screenshot-${index}`}
+                                            className="inline-block bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg cursor-pointer transition-colors"
+                                        >
+                                            {account.screenshot
+                                                ? "파일 변경"
+                                                : "파일 선택"}
+                                        </label>
                                     </div>
                                 </div>
                             ))}
@@ -404,106 +557,153 @@ export default function MentorRegisterPage() {
                             <h3 className="font-medium text-gray-900 mb-3">
                                 특징
                             </h3>
-                            <div className="flex flex-wrap gap-2 mb-3">
-                                {characterTags.map((tag, index) => (
-                                    <span
+                            <div className="flex flex-wrap gap-2">
+                                {featureTags.map((tag, index) => (
+                                    <button
                                         key={index}
-                                        className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm flex items-center"
+                                        type="button"
+                                        onClick={() =>
+                                            toggleTag("situations", tag)
+                                        }
+                                        className={`inline-flex px-3 py-1 rounded-full text-sm border transition-colors bg-white text-gray-700 border-gray-300 ${
+                                            selectedTags.situations.includes(
+                                                tag
+                                            )
+                                                ? "bg-green-100"
+                                                : "bg-white"
+                                        }`}
+                                        style={{
+                                            backgroundColor:
+                                                selectedTags.situations.includes(
+                                                    tag
+                                                )
+                                                    ? "#d1fae5"
+                                                    : "#ffffff",
+                                            borderColor:
+                                                selectedTags.situations.includes(
+                                                    tag
+                                                )
+                                                    ? "#34d399"
+                                                    : "#d1d5db",
+                                        }}
                                     >
                                         {tag}
-                                        <button
-                                            type="button"
-                                            onClick={() =>
-                                                removeTag("character", index)
-                                            }
-                                            className="ml-2 text-green-500 hover:text-green-700"
-                                        >
-                                            ×
-                                        </button>
-                                    </span>
+                                    </button>
                                 ))}
-                            </div>
-                            <div className="flex space-x-2">
-                                <input
-                                    type="text"
-                                    value={newCharacterTag}
-                                    onChange={(e) =>
-                                        setNewCharacterTag(e.target.value)
-                                    }
-                                    placeholder="특징 태그 입력"
-                                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                                    onKeyPress={(e) =>
-                                        e.key === "Enter" &&
-                                        (e.preventDefault(),
-                                        addTag("character"))
-                                    }
-                                />
-                                <button
-                                    type="button"
-                                    onClick={() => addTag("character")}
-                                    className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-colors"
-                                >
-                                    추가
-                                </button>
                             </div>
                         </div>
 
-                        {/* 라인 태그 */}
+                        {/* 라인/역할 태그 */}
                         <div className="mb-6">
                             <h3 className="font-medium text-gray-900 mb-3">
-                                라인
+                                {selectedGame === "valorant" ? "역할" : "라인"}
                             </h3>
-                            <div className="flex flex-wrap gap-2 mb-3">
-                                {lineTags.map((tag, index) => (
-                                    <span
+                            <div className="flex flex-wrap gap-2">
+                                {(selectedGame === "valorant"
+                                    ? tagData[selectedGame]?.agents
+                                    : tagData[selectedGame]?.lanes
+                                ).map((tag, index) => (
+                                    <button
                                         key={index}
-                                        className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm flex items-center"
+                                        type="button"
+                                        onClick={() =>
+                                            toggleTag(
+                                                selectedGame === "valorant"
+                                                    ? "agents"
+                                                    : "lanes",
+                                                tag
+                                            )
+                                        }
+                                        className={`inline-flex px-3 py-1 rounded-full text-sm border transition-colors bg-white text-gray-700 border-gray-300 ${
+                                            selectedTags[
+                                                selectedGame === "valorant"
+                                                    ? "agents"
+                                                    : "lanes"
+                                            ].includes(tag)
+                                                ? "bg-purple-100"
+                                                : "bg-white"
+                                        }`}
+                                        style={{
+                                            backgroundColor: selectedTags[
+                                                selectedGame === "valorant"
+                                                    ? "agents"
+                                                    : "lanes"
+                                            ].includes(tag)
+                                                ? "#e9d5ff"
+                                                : "#ffffff",
+                                            borderColor: selectedTags[
+                                                selectedGame === "valorant"
+                                                    ? "agents"
+                                                    : "lanes"
+                                            ].includes(tag)
+                                                ? "#a78bfa"
+                                                : "#d1d5db",
+                                        }}
                                     >
                                         {tag}
-                                        <button
-                                            type="button"
-                                            onClick={() =>
-                                                removeTag("line", index)
-                                            }
-                                            className="ml-2 text-purple-500 hover:text-purple-700"
-                                        >
-                                            ×
-                                        </button>
-                                    </span>
+                                    </button>
                                 ))}
-                            </div>
-                            <div className="flex space-x-2">
-                                <input
-                                    type="text"
-                                    value={newLineTag}
-                                    onChange={(e) =>
-                                        setNewLineTag(e.target.value)
-                                    }
-                                    placeholder="라인 태그 입력"
-                                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                                    onKeyPress={(e) =>
-                                        e.key === "Enter" &&
-                                        (e.preventDefault(), addTag("line"))
-                                    }
-                                />
-                                <button
-                                    type="button"
-                                    onClick={() => addTag("line")}
-                                    className="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg transition-colors"
-                                >
-                                    추가
-                                </button>
                             </div>
                         </div>
 
-                        {/* 챔피언 태그 (추후 추가) */}
-                        <div>
+                        {/* 챔피언/요원 태그 */}
+                        <div className="mb-6">
                             <h3 className="font-medium text-gray-900 mb-3">
-                                챔피언
+                                {selectedGame === "valorant"
+                                    ? "요원"
+                                    : "챔피언"}
                             </h3>
-                            <p className="text-sm text-gray-500">
-                                추후 업데이트 예정입니다.
-                            </p>
+                            <input
+                                type="text"
+                                placeholder="챔피언 태그를 검색하세요..."
+                                value={championSearch}
+                                onChange={(e) =>
+                                    setChampionSearch(e.target.value)
+                                }
+                                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-3"
+                            />
+                            <div className="flex flex-wrap gap-2">
+                                {tagData[selectedGame]?.champions
+                                    ?.filter((tag) =>
+                                        tag
+                                            .toLowerCase()
+                                            .includes(
+                                                championSearch.toLowerCase()
+                                            )
+                                    )
+                                    ?.map((tag, index) => (
+                                        <button
+                                            key={index}
+                                            type="button"
+                                            onClick={() =>
+                                                toggleTag("champions", tag)
+                                            }
+                                            className={`inline-flex px-3 py-1 rounded-full text-sm border transition-colors bg-white text-gray-700 border-gray-300 ${
+                                                selectedTags.champions.includes(
+                                                    tag
+                                                )
+                                                    ? "bg-blue-100"
+                                                    : "bg-white"
+                                            }`}
+                                            style={{
+                                                backgroundColor:
+                                                    selectedTags.champions.includes(
+                                                        tag
+                                                    )
+                                                        ? "#bfdbfe"
+                                                        : "#ffffff",
+                                                borderColor:
+                                                    selectedTags.champions.includes(
+                                                        tag
+                                                    )
+                                                        ? "#60a5fa"
+                                                        : "#d1d5db",
+                                            }}
+                                        >
+                                            {tag}
+                                        </button>
+                                    ))}
+                            </div>
                         </div>
                     </section>
 
@@ -518,47 +718,39 @@ export default function MentorRegisterPage() {
                             <h3 className="font-medium text-gray-900 mb-3">
                                 경력 태그
                             </h3>
-                            <div className="flex flex-wrap gap-2 mb-3">
-                                {experienceTags.map((tag, index) => (
-                                    <span
+                            <div className="flex flex-wrap gap-2">
+                                {experienceTagList.map((tag, index) => (
+                                    <button
                                         key={index}
-                                        className="px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-sm flex items-center"
+                                        type="button"
+                                        onClick={() =>
+                                            toggleTag("experience", tag)
+                                        }
+                                        className={`inline-flex px-3 py-1 rounded-full text-sm border transition-colors bg-white text-gray-700 border-gray-300 ${
+                                            selectedTags.experience?.includes(
+                                                tag
+                                            )
+                                                ? "bg-orange-100"
+                                                : "bg-white"
+                                        }`}
+                                        style={{
+                                            backgroundColor:
+                                                selectedTags.experience?.includes(
+                                                    tag
+                                                )
+                                                    ? "#ffedd5"
+                                                    : "#ffffff",
+                                            borderColor:
+                                                selectedTags.experience?.includes(
+                                                    tag
+                                                )
+                                                    ? "#fb923c"
+                                                    : "#d1d5db",
+                                        }}
                                     >
                                         {tag}
-                                        <button
-                                            type="button"
-                                            onClick={() =>
-                                                removeTag("experience", index)
-                                            }
-                                            className="ml-2 text-orange-500 hover:text-orange-700"
-                                        >
-                                            ×
-                                        </button>
-                                    </span>
+                                    </button>
                                 ))}
-                            </div>
-                            <div className="flex space-x-2">
-                                <input
-                                    type="text"
-                                    value={newExperienceTag}
-                                    onChange={(e) =>
-                                        setNewExperienceTag(e.target.value)
-                                    }
-                                    placeholder="경력 태그 입력 (예: 프로게이머, 코치, 스트리머)"
-                                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                                    onKeyPress={(e) =>
-                                        e.key === "Enter" &&
-                                        (e.preventDefault(),
-                                        addTag("experience"))
-                                    }
-                                />
-                                <button
-                                    type="button"
-                                    onClick={() => addTag("experience")}
-                                    className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg transition-colors"
-                                >
-                                    추가
-                                </button>
                             </div>
                         </div>
 
@@ -622,6 +814,65 @@ export default function MentorRegisterPage() {
                         </div>
                     </section>
 
+                    {/* 커리큘럼 선택 */}
+                    <section className="bg-white rounded-xl border border-gray-200 p-6">
+                        <h2 className="text-lg font-semibold text-gray-900 mb-6">
+                            커리큘럼 선택{" "}
+                            <span className="text-red-500">*</span>
+                        </h2>
+                        <div className="space-y-4">
+                            {curriculumOptions.map((curriculum, index) => (
+                                <label
+                                    key={index}
+                                    className="flex items-center space-x-3 cursor-pointer group"
+                                >
+                                    <div className="relative">
+                                        <input
+                                            type="checkbox"
+                                            checked={selectedCurriculums.includes(
+                                                curriculum
+                                            )}
+                                            onChange={() =>
+                                                toggleCurriculum(curriculum)
+                                            }
+                                            className="hidden"
+                                        />
+                                        <div
+                                            className={`w-5 h-5 border rounded transition-colors ${
+                                                selectedCurriculums.includes(
+                                                    curriculum
+                                                )
+                                                    ? "bg-primary-500 border-primary-500"
+                                                    : "border-gray-300 group-hover:border-primary-500"
+                                            }`}
+                                        >
+                                            {selectedCurriculums.includes(
+                                                curriculum
+                                            ) && (
+                                                <svg
+                                                    className="w-5 h-5 text-white"
+                                                    fill="none"
+                                                    stroke="currentColor"
+                                                    viewBox="0 0 24 24"
+                                                >
+                                                    <path
+                                                        strokeLinecap="round"
+                                                        strokeLinejoin="round"
+                                                        strokeWidth="2"
+                                                        d="M5 13l4 4L19 7"
+                                                    />
+                                                </svg>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <span className="text-gray-700 group-hover:text-gray-900">
+                                        {curriculum}
+                                    </span>
+                                </label>
+                            ))}
+                        </div>
+                    </section>
+
                     {/* 상세 소개 */}
                     <section className="bg-white rounded-xl border border-gray-200 p-6">
                         <h2 className="text-lg font-semibold text-gray-900 mb-4">
@@ -644,9 +895,9 @@ export default function MentorRegisterPage() {
                     <div className="flex justify-center pt-6">
                         <button
                             type="submit"
-                            className="bg-primary-500 hover:bg-primary-600 text-white px-8 py-3 rounded-lg font-medium text-lg transition-colors"
+                            className="bg-blue-500 hover:bg-blue-600 text-white font-bold px-8 py-3 rounded-lg text-lg transition-colors shadow-md hover:shadow-lg"
                         >
-                            멘토 등록 신청하기
+                            멘토 신청하기
                         </button>
                     </div>
                 </form>
