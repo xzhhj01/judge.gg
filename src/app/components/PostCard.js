@@ -43,26 +43,6 @@ export default function PostCard({ post, gameType }) {
                     <h3 className="text-lg font-semibold text-gray-900 flex-1 mr-4 line-clamp-2">
                         {post.title}
                     </h3>
-                    <div
-                        className={`flex items-center space-x-1 bg-${themeColor}-50 px-2 py-1 rounded-lg flex-shrink-0`}
-                    >
-                        <svg
-                            className={`w-4 h-4 text-${themeColor}-500`}
-                            fill="currentColor"
-                            viewBox="0 0 20 20"
-                        >
-                            <path
-                                fillRule="evenodd"
-                                d="M3.293 9.707a1 1 0 010-1.414l6-6a1 1 0 011.414 0l6 6a1 1 0 01-1.414 1.414L11 5.414V17a1 1 0 11-2 0V5.414L4.707 9.707a1 1 0 01-1.414 0z"
-                                clipRule="evenodd"
-                            />
-                        </svg>
-                        <span
-                            className={`text-sm font-medium text-${themeColor}-700`}
-                        >
-                            {post.votes}
-                        </span>
-                    </div>
                 </div>
 
                 {/* 중간: 태그들 */}
@@ -94,24 +74,12 @@ export default function PostCard({ post, gameType }) {
                             </span>
                         </div>
 
-                        {/* 댓글 수 */}
-                        <div className="flex items-center space-x-1">
-                            <svg
-                                className="w-4 h-4"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                            >
-                                <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-                                />
-                            </svg>
-                            <span>{post.commentCount}</span>
-                        </div>
+                        {/* 작성시간 */}
+                        <span>{formatTimeAgo(post.createdAt)}</span>
+                    </div>
 
+                    {/* 통계 정보들 */}
+                    <div className="flex items-center space-x-3">
                         {/* 조회수 */}
                         <div className="flex items-center space-x-1">
                             <svg
@@ -135,10 +103,43 @@ export default function PostCard({ post, gameType }) {
                             </svg>
                             <span>{post.views}</span>
                         </div>
-                    </div>
 
-                    {/* 시간 */}
-                    <span>{formatTimeAgo(post.createdAt)}</span>
+                        {/* 댓글 수 */}
+                        <div className="flex items-center space-x-1">
+                            <svg
+                                className="w-4 h-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+                                />
+                            </svg>
+                            <span>{post.commentCount}</span>
+                        </div>
+
+                        {/* 추천수 */}
+                        <div className="flex items-center space-x-1 bg-blue-50 px-2 py-1 rounded-lg">
+                            <svg
+                                className="w-4 h-4 text-blue-500"
+                                fill="currentColor"
+                                viewBox="0 0 20 20"
+                            >
+                                <path
+                                    fillRule="evenodd"
+                                    d="M3.293 9.707a1 1 0 010-1.414l6-6a1 1 0 011.414 0l6 6a1 1 0 01-1.414 1.414L11 5.414V17a1 1 0 11-2 0V5.414L4.707 9.707a1 1 0 01-1.414 0z"
+                                    clipRule="evenodd"
+                                />
+                            </svg>
+                            <span className="text-base font-medium text-blue-700">
+                                {post.votes}
+                            </span>
+                        </div>
+                    </div>
                 </div>
             </div>
         </Link>

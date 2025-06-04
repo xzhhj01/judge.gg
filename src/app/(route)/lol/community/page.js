@@ -3,6 +3,7 @@
 import { useState } from "react";
 import PostCard from "../../../components/PostCard";
 import PostFilter from "../../../components/PostFilter";
+import CommunityHeader from "../../../components/CommunityHeader";
 
 export default function LoLCommunityPage() {
     const [selectedCategory, setSelectedCategory] = useState("all");
@@ -61,34 +62,11 @@ export default function LoLCommunityPage() {
     return (
         <div className="min-h-screen bg-gray-50">
             {/* 1. Community Info */}
-            <div className="relative h-40 bg-gradient-to-r from-lol-400 to-lol-600 overflow-hidden">
-                {/* 배경 이미지 영역 */}
-                <div className="absolute inset-0 bg-black bg-opacity-20"></div>
-
-                <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-end pb-6">
-                    {/* 게임 로고 아이콘 영역 */}
-                    <div className="flex items-center space-x-4">
-                        <div className="w-16 h-16 bg-white rounded-lg flex items-center justify-center shadow-lg">
-                            <img
-                                src="/logo-lol.svg"
-                                alt="LoL"
-                                className="w-10 h-10"
-                            />
-                        </div>
-
-                        {/* 설명 */}
-                        <div className="text-white">
-                            <h1 className="text-3xl font-bold mb-2">
-                                리그 오브 레전드 법원
-                            </h1>
-                            <p className="text-lol-100">
-                                소환사의 협곡에서 발생한 분쟁을 공정하게
-                                심판합니다
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            <CommunityHeader
+                gameType="lol"
+                title="리그 오브 레전드 법원"
+                description="소환사의 협곡에서 발생한 분쟁을 공정하게 심판합니다"
+            />
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 <div className="flex gap-8">
