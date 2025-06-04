@@ -230,7 +230,7 @@ export default function MentorRegisterPage() {
                                 />
                                 <label
                                     htmlFor="profile-upload"
-                                    className="bg-primary-500 hover:bg-primary-600 text-white px-4 py-2 rounded-lg cursor-pointer transition-colors"
+                                    className="bg-primary-500 hover:bg-primary-600 text-black border border-gray-300 px-4 py-2 rounded-lg cursor-pointer transition-colors"
                                 >
                                     사진 업로드
                                 </label>
@@ -259,7 +259,7 @@ export default function MentorRegisterPage() {
                     {/* 한줄소개 */}
                     <section className="bg-white rounded-xl border border-gray-200 p-6">
                         <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                            한줄소개 <span className="text-red-500">*</span>
+                            한줄 소개 <span className="text-red-500">*</span>
                         </h2>
                         <input
                             type="text"
@@ -625,7 +625,7 @@ export default function MentorRegisterPage() {
                     {/* 상세 소개 */}
                     <section className="bg-white rounded-xl border border-gray-200 p-6">
                         <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                            상세 소개
+                            상세 소개 <span className="text-red-500">*</span>
                         </h2>
                         <textarea
                             value={detailedIntro}
@@ -633,6 +633,7 @@ export default function MentorRegisterPage() {
                             placeholder="자신에 대해 자세히 소개해주세요. 멘토링 스타일, 강점, 경험 등을 포함해주세요."
                             rows={6}
                             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none"
+                            required
                         />
                         <p className="text-sm text-gray-500 mt-2">
                             {detailedIntro.length}/1000자
