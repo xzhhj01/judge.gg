@@ -313,9 +313,9 @@ export const userService = {
       console.log(`🔍 getUserStats 시작 - userId: ${userId}`);
       
       const stats = {
-        all: { posts: 0, commentedPosts: 0, votedPosts: 0, likedMentors: 0 },
-        lol: { posts: 0, commentedPosts: 0, votedPosts: 0, likedMentors: 0 },
-        valorant: { posts: 0, commentedPosts: 0, votedPosts: 0, likedMentors: 0 }
+        all: { posts: 0, commentedPosts: 0, votedPosts: 0, likedMentors: 0, requestedFeedbacks: 0, receivedFeedbacks: 0 },
+        lol: { posts: 0, commentedPosts: 0, votedPosts: 0, likedMentors: 0, requestedFeedbacks: 0, receivedFeedbacks: 0 },
+        valorant: { posts: 0, commentedPosts: 0, votedPosts: 0, likedMentors: 0, requestedFeedbacks: 0, receivedFeedbacks: 0 }
       };
 
       // 작성한 게시글 수 계산 (사용자 객체 정보 전달)
@@ -328,40 +328,77 @@ export const userService = {
       stats.valorant.posts = valorantPosts.length;
       stats.all.posts = lolPosts.length + valorantPosts.length;
 
-      // 댓글 단 게시글 수 계산 (중복 제거)
-      const lolCommentedPosts = await this.getUserCommentedPosts(userId, 'lol', userObject);
-      const valorantCommentedPosts = await this.getUserCommentedPosts(userId, 'valorant', userObject);
+      // 댓글 단 게시글 수 계산 (실제 존재하는 게시글만)
+      const lolCommentedPostsData = await this.getUserCommentedPostsData(userId, 'lol', userObject);
+      const valorantCommentedPostsData = await this.getUserCommentedPostsData(userId, 'valorant', userObject);
       
-      console.log(`🔍 통계 계산 - LoL 댓글: ${lolCommentedPosts.length}개, Valorant 댓글: ${valorantCommentedPosts.length}개`);
+      console.log(`🔍 통계 계산 - LoL 댓글 (실존): ${lolCommentedPostsData.length}개, Valorant 댓글 (실존): ${valorantCommentedPostsData.length}개`);
       
-      stats.lol.commentedPosts = lolCommentedPosts.length;
-      stats.valorant.commentedPosts = valorantCommentedPosts.length;
-      stats.all.commentedPosts = lolCommentedPosts.length + valorantCommentedPosts.length;
+      stats.lol.commentedPosts = lolCommentedPostsData.length;
+      stats.valorant.commentedPosts = valorantCommentedPostsData.length;
+      stats.all.commentedPosts = lolCommentedPostsData.length + valorantCommentedPostsData.length;
 
-      // 투표한 게시글 수 계산
-      const lolVotedPosts = await this.getUserVotedPosts(userId, 'lol');
-      const valorantVotedPosts = await this.getUserVotedPosts(userId, 'valorant');
+      // 투표한 게시글 수 계산 (실제 존재하는 게시글만)
+      const lolVotedPostsData = await this.getUserVotedPostsData(userId, 'lol');
+      const valorantVotedPostsData = await this.getUserVotedPostsData(userId, 'valorant');
       
-      console.log(`🔍 통계 계산 - LoL 투표: ${lolVotedPosts.length}개, Valorant 투표: ${valorantVotedPosts.length}개`);
+      console.log(`🔍 통계 계산 - LoL 투표 (실존): ${lolVotedPostsData.length}개, Valorant 투표 (실존): ${valorantVotedPostsData.length}개`);
       
-      stats.lol.votedPosts = lolVotedPosts.length;
-      stats.valorant.votedPosts = valorantVotedPosts.length;
-      stats.all.votedPosts = lolVotedPosts.length + valorantVotedPosts.length;
+      stats.lol.votedPosts = lolVotedPostsData.length;
+      stats.valorant.votedPosts = valorantVotedPostsData.length;
+      stats.all.votedPosts = lolVotedPostsData.length + valorantVotedPostsData.length;
 
       // 찜한 멘토 수 계산
       const likedMentorsCount = await this.getUserLikedMentorsCount(userId);
       stats.lol.likedMentors = likedMentorsCount;
       stats.valorant.likedMentors = likedMentorsCount;
       stats.all.likedMentors = likedMentorsCount;
+
+      // 피드백 통계 계산
+      const requestedFeedbacks = await this.getUserRequestedFeedbacks(userId);
       
+      // 받은 피드백 계산을 위해 멘토 ID 찾기
+      let receivedFeedbacks = [];
+      try {
+        const mentorQuery = query(
+          collection(db, 'mentors'),
+          where('userId', '==', userId)
+        );
+        const mentorSnapshot = await getDocs(mentorQuery);
+        
+        if (!mentorSnapshot.empty) {
+          const mentorDoc = mentorSnapshot.docs[0];
+          const mentorId = mentorDoc.id;
+          receivedFeedbacks = await this.getMentorReceivedFeedbacks(mentorId);
+          console.log(`🔍 멘토 ${mentorId}의 받은 피드백: ${receivedFeedbacks.length}개`);
+        }
+      } catch (error) {
+        console.error('멘토 정보 조회 실패:', error);
+      }
+      
+      // 게임별로 피드백 분류
+      const lolRequestedFeedbacks = requestedFeedbacks.filter(f => f.game === 'lol');
+      const valorantRequestedFeedbacks = requestedFeedbacks.filter(f => f.game === 'valorant');
+      const lolReceivedFeedbacks = receivedFeedbacks.filter(f => f.game === 'lol');
+      const valorantReceivedFeedbacks = receivedFeedbacks.filter(f => f.game === 'valorant');
+      
+      stats.lol.requestedFeedbacks = lolRequestedFeedbacks.length;
+      stats.valorant.requestedFeedbacks = valorantRequestedFeedbacks.length;
+      stats.all.requestedFeedbacks = requestedFeedbacks.length;
+      
+      stats.lol.receivedFeedbacks = lolReceivedFeedbacks.length;
+      stats.valorant.receivedFeedbacks = valorantReceivedFeedbacks.length;
+      stats.all.receivedFeedbacks = receivedFeedbacks.length;
+      
+      console.log(`🔍 피드백 통계 - 신청: ${requestedFeedbacks.length}개, 받음: ${receivedFeedbacks.length}개`);
       console.log(`🔍 최종 통계:`, stats);
       return stats;
     } catch (error) {
       console.error('사용자 통계 조회 실패:', error);
       return {
-        all: { posts: 0, commentedPosts: 0, votedPosts: 0, likedMentors: 0 },
-        lol: { posts: 0, commentedPosts: 0, votedPosts: 0, likedMentors: 0 },
-        valorant: { posts: 0, commentedPosts: 0, votedPosts: 0, likedMentors: 0 }
+        all: { posts: 0, commentedPosts: 0, votedPosts: 0, likedMentors: 0, requestedFeedbacks: 0, receivedFeedbacks: 0 },
+        lol: { posts: 0, commentedPosts: 0, votedPosts: 0, likedMentors: 0, requestedFeedbacks: 0, receivedFeedbacks: 0 },
+        valorant: { posts: 0, commentedPosts: 0, votedPosts: 0, likedMentors: 0, requestedFeedbacks: 0, receivedFeedbacks: 0 }
       };
     }
   },
@@ -458,8 +495,12 @@ export const userService = {
   // 댓글을 단 게시글의 실제 게시글 데이터 가져오기
   async getUserCommentedPostsData(userId, gameType, userObject = null) {
     try {
+      console.log(`🔍 getUserCommentedPostsData 시작 - userId: ${userId}, gameType: ${gameType}`);
+      
       const postIds = await this.getUserCommentedPosts(userId, gameType, userObject);
       const posts = [];
+      
+      console.log(`🔍 댓글 단 게시글 ID 목록: ${postIds.length}개`);
       
       for (const postId of postIds) {
         try {
@@ -472,11 +513,15 @@ export const userService = {
               gameType,
               ...postSnap.data()
             });
+          } else {
+            console.log(`🔍 삭제된 댓글 단 게시글 발견: ${postId}`);
           }
         } catch (error) {
           console.error(`게시글 ${postId} 조회 실패:`, error);
         }
       }
+      
+      console.log(`🔍 실제 존재하는 댓글 단 게시글: ${posts.length}개 (삭제된 게시글: ${postIds.length - posts.length}개)`);
       
       // 최신순으로 정렬
       posts.sort((a, b) => {
@@ -529,10 +574,14 @@ export const userService = {
   // 좋아요/투표한 게시글의 실제 게시글 데이터 가져오기
   async getUserVotedPostsData(userId, gameType) {
     try {
-      // 투표 시스템이 구현되면 실제 데이터를 가져옴
-      // 현재는 임시로 빈 배열 반환
+      console.log(`🔍 getUserVotedPostsData 시작 - userId: ${userId}, gameType: ${gameType}`);
+      
+      // 투표한 게시글 ID 목록 가져오기
       const postIds = await this.getUserVotedPosts(userId, gameType);
       const posts = [];
+      const existingPostIds = [];
+      
+      console.log(`🔍 투표한 게시글 ID 목록: ${postIds.length}개`);
       
       for (const postId of postIds) {
         try {
@@ -545,11 +594,16 @@ export const userService = {
               gameType,
               ...postSnap.data()
             });
+            existingPostIds.push(postId);
+          } else {
+            console.log(`🔍 삭제된 게시글 발견: ${postId}`);
           }
         } catch (error) {
           console.error(`게시글 ${postId} 조회 실패:`, error);
         }
       }
+      
+      console.log(`🔍 실제 존재하는 투표한 게시글: ${posts.length}개 (삭제된 게시글: ${postIds.length - posts.length}개)`);
       
       // 최신순으로 정렬
       posts.sort((a, b) => {

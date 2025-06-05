@@ -7,6 +7,8 @@ import Link from "next/link";
 import { userService } from '@/app/services/user/user.service';
 import { communityService } from '@/app/services/community/community.service';
 import { mentorService } from '@/app/services/mentor/mentor.service';
+import { db } from "@/lib/firebase/firebase.config";
+import { collection, query, where, getDocs } from "firebase/firestore";
 import { useAuth } from '@/app/utils/providers';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
@@ -25,9 +27,9 @@ export default function MyPage() {
     const [selectedFeedback, setSelectedFeedback] = useState(null);
     const [userInfo, setUserInfo] = useState(null);
     const [stats, setStats] = useState({
-        all: { posts: 0, commentedPosts: 0, votedPosts: 0, likedMentors: 0 },
-        lol: { posts: 0, commentedPosts: 0, votedPosts: 0, likedMentors: 0 },
-        valorant: { posts: 0, commentedPosts: 0, votedPosts: 0, likedMentors: 0 }
+        all: { posts: 0, commentedPosts: 0, votedPosts: 0, likedMentors: 0, requestedFeedbacks: 0, receivedFeedbacks: 0 },
+        lol: { posts: 0, commentedPosts: 0, votedPosts: 0, likedMentors: 0, requestedFeedbacks: 0, receivedFeedbacks: 0 },
+        valorant: { posts: 0, commentedPosts: 0, votedPosts: 0, likedMentors: 0, requestedFeedbacks: 0, receivedFeedbacks: 0 }
     });
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [postToDelete, setPostToDelete] = useState(null);
@@ -70,7 +72,9 @@ export default function MyPage() {
                     });
 
                     // 사용자 통계 로드 (사용자 객체 정보 전달)
+                    console.log('🔍 마이페이지 - 통계 로드 시작');
                     const userStats = await userService.getUserStats(currentUserId, currentUser);
+                    console.log('🔍 마이페이지 - 통계 로드 완료:', userStats);
                     setStats(userStats);
                 } catch (error) {
                     console.error("Error loading user data:", error);
@@ -119,10 +123,28 @@ export default function MyPage() {
                     setRequestedFeedbacks(requestedData);
                     
                     // 받은 피드백 로드 (멘토인 경우)
-                    if (userInfo?.isMentor) {
-                        // 사용자의 멘토 ID를 찾아야 함 - 일단 currentUserId로 시도
-                        const receivedData = await userService.getMentorReceivedFeedbacks(currentUserId);
-                        setReceivedFeedbacks(receivedData);
+                    // 사용자의 멘토 ID를 찾기 위해 mentors 컬렉션에서 검색
+                    try {
+                        const mentorQuery = query(
+                            collection(db, 'mentors'),
+                            where('userId', '==', currentUserId)
+                        );
+                        const mentorSnapshot = await getDocs(mentorQuery);
+                        
+                        if (!mentorSnapshot.empty) {
+                            const mentorDoc = mentorSnapshot.docs[0];
+                            const mentorId = mentorDoc.id;
+                            console.log('🔍 멘토 ID 찾음:', mentorId);
+                            
+                            const receivedData = await userService.getMentorReceivedFeedbacks(mentorId);
+                            setReceivedFeedbacks(receivedData);
+                        } else {
+                            console.log('🔍 멘토 정보 없음');
+                            setReceivedFeedbacks([]);
+                        }
+                    } catch (error) {
+                        console.error('멘토 정보 조회 실패:', error);
+                        setReceivedFeedbacks([]);
                     }
                 } catch (error) {
                     console.error("Error loading feedbacks:", error);
@@ -491,6 +513,17 @@ export default function MyPage() {
                     })));
                 }
                 
+                // 통계 다시 로드
+                try {
+                    const currentUser = user || session?.user;
+                    const currentUserId = communityService.generateConsistentUserId(currentUser);
+                    const userStats = await userService.getUserStats(currentUserId, currentUser);
+                    setStats(userStats);
+                    console.log('🔍 게시글 삭제 후 통계 업데이트 완료');
+                } catch (error) {
+                    console.error('통계 업데이트 실패:', error);
+                }
+                
                 alert('게시글이 삭제되었습니다.');
             } else {
                 alert('게시글 삭제에 실패했습니다.');
@@ -686,7 +719,7 @@ export default function MyPage() {
                                                 <div>
                                                     <h3 className="font-medium text-gray-900">
                                                         {selectedMenu === "receivedFeedbacks"
-                                                            ? feedback.userName
+                                                            ? `신청자: ${feedback.userName || '익명'}`
                                                             : `멘토 ID: ${feedback.mentorId}`}
                                                     </h3>
                                                     <p className="text-sm text-gray-600">
@@ -735,7 +768,7 @@ export default function MyPage() {
                                                         </span>
                                                     )}
                                                 </div>
-                                                {userType === "mentor" && (
+                                                {selectedMenu === "receivedFeedbacks" && (
                                                     <div className="flex space-x-2">
                                                         {feedback.status ===
                                                         "pending" ? (

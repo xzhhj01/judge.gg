@@ -300,7 +300,7 @@ export default function MyPageSidebar({
                                         : "text-gray-500"
                                 }`}
                             >
-                                {stats.feedbacks || 0}개
+                                {stats.requestedFeedbacks || 0}개
                             </span>
                         </div>
                     </button>
@@ -353,7 +353,7 @@ export default function MyPageSidebar({
                                             : "text-gray-500"
                                     }`}
                                 >
-                                    {user?.mentorStats?.totalFeedbacks || 0}개
+                                    {stats.receivedFeedbacks || 0}개
                                 </span>
                             </div>
                         </button>
