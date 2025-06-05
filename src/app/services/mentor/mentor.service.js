@@ -588,6 +588,62 @@ export const mentorService = {
     }
   },
 
+  // userId로 사용자의 모든 멘토 프로필 조회 (승인/미승인 관계없이)
+  async getAllMentorsByUserId(userId) {
+    try {
+      console.log('🔍 getAllMentorsByUserId 시작 - userId:', userId);
+      
+      if (!userId) {
+        console.log('🔍 userId가 없음');
+        return [];
+      }
+
+      // 사용자 ID의 다양한 형태 생성 (일관된 ID 검색)
+      const possibleIds = new Set([
+        userId,
+        userId?.toString(),
+        // 이메일 형태일 경우 변환
+        userId?.includes('@') ? userId.replace(/[^a-zA-Z0-9]/g, '_') : null,
+        userId?.includes('@') ? userId.split('@')[0] : null,
+      ]);
+      
+      // null 값 제거
+      const finalIds = Array.from(possibleIds).filter(Boolean);
+      console.log('🔍 멘토 검색할 ID 목록:', finalIds);
+      
+      // 각 ID에 대해 멘토 검색 (승인/미승인 관계없이 모든 멘토)
+      const queries = [];
+      finalIds.forEach(id => {
+        queries.push(query(
+          collection(db, 'mentors'),
+          where('userId', '==', id)
+        ));
+      });
+      
+      // 쿼리를 순차적으로 실행 (연결 안정성 향상)
+      const allMentors = [];
+      for (const q of queries) {
+        try {
+          const snapshot = await getDocs(q);
+          snapshot.forEach(doc => {
+            allMentors.push({
+              id: doc.id,
+              ...doc.data()
+            });
+          });
+        } catch (error) {
+          console.error('🔍 개별 멘토 쿼리 실행 오류:', error);
+        }
+      }
+      
+      console.log('🔍 찾은 모든 멘토 프로필:', allMentors.length + '개');
+      return allMentors;
+    } catch (error) {
+      console.error('userId로 모든 멘토 조회 실패:', error);
+      return [];
+    }
+  },
+
   // userId로 멘토 정보 조회 (멘토 상태 확인용)
   async getMentorByUserId(userId) {
     try {

@@ -152,18 +152,39 @@ export default function MyPage() {
         console.log('🔍 캐시된 데이터:', cachedData);
         console.log('🔍 Firebase 데이터:', info);
         
-        // 멘토 정보 확인 (mentors 컬렉션에서 직접 조회)
+        // 멘토 정보 확인 (mentors 컬렉션에서 모든 멘토 프로필 조회)
         let isMentor = false;
         let mentorStats = { totalFeedbacks: 0, totalReviews: 0, rating: 0 };
+        let allMentorProfiles = [];
         try {
-            const mentorInfo = await mentorService.getMentorByUserId(currentUserId);
-            if (mentorInfo) {
+            // 승인/미승인 관계없이 사용자의 모든 멘토 프로필 조회
+            allMentorProfiles = await mentorService.getAllMentorsByUserId(currentUserId);
+            
+            if (allMentorProfiles.length > 0) {
                 isMentor = true;
-                mentorStats = {
-                    totalFeedbacks: mentorInfo.totalFeedbacks || 0,
-                    totalReviews: mentorInfo.totalReviews || 0,
-                    rating: mentorInfo.rating || 0,
-                };
+                console.log('🔍 사용자의 멘토 프로필들:', allMentorProfiles.map(m => ({
+                    id: m.id,
+                    nickname: m.nickname,
+                    isApproved: m.isApproved,
+                    selectedGame: m.selectedGame
+                })));
+                
+                // 승인된 멘토 중에서 통계 계산
+                const approvedMentors = allMentorProfiles.filter(m => m.isApproved);
+                if (approvedMentors.length > 0) {
+                    // 가장 활발한 멘토의 통계 사용 (또는 평균값 사용 가능)
+                    const bestMentor = approvedMentors.reduce((best, current) => {
+                        const bestScore = (best.totalFeedbacks || 0) + (best.totalReviews || 0);
+                        const currentScore = (current.totalFeedbacks || 0) + (current.totalReviews || 0);
+                        return currentScore > bestScore ? current : best;
+                    });
+                    
+                    mentorStats = {
+                        totalFeedbacks: bestMentor.totalFeedbacks || 0,
+                        totalReviews: bestMentor.totalReviews || 0,
+                        rating: bestMentor.rating || 0,
+                    };
+                }
             }
         } catch (error) {
             console.error('멘토 정보 조회 실패:', error);
@@ -942,7 +963,7 @@ export default function MyPage() {
                                                     </svg>
                                                 </div>
                                                 <h3 className="text-lg font-medium text-blue-900 mb-2">
-                                                    멘토 등록을 하지 않았습니다
+                                                    멘토 프로필이 없습니다
                                                 </h3>
                                                 <p className="text-blue-700 mb-4">
                                                     피드백 요청을 받으려면 먼저 멘토로 등록해주세요.
@@ -968,11 +989,22 @@ export default function MyPage() {
                                         >
                                             <div className="flex justify-between items-start mb-2">
                                                 <div>
-                                                    <h3 className="font-medium text-gray-900">
-                                                        {selectedMenu === "receivedFeedbacks"
-                                                            ? `신청자: ${feedback.userName || '익명'}`
-                                                            : `멘토 ID: ${feedback.mentorId}`}
-                                                    </h3>
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <h3 className="font-medium text-gray-900">
+                                                            {selectedMenu === "receivedFeedbacks"
+                                                                ? `신청자: ${feedback.userName || '익명'}`
+                                                                : `멘토 ID: ${feedback.mentorId}`}
+                                                        </h3>
+                                                        {/* 멘토 프로필 정보 표시 (받은 피드백에서만) */}
+                                                        {selectedMenu === "receivedFeedbacks" && feedback.mentorInfo && (
+                                                            <span className="inline-flex items-center px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full text-xs font-medium">
+                                                                {feedback.mentorInfo.nickname} ({feedback.mentorInfo.selectedGame === 'lol' ? 'LoL' : '발로란트'})
+                                                                {!feedback.mentorInfo.isApproved && (
+                                                                    <span className="ml-1 text-orange-600">미승인</span>
+                                                                )}
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                     <p className="text-sm text-gray-600">
                                                         {feedback.serviceTitle || feedback.service}
                                                     </p>

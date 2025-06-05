@@ -1106,7 +1106,7 @@ export const userService = {
     }
   },
 
-  // 멘토가 받은 피드백 요청 목록 조회 (userId로 조회)
+  // 멘토가 받은 피드백 요청 목록 조회 (userId로 모든 멘토 프로필의 피드백 조회)
   async getMentorReceivedFeedbacks(userId) {
     try {
       console.log('🔍 getMentorReceivedFeedbacks 시작 - userId:', userId);
@@ -1116,108 +1116,71 @@ export const userService = {
         return [];
       }
       
-      // 사용자 ID의 다양한 형태 생성 (일관된 ID 검색)
-      const possibleIds = new Set([
-        userId,
-        userId?.toString(),
-        // 이메일 형태일 경우 변환
-        userId?.includes('@') ? userId.replace(/[^a-zA-Z0-9]/g, '_') : null,
-        userId?.includes('@') ? userId.split('@')[0] : null,
-      ]);
+      // 1. 해당 사용자의 모든 멘토 프로필 조회 (승인/미승인 관계없이)
+      const { mentorService } = await import('@/app/services/mentor/mentor.service');
+      const allMentors = await mentorService.getAllMentorsByUserId(userId);
       
-      // null 값 제거
-      const finalIds = Array.from(possibleIds).filter(Boolean);
-      console.log('🔍 멘토 검색할 ID 목록:', finalIds);
-      
-      // 각 ID에 대해 멘토 검색
-      const queries = [];
-      finalIds.forEach(id => {
-        queries.push(query(
-          collection(db, 'mentors'),
-          where('userId', '==', id),
-          where('isApproved', '==', true) // 승인된 멘토만 조회
-        ));
-      });
-      
-      // 쿼리를 순차적으로 실행 (연결 안정성 향상)
-      const snapshots = [];
-      for (const q of queries) {
-        try {
-          const snapshot = await getDocs(q);
-          snapshots.push(snapshot);
-          // 첫 번째 결과가 있으면 더 이상 실행하지 않음
-          if (!snapshot.empty) {
-            break;
-          }
-        } catch (error) {
-          console.error('🔍 개별 멘토 쿼리 실행 오류:', error);
-          snapshots.push({ docs: [] });
-        }
-      }
-      
-      // 첫 번째로 찾은 멘토 사용
-      let mentorDoc = null;
-      let mentorId = null;
-      let mentorData = null;
-      
-      for (const snapshot of snapshots) {
-        if (!snapshot.empty) {
-          mentorDoc = snapshot.docs[0];
-          mentorId = mentorDoc.id;
-          mentorData = mentorDoc.data();
-          break;
-        }
-      }
-      
-      if (!mentorDoc) {
-        console.log('🔍 해당 userId의 승인된 멘토 정보 없음:', userId);
+      if (allMentors.length === 0) {
+        console.log('🔍 해당 userId의 멘토 프로필 없음:', userId);
         return [];
       }
       
-      console.log('🔍 찾은 멘토 ID:', mentorId);
-      console.log('🔍 멘토 데이터:', { nickname: mentorData.nickname, isApproved: mentorData.isApproved });
+      console.log('🔍 찾은 멘토 프로필들:', allMentors.map(m => ({
+        id: m.id,
+        nickname: m.nickname,
+        selectedGame: m.selectedGame,
+        isApproved: m.isApproved
+      })));
       
-      // 2. 해당 멘토ID로 피드백 요청 조회
-      const feedbackQuery = query(
-        collection(db, 'feedback_requests'),
-        where('mentorId', '==', mentorId)
-      );
+      // 2. 모든 멘토 프로필로 들어온 피드백 요청 조회
+      const allFeedbacks = [];
       
-      const snapshot = await getDocs(feedbackQuery);
-      const feedbacks = [];
+      for (const mentor of allMentors) {
+        try {
+          const feedbackQuery = query(
+            collection(db, 'feedback_requests'),
+            where('mentorId', '==', mentor.id)
+          );
+          
+          const snapshot = await getDocs(feedbackQuery);
+          
+          snapshot.forEach((doc) => {
+            const data = doc.data();
+            console.log(`🔍 멘토 ${mentor.nickname}(${mentor.id})의 피드백 요청:`, {
+              id: doc.id,
+              userName: data.userName,
+              service: data.service,
+              status: data.status,
+              createdAt: data.createdAt
+            });
+            
+            allFeedbacks.push({
+              id: doc.id,
+              ...data,
+              // 멘토 정보도 포함
+              mentorInfo: {
+                id: mentor.id,
+                nickname: mentor.nickname,
+                selectedGame: mentor.selectedGame,
+                isApproved: mentor.isApproved
+              }
+            });
+          });
+        } catch (error) {
+          console.error(`멘토 ${mentor.id}의 피드백 조회 실패:`, error);
+        }
+      }
       
-      snapshot.forEach((doc) => {
-        const data = doc.data();
-        console.log(`🔍 피드백 요청 #${feedbacks.length + 1}:`, {
-          id: doc.id,
-          userName: data.userName,
-          service: data.service,
-          status: data.status,
-          createdAt: data.createdAt
-        });
-        
-        feedbacks.push({
-          id: doc.id,
-          ...data,
-          // 멘토 정보도 포함
-          mentorInfo: {
-            id: mentorId,
-            nickname: mentorData.nickname,
-            selectedGame: mentorData.selectedGame
-          }
-        });
-      });
-      
-      console.log(`🔍 최종 찾은 피드백 요청: ${feedbacks.length}개`);
+      console.log(`🔍 총 찾은 피드백 요청: ${allFeedbacks.length}개`);
       
       // 클라이언트에서 날짜순 정렬 (최신순)
-      feedbacks.sort((a, b) => {
+      allFeedbacks.sort((a, b) => {
         const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0);
         const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0);
         return dateB - dateA;
       });
       
-      return feedbacks;
+      return allFeedbacks;
     } catch (error) {
       console.error('받은 피드백 요청 목록 조회 실패:', error);
       return [];
