@@ -397,12 +397,18 @@ export const mentorService = {
   },
 
   // 피드백 요청 처리 (수락/거절)
-  async handleFeedbackRequest(requestId, action, response = '') {
+  async handleFeedbackRequest(requestId, action, response = '', user = null) {
     try {
-      const user = auth.currentUser;
-      if (!user) {
-        throw new Error('로그인이 필요합니다.');
+      // If user is not provided, try to get from auth
+      let currentUser = user;
+      if (!currentUser) {
+        currentUser = auth.currentUser;
+        if (!currentUser) {
+          throw new Error('로그인이 필요합니다.');
+        }
       }
+
+      console.log('🔍 handleFeedbackRequest:', { requestId, action, response, user: currentUser?.email });
 
       const requestRef = doc(db, 'feedback_requests', requestId);
       const updateData = {
@@ -413,6 +419,7 @@ export const mentorService = {
 
       await updateDoc(requestRef, updateData);
       
+      console.log('🔍 피드백 요청 처리 완료:', { requestId, action });
       return true;
     } catch (error) {
       console.error('피드백 요청 처리 실패:', error);
@@ -421,12 +428,18 @@ export const mentorService = {
   },
 
   // 피드백 제출
-  async submitFeedback(requestId, feedbackText) {
+  async submitFeedback(requestId, feedbackText, user = null) {
     try {
-      const user = auth.currentUser;
-      if (!user) {
-        throw new Error('로그인이 필요합니다.');
+      // If user is not provided, try to get from auth
+      let currentUser = user;
+      if (!currentUser) {
+        currentUser = auth.currentUser;
+        if (!currentUser) {
+          throw new Error('로그인이 필요합니다.');
+        }
       }
+
+      console.log('🔍 submitFeedback:', { requestId, feedbackText, user: currentUser?.email });
 
       const requestRef = doc(db, 'feedback_requests', requestId);
       const updateData = {
@@ -440,16 +453,19 @@ export const mentorService = {
       // 멘토의 피드백 수 증가
       const requestSnap = await getDoc(requestRef);
       if (requestSnap.exists()) {
-        const mentorRef = doc(db, 'mentors', requestSnap.data().mentorId);
+        const requestData = requestSnap.data();
+        const mentorRef = doc(db, 'mentors', requestData.mentorId);
         const mentorSnap = await getDoc(mentorRef);
         
         if (mentorSnap.exists()) {
           await updateDoc(mentorRef, {
             totalFeedbacks: (mentorSnap.data().totalFeedbacks || 0) + 1
           });
+          console.log('🔍 멘토 피드백 카운트 증가 완료');
         }
       }
       
+      console.log('🔍 피드백 제출 완료:', requestId);
       return true;
     } catch (error) {
       console.error('피드백 제출 실패:', error);
@@ -582,20 +598,48 @@ export const mentorService = {
         return null;
       }
 
-      const q = query(
-        collection(db, 'mentors'),
-        where('userId', '==', userId)
-      );
+      // 사용자 ID의 다양한 형태 생성 (일관된 ID 검색)
+      const possibleIds = new Set([
+        userId,
+        userId?.toString(),
+        // 이메일 형태일 경우 변환
+        userId?.includes('@') ? userId.replace(/[^a-zA-Z0-9]/g, '_') : null,
+        userId?.includes('@') ? userId.split('@')[0] : null,
+      ]);
       
-      const querySnapshot = await getDocs(q);
+      // null 값 제거
+      const finalIds = Array.from(possibleIds).filter(Boolean);
+      console.log('🔍 멘토 검색할 ID 목록:', finalIds);
       
-      if (querySnapshot.empty) {
-        console.log('🔍 해당 userId의 멘토 정보 없음');
-        return null;
-      }
+      // 각 ID에 대해 멘토 검색
+      const queries = [];
+      finalIds.forEach(id => {
+        queries.push(query(
+          collection(db, 'mentors'),
+          where('userId', '==', id)
+        ));
+      });
+      
+      // 모든 쿼리를 동시에 실행
+      const snapshots = await Promise.all(queries.map(async (q) => {
+        try {
+          return await getDocs(q);
+        } catch (error) {
+          console.error('🔍 개별 멘토 쿼리 실행 오류:', error);
+          return { docs: [] };
+        }
+      }));
       
       // 승인된 멘토 정보만 반환 (승인된 멘토만이 피드백을 받을 수 있음)
-      const mentorDoc = querySnapshot.docs.find(doc => doc.data().isApproved === true);
+      let mentorDoc = null;
+      
+      for (const snapshot of snapshots) {
+        const approvedMentor = snapshot.docs.find(doc => doc.data().isApproved === true);
+        if (approvedMentor) {
+          mentorDoc = approvedMentor;
+          break;
+        }
+      }
       
       if (!mentorDoc) {
         console.log('🔍 해당 userId의 승인된 멘토 정보 없음');

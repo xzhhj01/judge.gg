@@ -46,12 +46,34 @@ function AuthProvider({ children }) {
         };
     }, []);
 
-    // NextAuth 세션 상태 변화 감지
+    // NextAuth 세션과 Firebase auth 동기화
     useEffect(() => {
         if (status !== 'loading') {
+            console.log('🔍 인증 상태 동기화:', {
+                hasSession: !!session,
+                hasUser: !!user,
+                sessionUser: session?.user ? {
+                    id: session.user.id,
+                    uid: session.user.uid,
+                    email: session.user.email,
+                    name: session.user.name
+                } : null,
+                firebaseUser: user ? {
+                    uid: user.uid,
+                    email: user.email,
+                    displayName: user.displayName
+                } : null
+            });
+            
+            // NextAuth 세션이 있지만 Firebase user가 없는 경우
+            if (session && !user) {
+                console.log('🔍 NextAuth 세션 우선 사용');
+                // Firebase에 로그인 시도하지 않고 NextAuth 세션을 우선
+                setUser(session.user);
+            }
             setLoading(false);
         }
-    }, [status]);
+    }, [status, session, user]);
 
     const logout = useCallback(async () => {
         try {
@@ -64,10 +86,10 @@ function AuthProvider({ children }) {
     }, []);
 
     const value = useMemo(() => ({
-        user,
+        user: session?.user || user,
         loading: loading || status === 'loading',
         logout
-    }), [user, loading, status, logout]);
+    }), [user, session, loading, status, logout]);
 
     return (
         <AuthContext.Provider value={value}>

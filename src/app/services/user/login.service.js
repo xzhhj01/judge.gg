@@ -50,30 +50,57 @@ export const loginService = {
     }
   },
 
-  // 사용자 데이터 처리
+  // 사용자 데이터 처리 (NextAuth 사용자용)
   async handleUserData(user) {
-    const userRef = doc(db, 'users', user.uid);
-    const userSnapshot = await getDoc(userRef);
-
-    if (!userSnapshot.exists()) {
-      // 새 사용자인 경우 기본 프로필 생성
-      await setDoc(userRef, {
-        uid: user.uid,
+    try {
+      // NextAuth user는 id 속성을 uid로 사용
+      const userId = user.uid || user.id;
+      if (!userId) {
+        console.error('User ID가 없습니다:', user);
+        return;
+      }
+      
+      console.log('🔍 handleUserData 시작 - userId:', userId, '사용자 정보:', {
         email: user.email,
-        displayName: user.displayName,
-        photoURL: user.photoURL,
-        createdAt: serverTimestamp(),
-        lastLoginAt: serverTimestamp(),
-        lolRiotId: '',
-        valorantRiotId: '',
-        isMentor: false,
-        mentorInfo: null
+        name: user.name || user.displayName,
+        image: user.image || user.photoURL
       });
-    } else {
-      // 기존 사용자인 경우 마지막 로그인 시간 업데이트
-      await setDoc(userRef, {
-        lastLoginAt: serverTimestamp()
-      }, { merge: true });
+
+      const userRef = doc(db, 'users', userId);
+      const userSnapshot = await getDoc(userRef);
+
+      if (!userSnapshot.exists()) {
+        // 새 사용자인 경우 기본 프로필 생성
+        console.log('🔍 새 사용자 데이터 생성');
+        const userData = {
+          uid: userId,
+          email: user.email,
+          displayName: user.displayName || user.name,
+          photoURL: user.photoURL || user.image,
+          createdAt: serverTimestamp(),
+          lastLoginAt: serverTimestamp(),
+          lolRiotId: '',
+          lolVerified: false,
+          valorantRiotId: '',
+          valorantVerified: false,
+          isMentor: false,
+          mentorInfo: null
+        };
+        await setDoc(userRef, userData);
+        console.log('🔍 새 사용자 데이터 생성 완료');
+      } else {
+        // 기존 사용자인 경우 마지막 로그인 시간 업데이트
+        console.log('🔍 기존 사용자 데이터 업데이트');
+        await setDoc(userRef, {
+          lastLoginAt: serverTimestamp(),
+          displayName: user.displayName || user.name,
+          photoURL: user.photoURL || user.image
+        }, { merge: true });
+        console.log('🔍 기존 사용자 데이터 업데이트 완료');
+      }
+    } catch (error) {
+      console.error('Firebase 사용자 데이터 처리 실패:', error);
+      throw error;
     }
   },
 

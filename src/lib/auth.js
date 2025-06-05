@@ -24,6 +24,8 @@ export const authOptions = {
                     await loginService.handleUserData(user);
                 } catch (error) {
                     console.error('Firebase 사용자 데이터 저장 실패:', error);
+                    // Firebase 오류가 있어도 로그인은 성공으로 처리
+                    return true;
                 }
             }
             return true;

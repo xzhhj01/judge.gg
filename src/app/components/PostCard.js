@@ -74,31 +74,10 @@ export default function PostCard({ post, gameType, currentUser, onEdit, onDelete
         if (post.authorUid) authorIdentifiers.add(post.authorUid);
         if (post.authorEmail) authorIdentifiers.add(post.authorEmail);
         
-        console.log('🔍 PostCard 상세 비교:', {
-            title: post.title,
-            currentUser: {
-                id: currentUser.id,
-                uid: currentUser.uid,
-                email: currentUser.email,
-                sub: currentUser.sub,
-                name: currentUser.name || currentUser.displayName
-            },
-            post: {
-                authorId: post.authorId,
-                authorUid: post.authorUid,
-                authorName: post.authorName,
-                authorEmail: post.authorEmail
-            },
-            userIdentifiers: Array.from(userIdentifiers),
-            authorIdentifiers: Array.from(authorIdentifiers)
-        });
-
         // Check for any match between user and author identifiers
         const hasMatch = Array.from(userIdentifiers).some(userId => 
             authorIdentifiers.has(userId)
         );
-
-        console.log('🔍 PostCard 매치 결과:', hasMatch);
         return hasMatch;
     })();
 

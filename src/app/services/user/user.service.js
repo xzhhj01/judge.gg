@@ -87,10 +87,27 @@ export const userService = {
       }
 
       const userRef = doc(db, 'users', user.uid);
-      await updateDoc(userRef, {
-        ...profileData,
-        updatedAt: serverTimestamp()
-      });
+      
+      // 문서가 존재하는지 확인
+      const userDoc = await getDoc(userRef);
+      if (!userDoc.exists()) {
+        // 문서가 없으면 생성
+        await setDoc(userRef, {
+          uid: user.uid,
+          email: user.email,
+          displayName: user.displayName,
+          photoURL: user.photoURL,
+          createdAt: serverTimestamp(),
+          ...profileData,
+          updatedAt: serverTimestamp()
+        });
+      } else {
+        // 문서가 있으면 업데이트
+        await updateDoc(userRef, {
+          ...profileData,
+          updatedAt: serverTimestamp()
+        });
+      }
 
       return true;
     } catch (error) {
@@ -147,7 +164,22 @@ export const userService = {
       
       updateData.updatedAt = serverTimestamp();
 
-      await updateDoc(userRef, updateData);
+      // 문서가 존재하는지 확인
+      const userDoc = await getDoc(userRef);
+      if (!userDoc.exists()) {
+        // 문서가 없으면 생성
+        await setDoc(userRef, {
+          uid: user.uid,
+          email: user.email,
+          displayName: user.displayName,
+          photoURL: user.photoURL,
+          createdAt: serverTimestamp(),
+          ...updateData
+        });
+      } else {
+        // 문서가 있으면 업데이트
+        await updateDoc(userRef, updateData);
+      }
       return true;
     } catch (error) {
       console.error('Riot ID 연결 실패:', error);
@@ -168,39 +200,86 @@ export const userService = {
 
       // 2. Riot API를 통해 PUUID 조회
       const accountResponse = await fetch(`/api/riot?gameName=${encodeURIComponent(gameName)}&tagLine=${encodeURIComponent(tagLine)}`);
-      const accountData = await accountResponse.json();
+      
+      let accountData;
+      try {
+        accountData = await accountResponse.json();
+      } catch (jsonError) {
+        // JSON 파싱 실패 시 응답을 텍스트로 읽기
+        const errorText = await accountResponse.text();
+        console.error('API 응답 JSON 파싱 실패:', errorText);
+        throw new Error(`API 서버 오류: ${accountResponse.status} ${accountResponse.statusText}`);
+      }
       
       if (!accountResponse.ok) {
-        throw new Error(accountData.message || '계정을 찾을 수 없습니다.');
+        throw new Error(accountData.message || `계정을 찾을 수 없습니다. (${accountResponse.status})`);
       }
 
       console.log('🔍 계정 정보 조회 성공:', accountData);
 
       // 3. PUUID로 LoL 프로필 조회
       const lolResponse = await fetch(`/api/riot/lol?puuid=${accountData.puuid}`);
-      const lolData = await lolResponse.json();
+      
+      let lolData;
+      try {
+        lolData = await lolResponse.json();
+      } catch (jsonError) {
+        const errorText = await lolResponse.text();
+        console.error('LoL API 응답 JSON 파싱 실패:', errorText);
+        throw new Error(`LoL API 서버 오류: ${lolResponse.status} ${lolResponse.statusText}`);
+      }
       
       if (!lolResponse.ok) {
-        throw new Error(lolData.message || 'LoL 프로필을 찾을 수 없습니다.');
+        throw new Error(lolData.message || `LoL 프로필을 찾을 수 없습니다. (${lolResponse.status})`);
       }
 
       console.log('🔍 LoL 프로필 조회 성공:', lolData);
 
       // 4. 사용자 정보에 저장
-      const user = auth.currentUser;
-      if (!user) {
-        throw new Error('로그인이 필요합니다.');
+      // 세션 사용자 정보에서 userId 결정
+      let userId;
+      if (sessionUser) {
+        const { communityService } = await import('@/app/services/community/community.service');
+        userId = communityService.generateConsistentUserId(sessionUser);
+      } else {
+        const user = auth.currentUser;
+        if (!user) {
+          throw new Error('로그인이 필요합니다.');
+        }
+        userId = user.uid;
       }
 
-      const userRef = doc(db, 'users', user.uid);
-      await updateDoc(userRef, {
-        lolRiotId: riotId,
-        lolPuuid: accountData.puuid,
-        lolSummonerId: lolData.summoner.id,
-        lolVerified: true,
-        lolProfileData: lolData,
-        updatedAt: serverTimestamp()
-      });
+      console.log('🔍 LoL 연동 정보 저장할 userId:', userId);
+      const userRef = doc(db, 'users', userId);
+      
+      // 문서가 존재하는지 확인
+      const userDoc = await getDoc(userRef);
+      if (!userDoc.exists()) {
+        // 문서가 없으면 생성
+        await setDoc(userRef, {
+          uid: user.uid,
+          email: user.email,
+          displayName: user.displayName,
+          photoURL: user.photoURL,
+          createdAt: serverTimestamp(),
+          lolRiotId: riotId,
+          lolPuuid: accountData.puuid,
+          lolSummonerId: lolData.summoner.id,
+          lolVerified: true,
+          lolProfileData: lolData,
+          updatedAt: serverTimestamp()
+        });
+      } else {
+        // 문서가 있으면 업데이트
+        await updateDoc(userRef, {
+          lolRiotId: riotId,
+          lolPuuid: accountData.puuid,
+          lolSummonerId: lolData.summoner.id,
+          lolVerified: true,
+          lolProfileData: lolData,
+          updatedAt: serverTimestamp()
+        });
+      }
 
       return {
         verified: true,
@@ -211,6 +290,74 @@ export const userService = {
     } catch (error) {
       console.error('LoL 계정 검증 및 연동 실패:', error);
       throw error;
+    }
+  },
+
+  // 사용자의 LoL 티어 정보만 조회 (빠른 조회)
+  async getLolTierInfo(sessionUser = null) {
+    try {
+      // 사용자 ID 결정: 세션 사용자 우선, 없으면 Firebase Auth 사용자
+      let userId;
+      if (sessionUser) {
+        const { communityService } = await import('@/app/services/community/community.service');
+        userId = communityService.generateConsistentUserId(sessionUser);
+      } else {
+        const user = auth.currentUser;
+        if (!user) {
+          throw new Error('로그인이 필요합니다.');
+        }
+        userId = user.uid;
+      }
+
+      console.log('🔍 getLolTierInfo - 사용할 userId:', userId);
+
+      // 사용자 정보에서 LoL PUUID 조회
+      const userRef = doc(db, 'users', userId);
+      const userSnap = await getDoc(userRef);
+      
+      if (!userSnap.exists()) {
+        throw new Error('사용자 정보를 찾을 수 없습니다.');
+      }
+
+      const userData = userSnap.data();
+      
+      if (!userData.lolVerified || !userData.lolPuuid) {
+        return {
+          verified: false,
+          message: 'LoL 계정이 연동되지 않았습니다.'
+        };
+      }
+
+      // 티어 정보만 조회
+      const tierResponse = await fetch(`/api/riot/lol?puuid=${userData.lolPuuid}&tierOnly=true`);
+      
+      let tierData;
+      try {
+        tierData = await tierResponse.json();
+      } catch (jsonError) {
+        const errorText = await tierResponse.text();
+        console.error('티어 API 응답 JSON 파싱 실패:', errorText);
+        throw new Error(`티어 API 서버 오류: ${tierResponse.status} ${tierResponse.statusText}`);
+      }
+      
+      if (!tierResponse.ok) {
+        throw new Error(tierData.message || `티어 정보를 가져올 수 없습니다. (${tierResponse.status})`);
+      }
+
+      return {
+        verified: true,
+        riotId: userData.lolRiotId,
+        puuid: userData.lolPuuid,
+        summoner: tierData.summoner,
+        ranks: tierData.ranks,
+        lastUpdated: new Date()
+      };
+    } catch (error) {
+      console.error('LoL 티어 정보 조회 실패:', error);
+      return {
+        verified: false,
+        error: error.message
+      };
     }
   },
 
@@ -242,11 +389,14 @@ export const userService = {
         if (lolResponse.ok) {
           const lolData = await lolResponse.json();
           
-          // 최신 정보로 업데이트
-          await updateDoc(userRef, {
-            lolProfileData: lolData,
-            updatedAt: serverTimestamp()
-          });
+          // 최신 정보로 업데이트 (문서 존재 확인 후)
+          const userDoc = await getDoc(userRef);
+          if (userDoc.exists()) {
+            await updateDoc(userRef, {
+              lolProfileData: lolData,
+              updatedAt: serverTimestamp()
+            });
+          }
 
           return {
             verified: true,
@@ -462,16 +612,36 @@ export const userService = {
   // 사용자 정보 조회
   async getUserInfo(userId) {
     try {
+      console.log('🔍 getUserInfo 호출 - userId:', userId);
+      
+      if (!userId) {
+        console.log('🔍 getUserInfo - userId가 없음');
+        return null;
+      }
+      
       const userRef = doc(db, 'users', userId);
       const userSnap = await getDoc(userRef);
       
       if (userSnap.exists()) {
-        return userSnap.data();
+        const userData = userSnap.data();
+        console.log('🔍 getUserInfo - Firebase에서 사용자 정보 조회 성공:', {
+          uid: userData.uid,
+          email: userData.email,
+          displayName: userData.displayName,
+          lolRiotId: userData.lolRiotId,
+          lolVerified: userData.lolVerified,
+          valorantRiotId: userData.valorantRiotId,
+          valorantVerified: userData.valorantVerified
+        });
+        return userData;
       }
+      
+      console.log('🔍 getUserInfo - Firebase에 사용자 문서가 없음');
       return null;
     } catch (error) {
       console.error('사용자 정보 조회 실패:', error);
-      throw error;
+      // 에러가 발생해도 null 반환 (앱이 크래시하지 않도록)
+      return null;
     }
   },
 
@@ -929,22 +1099,63 @@ export const userService = {
     try {
       console.log('🔍 getMentorReceivedFeedbacks 시작 - userId:', userId);
       
-      // 1. userId로 해당 사용자의 멘토 정보 조회 (승인된 멘토만)
-      const mentorQuery = query(
-        collection(db, 'mentors'),
-        where('userId', '==', userId),
-        where('isApproved', '==', true) // 승인된 멘토만 조회
-      );
-      const mentorSnapshot = await getDocs(mentorQuery);
+      if (!userId) {
+        console.log('🔍 userId가 없음');
+        return [];
+      }
       
-      if (mentorSnapshot.empty) {
+      // 사용자 ID의 다양한 형태 생성 (일관된 ID 검색)
+      const possibleIds = new Set([
+        userId,
+        userId?.toString(),
+        // 이메일 형태일 경우 변환
+        userId?.includes('@') ? userId.replace(/[^a-zA-Z0-9]/g, '_') : null,
+        userId?.includes('@') ? userId.split('@')[0] : null,
+      ]);
+      
+      // null 값 제거
+      const finalIds = Array.from(possibleIds).filter(Boolean);
+      console.log('🔍 멘토 검색할 ID 목록:', finalIds);
+      
+      // 각 ID에 대해 멘토 검색
+      const queries = [];
+      finalIds.forEach(id => {
+        queries.push(query(
+          collection(db, 'mentors'),
+          where('userId', '==', id),
+          where('isApproved', '==', true) // 승인된 멘토만 조회
+        ));
+      });
+      
+      // 모든 쿼리를 동시에 실행
+      const snapshots = await Promise.all(queries.map(async (q) => {
+        try {
+          return await getDocs(q);
+        } catch (error) {
+          console.error('🔍 개별 멘토 쿼리 실행 오류:', error);
+          return { docs: [] };
+        }
+      }));
+      
+      // 첫 번째로 찾은 멘토 사용
+      let mentorDoc = null;
+      let mentorId = null;
+      let mentorData = null;
+      
+      for (const snapshot of snapshots) {
+        if (!snapshot.empty) {
+          mentorDoc = snapshot.docs[0];
+          mentorId = mentorDoc.id;
+          mentorData = mentorDoc.data();
+          break;
+        }
+      }
+      
+      if (!mentorDoc) {
         console.log('🔍 해당 userId의 승인된 멘토 정보 없음:', userId);
         return [];
       }
       
-      const mentorDoc = mentorSnapshot.docs[0];
-      const mentorId = mentorDoc.id;
-      const mentorData = mentorDoc.data();
       console.log('🔍 찾은 멘토 ID:', mentorId);
       console.log('🔍 멘토 데이터:', { nickname: mentorData.nickname, isApproved: mentorData.isApproved });
       

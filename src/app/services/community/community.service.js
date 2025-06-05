@@ -18,6 +18,9 @@ import {
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 export const communityService = {
+  // 사용자 랭크 정보 캐시 (세션 동안 유지)
+  _userTierCache: new Map(),
+  
   // 투표 옵션 유효성 검사
   validateVoteOptions(voteOptions) {
     if (!voteOptions || !Array.isArray(voteOptions)) {
@@ -36,6 +39,98 @@ export const communityService = {
       typeof option1 === 'string' && option1.trim().length > 0 &&
       typeof option2 === 'string' && option2.trim().length > 0
     );
+  },
+
+  // 게시글 목록에 사용자 랭크 정보 추가
+  async enrichPostsWithUserTiers(posts, gameType) {
+    try {
+      // 각 게시글의 authorTier가 없는 경우 동적으로 조회
+      const enrichedPosts = await Promise.all(posts.map(async (post) => {
+        if (post.authorTier && post.authorTier !== 'Unranked') {
+          // 이미 랭크 정보가 있으면 그대로 사용
+          return post;
+        }
+        
+        try {
+          // 작성자의 랭크 정보 조회
+          const userTier = await this.getUserTierInfo(post.authorId, gameType);
+          return {
+            ...post,
+            authorTier: userTier
+          };
+        } catch (error) {
+          console.error(`게시글 ${post.id} 작성자 랭크 조회 실패:`, error);
+          return {
+            ...post,
+            authorTier: post.authorTier || 'Unranked'
+          };
+        }
+      }));
+      
+      return enrichedPosts;
+    } catch (error) {
+      console.error('게시글 랭크 정보 보완 실패:', error);
+      return posts;
+    }
+  },
+
+  // 특정 사용자의 게임별 랭크 정보 조회 (캐싱 적용)
+  async getUserTierInfo(userId, gameType) {
+    try {
+      if (!userId) return 'Unranked';
+      
+      // 캐시 키 생성
+      const cacheKey = `${userId}_${gameType}`;
+      
+      // 캐시에서 먼저 확인 (5분간 캐시)
+      const cached = this._userTierCache.get(cacheKey);
+      if (cached && (Date.now() - cached.timestamp < 5 * 60 * 1000)) {
+        return cached.tier;
+      }
+      
+      // Firebase에서 사용자 정보 조회
+      const userRef = doc(db, 'users', userId);
+      const userSnap = await getDoc(userRef);
+      
+      if (!userSnap.exists()) {
+        const tier = 'Unranked';
+        this._userTierCache.set(cacheKey, { tier, timestamp: Date.now() });
+        return tier;
+      }
+      
+      const userData = userSnap.data();
+      let tier = 'Unranked';
+      
+      if (gameType === 'lol') {
+        // LoL 랭크 정보 조회
+        if (userData.lolVerified && userData.lolPuuid) {
+          try {
+            const tierResponse = await fetch(`/api/riot/lol?puuid=${userData.lolPuuid}&tierOnly=true`);
+            if (tierResponse.ok) {
+              const tierData = await tierResponse.json();
+              if (tierData.ranks?.solo) {
+                const soloRank = tierData.ranks.solo;
+                tier = `${soloRank.tier} ${soloRank.rank}`;
+              }
+            }
+          } catch (error) {
+            console.error('LoL 랭크 API 호출 실패:', error);
+          }
+        }
+      } else if (gameType === 'valorant') {
+        // Valorant 랭크 정보 조회
+        if (userData.valorantVerified && userData.valorantPuuid) {
+          tier = userData.valorantCurrentTier || 'Unranked';
+        }
+      }
+      
+      // 캐시에 저장
+      this._userTierCache.set(cacheKey, { tier, timestamp: Date.now() });
+      return tier;
+    } catch (error) {
+      console.error('사용자 랭크 정보 조회 실패:', error);
+      return 'Unranked';
+    }
   },
 
   // 일관된 사용자 ID 생성
@@ -122,6 +217,9 @@ export const communityService = {
       // 제한된 수만큼 반환
       posts = posts.slice(0, limit);
       
+      // 각 게시글의 작성자 랭크 정보 보완
+      posts = await this.enrichPostsWithUserTiers(posts, gameType);
+      
       return {
         posts,
         total: posts.length,
@@ -187,7 +285,7 @@ export const communityService = {
         try {
           console.log('🔍 게시글 작성 - LoL 랭크 정보 조회 시작');
           const { userService } = await import('@/app/services/user/user.service');
-          const tierData = await userService.getLolTierInfo();
+          const tierData = await userService.getLolTierInfo(currentUser);
           
           if (tierData && tierData.verified && tierData.ranks?.solo) {
             const soloRank = tierData.ranks.solo;
@@ -204,13 +302,13 @@ export const communityService = {
         try {
           console.log('🔍 게시글 작성 - Valorant 랭크 정보 조회 시작');
           const { userService } = await import('@/app/services/user/user.service');
-          const tierData = await userService.getValorantTierInfo();
+          const profileData = await userService.getValorantProfile(currentUser);
           
-          if (tierData && tierData.verified && tierData.currentTier) {
-            userTier = tierData.currentTier;
-            console.log('🔍 게시글 작성 - 사용자 랭크:', userTier);
+          if (profileData && profileData.verified && profileData.profile?.currentTier) {
+            userTier = profileData.profile.currentTier;
+            console.log('🔍 게시글 작성 - 사용자 Valorant 랭크:', userTier);
           } else {
-            console.log('🔍 게시글 작성 - 랭크 정보 없음, Unranked 사용');
+            console.log('🔍 게시글 작성 - Valorant 랭크 정보 없음, Unranked 사용');
           }
         } catch (error) {
           console.error('🔍 게시글 작성 - 랭크 정보 조회 실패:', error);
@@ -301,11 +399,23 @@ export const communityService = {
           views: (docSnap.data().views || 0) + 1
         });
         
-        return {
+        const postData = {
           id: docSnap.id,
           ...docSnap.data(),
           views: (docSnap.data().views || 0) + 1
         };
+        
+        // 랭크 정보 보완
+        if (!postData.authorTier || postData.authorTier === 'Unranked') {
+          try {
+            const userTier = await this.getUserTierInfo(postData.authorId, gameType);
+            postData.authorTier = userTier;
+          } catch (error) {
+            console.error('게시글 작성자 랭크 조회 실패:', error);
+          }
+        }
+        
+        return postData;
       } else {
         throw new Error('게시글을 찾을 수 없습니다.');
       }
@@ -579,7 +689,27 @@ export const communityService = {
         return dateA - dateB;
       });
       
-      return comments;
+      // 각 댓글의 작성자 랭크 정보 보완
+      const enrichedComments = await Promise.all(comments.map(async (comment) => {
+        if (!comment.authorTier || comment.authorTier === 'Unranked') {
+          try {
+            const userTier = await this.getUserTierInfo(comment.authorId, gameType);
+            return {
+              ...comment,
+              authorTier: userTier
+            };
+          } catch (error) {
+            console.error(`댓글 ${comment.id} 작성자 랭크 조회 실패:`, error);
+            return {
+              ...comment,
+              authorTier: comment.authorTier || 'Unranked'
+            };
+          }
+        }
+        return comment;
+      }));
+      
+      return enrichedComments;
     } catch (error) {
       console.error('댓글 조회 실패:', error);
       throw error;

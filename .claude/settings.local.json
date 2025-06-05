@@ -16,7 +16,10 @@
       "Bash(npm run build:*)",
       "Bash(npx tsc:*)",
       "Bash(npm run lint)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(npx next lint:*)",
+      "Bash(/Users/phillip/.npm-global/lib/node_modules/@anthropic-ai/claude-code/vendor/ripgrep/arm64-darwin/rg -n \"authorName\" \"/Users/phillip/judge.gg/src/app/(route)/valorant/community/post/[id]/page.js\")",
+      "Bash(git add:*)"
     ],
     "deny": []
   }

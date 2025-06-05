@@ -62,177 +62,226 @@ export default function MyPage() {
         }
     }, [user, authLoading, session, status, router]);
 
-    // Load user info and stats
+    // 페이지 마운트 시 캐시된 데이터 즉시 로드
     useEffect(() => {
-        const loadUserData = async () => {
-            if (user || session) {
-                const currentUser = user || session?.user;
-                const currentUserId = communityService.generateConsistentUserId(currentUser);
-                try {
-                    // 사용자 정보 로드
-                    const info = await userService.getUserInfo(currentUserId);
-                    
-                    // 멘토 정보 확인 (mentors 컬렉션에서 직접 조회)
-                    let isMentor = false;
-                    let mentorStats = { totalFeedbacks: 0, totalReviews: 0, rating: 0 };
-                    try {
-                        console.log('🔍 마이페이지 - 멘토 상태 확인 시작');
-                        console.log('🔍 현재 사용자 정보:', {
-                            currentUserId,
-                            currentUser: {
-                                uid: currentUser.uid,
-                                id: currentUser.id,
-                                email: currentUser.email,
-                                name: currentUser.name || currentUser.displayName
-                            }
-                        });
-                        
-                        const mentorInfo = await mentorService.getMentorByUserId(currentUserId);
-                        console.log('🔍 getMentorByUserId 결과:', mentorInfo);
-                        
-                        if (mentorInfo) {
-                            isMentor = true;
-                            mentorStats = {
-                                totalFeedbacks: mentorInfo.totalFeedbacks || 0,
-                                totalReviews: mentorInfo.totalReviews || 0,
-                                rating: mentorInfo.rating || 0,
-                            };
-                            console.log('🔍 멘토 정보 확인됨:', {
-                                mentorId: mentorInfo.id,
-                                nickname: mentorInfo.nickname,
-                                isApproved: mentorInfo.isApproved,
-                                userId: mentorInfo.userId
-                            });
-                        } else {
-                            console.log('🔍 멘토 정보 없음 - 일반 사용자');
-                        }
-                    } catch (error) {
-                        console.error('멘토 정보 조회 실패:', error);
-                    }
-                    
-                    // LoL 프로필 정보 로드 (연동된 경우)
-                    let lolProfile = null;
-                    let lolTier = null;
-                    if (info?.lolRiotId && info?.lolVerified) {
-                        try {
-                            const lolProfileData = await userService.getLolProfile();
-                            if (lolProfileData.verified) {
-                                lolProfile = lolProfileData.profile;
-                                // 솔로랭크 티어 정보 구성
-                                if (lolProfile?.ranks?.solo) {
-                                    const soloRank = lolProfile.ranks.solo;
-                                    lolTier = `${soloRank.tier} ${soloRank.rank} (${soloRank.leaguePoints}LP)`;
-                                } else {
-                                    lolTier = "Unranked";
-                                }
-                            }
-                        } catch (error) {
-                            console.error('LoL 프로필 로드 실패:', error);
-                        }
-                    }
+        const currentUser = user || session?.user;
+        if (currentUser) {
+            const currentUserId = communityService.generateConsistentUserId(currentUser);
+            const cachedData = loadCachedUserData(currentUserId);
+            if (cachedData) {
+                console.log('🔍 컴포넌트 마운트 시 캐시된 데이터 로드');
+                setUserInfo(cachedData);
+            }
+        }
+    }, []); // 빈 의존성 배열로 마운트 시 한 번만 실행
 
-                    // 발로란트 프로필 정보 로드 (연동된 경우)
-                    let valorantProfile = null;
-                    let valorantTier = null;
-                    if (info?.valorantRiotId && info?.valorantVerified) {
-                        try {
-                            const valorantProfileData = await userService.getValorantProfile();
-                            if (valorantProfileData.verified) {
-                                valorantProfile = valorantProfileData.profile;
-                                valorantTier = `${valorantProfileData.profile.winRate}% 승률`;
-                            }
-                        } catch (error) {
-                            console.error('발로란트 프로필 로드 실패:', error);
-                        }
-                    }
-                    
-                    setUserInfo({
-                        nickname: info?.displayName || currentUser.displayName || currentUser.name || currentUser.email,
-                        riotIds: {
-                            lol: info?.lolRiotId || null,
-                            valorant: info?.valorantRiotId || null,
-                        },
-                        tiers: {
-                            lol: lolTier,
-                            valorant: valorantTier,
-                        },
-                        lolProfile: lolProfile,
-                        valorantProfile: valorantProfile,
-                        isMentor: isMentor,
-                        mentorStats: mentorStats,
-                    });
+    // 인증 상태가 변경될 때마다 사용자 정보를 다시 로드
+    useEffect(() => {
+        if ((user || session) && status !== 'loading' && authLoading === false) {
+            console.log('🔍 인증 상태 확정됨, 사용자 데이터 로드 시작');
+            loadUserData();
+        }
+    }, [user, session, status, authLoading]);
 
-                    // 사용자 통계 로드 (사용자 객체 정보 전달)
-                    console.log('🔍 마이페이지 - 통계 로드 시작');
-                    const userStats = await userService.getUserStats(currentUserId, currentUser);
-                    console.log('🔍 마이페이지 - 통계 로드 완료:', userStats);
-                    setStats(userStats);
-                } catch (error) {
-                    console.error("Error loading user data:", error);
-                    setUserInfo({
-                        nickname: currentUser.displayName || currentUser.name || currentUser.email,
-                        riotIds: { lol: null, valorant: null },
-                        tiers: { lol: null, valorant: null },
-                        isMentor: false,
-                        mentorStats: { totalFeedbacks: 0, totalReviews: 0, rating: 0 },
-                    });
+    const loadUserData = async () => {
+        if (!(user || session)) return;
+
+        const currentUser = user || session?.user;
+        const currentUserId = communityService.generateConsistentUserId(currentUser);
+        console.log('🔍 마이페이지 - 사용자 데이터 로딩 시작:', { currentUserId, currentUser });
+        
+        // 먼저 캐시된 데이터 로드 (즉시 UI 업데이트)
+        const cachedData = loadCachedUserData(currentUserId);
+        if (cachedData) {
+            console.log('🔍 캐시된 데이터로 즉시 UI 업데이트');
+            setUserInfo(cachedData);
+        }
+        
+        try {
+            // Firebase에서 최신 데이터 로드
+            let info = await userService.getUserInfo(currentUserId);
+            console.log('🔍 마이페이지 - Firebase에서 로드된 사용자 정보:', info);
+            
+            // Firebase에 데이터가 없는 경우, NextAuth 세션 정보로 생성
+            if (!info && session?.user) {
+                console.log('🔍 마이페이지 - Firebase 데이터 없음, 세션 정보로 생성');
+                const { loginService } = await import('@/app/services/user/login.service');
+                await loginService.handleUserData(session.user);
+                info = await userService.getUserInfo(currentUserId);
+                console.log('🔍 마이페이지 - 새로 생성된 사용자 정보:', info);
+            }
+
+            await processUserData(info, currentUser, currentUserId);
+        } catch (error) {
+            console.error("Error loading user data:", error);
+            // 캐시된 데이터가 없는 경우에만 기본값 설정
+            if (!cachedData) {
+                setUserInfo({
+                    nickname: currentUser.displayName || currentUser.name || currentUser.email,
+                    riotIds: { lol: null, valorant: null },
+                    tiers: { lol: null, valorant: null },
+                    lolProfile: null,
+                    valorantProfile: null,
+                    isMentor: false,
+                    mentorStats: { totalFeedbacks: 0, totalReviews: 0, rating: 0 },
+                });
+            }
+        }
+    };
+
+    const loadCachedUserData = (userId) => {
+        try {
+            const cachedData = localStorage.getItem('userInfo_cache');
+            if (cachedData) {
+                const cache = JSON.parse(cachedData);
+                const cacheAge = Date.now() - cache.timestamp;
+                // 30분 이내의 캐시 사용 (이전 5분에서 확장)
+                if (cacheAge < 30 * 60 * 1000 && cache.userId === userId) {
+                    return cache.data;
                 }
             }
-        };
+        } catch (e) {
+            console.error('캐시 데이터 로드 실패:', e);
+        }
+        return null;
+    };
 
-        loadUserData();
-    }, [user, session]);
-
-    // Load liked mentors
-    useEffect(() => {
-        const loadLikedMentors = async () => {
-            if (user || session) {
-                const currentUser = user || session?.user;
-                const currentUserId = communityService.generateConsistentUserId(currentUser);
-                try {
-                    const mentorsData = await userService.getUserLikedMentorsData(currentUserId);
-                    setLikedMentors(mentorsData);
-                } catch (error) {
-                    console.error("Error loading liked mentors:", error);
-                    setLikedMentors([]);
-                }
+    const processUserData = async (info, currentUser, currentUserId) => {
+        // 현재 캐시된 데이터 가져오기 (연동 정보 보존용)
+        const cachedData = loadCachedUserData(currentUserId);
+        console.log('🔍 캐시된 데이터:', cachedData);
+        console.log('🔍 Firebase 데이터:', info);
+        
+        // 멘토 정보 확인 (mentors 컬렉션에서 직접 조회)
+        let isMentor = false;
+        let mentorStats = { totalFeedbacks: 0, totalReviews: 0, rating: 0 };
+        try {
+            const mentorInfo = await mentorService.getMentorByUserId(currentUserId);
+            if (mentorInfo) {
+                isMentor = true;
+                mentorStats = {
+                    totalFeedbacks: mentorInfo.totalFeedbacks || 0,
+                    totalReviews: mentorInfo.totalReviews || 0,
+                    rating: mentorInfo.rating || 0,
+                };
             }
-        };
-
-        loadLikedMentors();
-    }, [user, session]);
-
-    // Load feedback data
-    useEffect(() => {
-        const loadFeedbacks = async () => {
-            if (user || session) {
-                const currentUser = user || session?.user;
-                const currentUserId = communityService.generateConsistentUserId(currentUser);
-                try {
-                    // 신청한 피드백 로드
-                    const requestedData = await userService.getUserRequestedFeedbacks(currentUserId);
-                    setRequestedFeedbacks(requestedData);
+        } catch (error) {
+            console.error('멘토 정보 조회 실패:', error);
+        }
+        
+        // 연동 정보 결정: Firebase 우선, 없으면 캐시된 정보 사용
+        const lolRiotId = info?.lolRiotId || cachedData?.riotIds?.lol || null;
+        const lolVerified = info?.lolVerified || (cachedData?.riotIds?.lol ? true : false);
+        const valorantRiotId = info?.valorantRiotId || cachedData?.riotIds?.valorant || null;
+        const valorantVerified = info?.valorantVerified || (cachedData?.riotIds?.valorant ? true : false);
+        
+        console.log('🔍 결정된 연동 정보:', {
+            lolRiotId, lolVerified,
+            valorantRiotId, valorantVerified
+        });
+        
+        // LoL 프로필 정보 로드 (연동된 경우)
+        let lolProfile = cachedData?.lolProfile || null;
+        let lolTier = cachedData?.tiers?.lol || null;
+        if (lolRiotId && lolVerified) {
+            try {
+                const lolTierData = await userService.getLolTierInfo();
+                if (lolTierData.verified) {
+                    lolProfile = {
+                        summoner: lolTierData.summoner,
+                        ranks: lolTierData.ranks
+                    };
                     
-                    // 받은 피드백 로드 (userId로 직접 조회)
-                    try {
-                        console.log('🔍 받은 피드백 로드 시작 - currentUserId:', currentUserId);
-                        const receivedData = await userService.getMentorReceivedFeedbacks(currentUserId);
-                        console.log('🔍 받은 피드백 데이터:', receivedData);
-                        setReceivedFeedbacks(receivedData);
-                    } catch (error) {
-                        console.error('받은 피드백 조회 실패:', error);
-                        setReceivedFeedbacks([]);
+                    // 솔로랭크 티어 정보 구성
+                    if (lolTierData.ranks?.solo) {
+                        const soloRank = lolTierData.ranks.solo;
+                        lolTier = `${soloRank.tier} ${soloRank.rank} (${soloRank.leaguePoints}LP)`;
+                    } else {
+                        lolTier = "Unranked";
                     }
-                } catch (error) {
-                    console.error("Error loading feedbacks:", error);
-                    setRequestedFeedbacks([]);
-                    setReceivedFeedbacks([]);
                 }
+            } catch (error) {
+                console.error('LoL 티어 정보 로드 실패:', error);
             }
-        };
+        }
 
-        loadFeedbacks();
-    }, [user, session, userInfo?.isMentor]);
+        // 발로란트 프로필 정보 로드 (연동된 경우)
+        let valorantProfile = cachedData?.valorantProfile || null;
+        let valorantTier = cachedData?.tiers?.valorant || null;
+        if (valorantRiotId && valorantVerified) {
+            try {
+                const valorantProfileData = await userService.getValorantProfile();
+                if (valorantProfileData.verified) {
+                    valorantProfile = valorantProfileData.profile;
+                    valorantTier = `${valorantProfileData.profile.winRate}% 승률`;
+                }
+            } catch (error) {
+                console.error('발로란트 프로필 로드 실패:', error);
+            }
+        }
+        
+        const userInfoData = {
+            nickname: info?.displayName || currentUser.displayName || currentUser.name || currentUser.email,
+            riotIds: {
+                lol: lolRiotId,
+                valorant: valorantRiotId,
+            },
+            tiers: {
+                lol: lolTier,
+                valorant: valorantTier,
+            },
+            lolProfile: lolProfile,
+            valorantProfile: valorantProfile,
+            isMentor: isMentor,
+            mentorStats: mentorStats,
+        };
+        
+        console.log('🔍 최종 업데이트된 사용자 정보:', userInfoData);
+        setUserInfo(userInfoData);
+        
+        // 로컬 스토리지에 캐시 저장
+        try {
+            localStorage.setItem('userInfo_cache', JSON.stringify({
+                data: userInfoData,
+                timestamp: Date.now(),
+                userId: currentUserId
+            }));
+        } catch (e) {
+            console.error('로컬 스토리지 저장 실패:', e);
+        }
+
+        // 사용자 통계 로드
+        try {
+            const userStats = await userService.getUserStats(currentUserId, currentUser);
+            setStats(userStats);
+        } catch (error) {
+            console.error('통계 로드 실패:', error);
+        }
+        
+        // 천하 멘토 로드
+        try {
+            const mentorsData = await userService.getUserLikedMentorsData(currentUserId);
+            setLikedMentors(mentorsData);
+        } catch (error) {
+            console.error('천하 멘토 로드 실패:', error);
+            setLikedMentors([]);
+        }
+        
+        // 피드백 데이터 로드
+        try {
+            const requestedData = await userService.getUserRequestedFeedbacks(currentUserId);
+            setRequestedFeedbacks(requestedData);
+            
+            const receivedData = await userService.getMentorReceivedFeedbacks(currentUserId);
+            setReceivedFeedbacks(receivedData);
+        } catch (error) {
+            console.error('피드백 데이터 로드 실패:', error);
+            setRequestedFeedbacks([]);
+            setReceivedFeedbacks([]);
+        }
+    };
+
+
 
     // 임시 게시글 데이터
     const mockPosts = {
@@ -444,7 +493,7 @@ export default function MyPage() {
                         tags: post.tags || [],
                         author: {
                             nickname: post.authorName || 'Unknown',
-                            tier: 'Unranked'
+                            tier: post.authorTier || (userInfo?.tiers?.lol && post.gameType === 'lol' ? userInfo.tiers.lol : userInfo?.tiers?.valorant && post.gameType === 'valorant' ? userInfo.tiers.valorant : 'Unranked')
                         },
                         commentCount: post.commentCount || 0,
                         createdAt: post.createdAt?.toDate() || new Date(),
@@ -467,77 +516,36 @@ export default function MyPage() {
     }, [selectedMenu, selectedGame, user, session]);
 
     // Riot ID 연동 처리
-    const handleRiotIdSubmit = async (riotId, game) => {
+    const handleRiotIdSubmit = async (riotId, game, isRefresh = false) => {
         try {
             if (game === 'lol') {
-                // LoL의 경우 Riot API 검증을 통한 연동
-                const result = await userService.verifyAndConnectLolAccount(riotId);
-                console.log("LoL 계정 검증 및 연동 성공:", result);
-                
-                // 성공 후 사용자 정보 다시 로드
-                if (user || session) {
-                    const currentUser = user || session.user;
-                    const currentUserId = communityService.generateConsistentUserId(currentUser);
-                    const info = await userService.getUserInfo(currentUserId);
-                    
-                    // LoL 프로필 정보 업데이트
-                    const updatedUserInfo = {
-                        nickname: info?.displayName || currentUser.displayName || currentUser.name || currentUser.email,
-                        riotIds: {
-                            lol: info?.lolRiotId || null,
-                            valorant: info?.valorantRiotId || null,
-                        },
-                        tiers: {
-                            lol: result.profile?.soloRank || 'Unranked',
-                            valorant: null,
-                        },
-                        lolProfile: result.profile || null,
-                        isMentor: info?.isMentor || false,
-                        mentorStats: info?.mentorInfo || {
-                            totalFeedbacks: 0,
-                            totalReviews: 0,
-                            rating: 0,
-                        },
-                    };
-                    
-                    setUserInfo(updatedUserInfo);
+                if (isRefresh) {
+                    console.log("LoL 정보 새로고침 시작:", riotId);
+                    // 새로고침의 경우 기존 PUUID로 최신 티어 정보 조회
+                    const result = await userService.getLolTierInfo();
+                    console.log("LoL 티어 정보 새로고침 성공:", result);
+                } else {
+                    // 새로운 연동의 경우 Riot API 검증을 통한 연동
+                    const currentUser = user || session?.user;
+                    const result = await userService.verifyAndConnectLolAccount(riotId, currentUser);
+                    console.log("LoL 계정 검증 및 연동 성공:", result);
                 }
                 
-                showSnackbar("LoL 계정이 성공적으로 연동되었습니다!", "success");
+                // 성공 후 사용자 데이터 다시 로드 (processUserData를 통해 일관된 로직 사용)
+                console.log('🔍 LoL 연동 성공, 사용자 데이터 다시 로드');
+                await loadUserData();
+                
+                const message = isRefresh ? "LoL 정보가 성공적으로 새로고침되었습니다!" : "LoL 계정이 성공적으로 연동되었습니다!";
+                showSnackbar(message, "success");
             } else if (game === 'valorant') {
                 // 발로란트의 경우 Riot API 검증을 통한 연동
-                const result = await userService.verifyAndConnectValorantAccount(riotId);
+                const currentUser = user || session?.user;
+                const result = await userService.verifyAndConnectValorantAccount(riotId, currentUser);
                 console.log("발로란트 계정 검증 및 연동 성공:", result);
                 
-                // 성공 후 사용자 정보 다시 로드
-                if (user || session) {
-                    const currentUser = user || session.user;
-                    const currentUserId = communityService.generateConsistentUserId(currentUser);
-                    const info = await userService.getUserInfo(currentUserId);
-                    
-                    // 발로란트 프로필 정보 업데이트
-                    const updatedUserInfo = {
-                        nickname: info?.displayName || currentUser.displayName || currentUser.name || currentUser.email,
-                        riotIds: {
-                            lol: info?.lolRiotId || null,
-                            valorant: info?.valorantRiotId || null,
-                        },
-                        tiers: {
-                            lol: userInfo?.tiers?.lol || null,
-                            valorant: `${result.profile?.winRate}% 승률` || null,
-                        },
-                        lolProfile: userInfo?.lolProfile || null,
-                        valorantProfile: result.profile || null,
-                        isMentor: info?.isMentor || false,
-                        mentorStats: info?.mentorInfo || {
-                            totalFeedbacks: 0,
-                            totalReviews: 0,
-                            rating: 0,
-                        },
-                    };
-                    
-                    setUserInfo(updatedUserInfo);
-                }
+                // 성공 후 사용자 데이터 다시 로드 (processUserData를 통해 일관된 로직 사용)
+                console.log('🔍 발로란트 연동 성공, 사용자 데이터 다시 로드');
+                await loadUserData();
                 
                 showSnackbar("발로란트 계정이 성공적으로 연동되었습니다!", "success");
             } else {
@@ -606,23 +614,67 @@ export default function MyPage() {
         );
     };
 
-    const handleFeedbackAction = (feedback, action) => {
-        if (action === "accept") {
-            // TODO: API 호출
-            console.log("피드백 수락:", feedback.id);
-        } else if (action === "reject") {
-            // TODO: API 호출
-            console.log("피드백 거절:", feedback.id);
+    const handleFeedbackAction = async (feedback, action) => {
+        try {
+            const response = await fetch(`/api/mentor/feedback/${feedback.id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ 
+                    action,
+                    response: action === 'reject' ? '멘토가 요청을 거절했습니다.' : ''
+                }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || '요청 처리에 실패했습니다.');
+            }
+
+            const result = await response.json();
+            showSnackbar(result.message, 'success');
+            
+            // 피드백 목록 새로고침
+            await loadUserData();
+        } catch (error) {
+            console.error('피드백 처리 실패:', error);
+            showSnackbar('요청 처리에 실패했습니다: ' + error.message, 'error');
         }
     };
 
-    const handleFeedbackSubmit = (feedbackText) => {
+    const handleFeedbackSubmit = async (feedbackText) => {
         if (!selectedFeedback) return;
 
-        // TODO: API 호출
-        console.log("피드백 제출:", selectedFeedback.id, feedbackText);
-        setShowFeedbackModal(false);
-        setSelectedFeedback(null);
+        try {
+            const response = await fetch(`/api/mentor/feedback/${selectedFeedback.id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ 
+                    action: 'submit',
+                    feedbackText
+                }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || '피드백 제출에 실패했습니다.');
+            }
+
+            const result = await response.json();
+            showSnackbar(result.message, 'success');
+            
+            // 피드백 목록 새로고침
+            await loadUserData();
+            
+            setShowFeedbackModal(false);
+            setSelectedFeedback(null);
+        } catch (error) {
+            console.error('피드백 제출 실패:', error);
+            showSnackbar('피드백 제출에 실패했습니다: ' + error.message, 'error');
+        }
     };
 
     // Handle post edit
@@ -671,7 +723,7 @@ export default function MyPage() {
                         tags: post.tags || [],
                         author: {
                             nickname: post.authorName || 'Unknown',
-                            tier: 'Unranked'
+                            tier: post.authorTier || (userInfo?.tiers?.lol && post.gameType === 'lol' ? userInfo.tiers.lol : userInfo?.tiers?.valorant && post.gameType === 'valorant' ? userInfo.tiers.valorant : 'Unranked')
                         },
                         commentCount: post.commentCount || 0,
                         createdAt: post.createdAt?.toDate() || new Date(),
@@ -752,6 +804,16 @@ export default function MyPage() {
     };
 
     if (authLoading || status === 'loading') {
+        // 로딩 중에도 캐시된 데이터가 있으면 표시
+        const currentUser = user || session?.user;
+        if (currentUser) {
+            const currentUserId = communityService.generateConsistentUserId(currentUser);
+            const cachedData = loadCachedUserData(currentUserId);
+            if (cachedData && !userInfo) {
+                setUserInfo(cachedData);
+            }
+        }
+        
         return (
             <div className="min-h-screen bg-gray-50 flex items-center justify-center">
                 <div className="text-center">
@@ -777,8 +839,8 @@ export default function MyPage() {
                             stats={stats[selectedGame]}
                             selectedMenu={selectedMenu}
                             onMenuSelect={setSelectedMenu}
-                            onRiotIdSubmit={(riotId) =>
-                                handleRiotIdSubmit(riotId, selectedGame)
+                            onRiotIdSubmit={(riotId, gameType, isRefresh = false) =>
+                                handleRiotIdSubmit(riotId, gameType || selectedGame, isRefresh)
                             }
                             selectedGame={selectedGame}
                             onGameSelect={setSelectedGame}

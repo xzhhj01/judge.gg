@@ -26,22 +26,23 @@ export default function LoginButton() {
 
     const handleLogout = async () => {
         try {
-            // 세션 완전 정리를 위해 강제 새로고침과 함께 로그아웃
+            setLoading(true);
+            
+            // NextAuth 로그아웃
             await signOut({ 
                 callbackUrl: '/',
                 redirect: false 
             });
             
-            // 로컬 스토리지 및 세션 스토리지 정리
-            localStorage.clear();
-            sessionStorage.clear();
-            
-            // 강제 페이지 새로고침으로 모든 상태 초기화
-            window.location.href = '/';
+            // 페이지 새로고침으로 모든 상태 초기화
+            router.push('/');
+            router.refresh();
         } catch (error) {
             console.error("로그아웃 실패:", error);
-            // 에러가 발생해도 강제로 메인 페이지로 이동
-            window.location.href = '/';
+            // 에러가 발생해도 메인 페이지로 이동
+            router.push('/');
+        } finally {
+            setLoading(false);
         }
     };
 

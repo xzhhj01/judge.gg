@@ -15,6 +15,15 @@ export async function GET(req) {
     const url = `${RIOT_BASE}/riot/account/v1/accounts/by-puuid/${encodeURIComponent(puuid)}`;
     
     try {
+      console.log('🔍 Riot API 호출 (PUUID):', url);
+      
+      if (!API_KEY) {
+        return NextResponse.json(
+          { message: 'Riot API Key가 설정되지 않았습니다.' },
+          { status: 500 }
+        );
+      }
+
       const res = await fetch(url, {
         headers: {
           'Accept'       : 'application/json',
@@ -23,10 +32,24 @@ export async function GET(req) {
         cache: 'no-store'
       });
 
+      console.log('🔍 Riot API 응답 상태 (PUUID):', res.status, res.statusText);
+
+      const contentType = res.headers.get('content-type');
+      
+      if (!contentType || !contentType.includes('application/json')) {
+        const errorText = await res.text();
+        console.error('🔍 Non-JSON 응답 (PUUID):', errorText);
+        return NextResponse.json(
+          { message: `Riot API 오류: ${res.status} ${res.statusText}`, detail: errorText },
+          { status: res.status }
+        );
+      }
+
       const data = await res.json();
       return NextResponse.json(data, { status: res.status });
 
     } catch (err) {
+      console.error('🔍 Riot API 호출 예외 (PUUID):', err);
       return NextResponse.json(
         { message: 'Riot API 호출 실패 (PUUID)', detail: err.message },
         { status: 502 }
@@ -47,22 +70,45 @@ export async function GET(req) {
     `${encodeURIComponent(gameName)}/${encodeURIComponent(tagLine)}`;
 
   try {
+    console.log('🔍 Riot API 호출:', url);
+    console.log('🔍 API Key 확인:', API_KEY ? 'OK' : 'MISSING');
+    
+    if (!API_KEY) {
+      return NextResponse.json(
+        { message: 'Riot API Key가 설정되지 않았습니다.' },
+        { status: 500 }
+      );
+    }
+
     const res = await fetch(url, {
       headers: {
         'Accept'       : 'application/json',
-        'X-Riot-Token' : API_KEY            // 🔑 Riot 권장 방식 (헤더)
+        'X-Riot-Token' : API_KEY
       },
-      cache: 'no-store'                     // 항상 최신값 (revalidate=0 과 동일)
+      cache: 'no-store'
     });
 
-    // Riot 쪽 응답 바디
-    const data = await res.json();
+    console.log('🔍 Riot API 응답 상태:', res.status, res.statusText);
 
-    // 그대로 클라이언트로 전달 (status 200/4xx/5xx 유지)
+    // 응답이 JSON인지 확인
+    const contentType = res.headers.get('content-type');
+    
+    if (!contentType || !contentType.includes('application/json')) {
+      const errorText = await res.text();
+      console.error('🔍 Non-JSON 응답:', errorText);
+      return NextResponse.json(
+        { message: `Riot API 오류: ${res.status} ${res.statusText}`, detail: errorText },
+        { status: res.status }
+      );
+    }
+
+    const data = await res.json();
+    console.log('🔍 Riot API 응답 데이터:', data);
+
     return NextResponse.json(data, { status: res.status });
 
   } catch (err) {
-    // 네트워크 등 예외 상황
+    console.error('🔍 Riot API 호출 예외:', err);
     return NextResponse.json(
       { message: 'Riot API 호출 실패', detail: err.message },
       { status: 502 }

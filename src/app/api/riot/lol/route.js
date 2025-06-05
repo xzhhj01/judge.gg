@@ -8,6 +8,7 @@ const API_KEY = process.env.RIOT_API_KEY;
 export async function GET(req) {
   const { searchParams } = new URL(req.url);
   const puuid = searchParams.get('puuid');
+  const tierOnly = searchParams.get('tierOnly'); // 티어 정보만 요청하는 경우
 
   if (!puuid) {
     return NextResponse.json(
@@ -16,9 +17,20 @@ export async function GET(req) {
     );
   }
 
+  console.log('🔍 LoL API 호출:', { puuid, tierOnly });
+
+  if (!API_KEY) {
+    return NextResponse.json(
+      { message: 'Riot API Key가 설정되지 않았습니다.' },
+      { status: 500 }
+    );
+  }
+
   try {
     // 1. 소환사 정보 조회 (by PUUID)
     const summonerUrl = `${LOL_BASE}/lol/summoner/v4/summoners/by-puuid/${encodeURIComponent(puuid)}`;
+    console.log('🔍 소환사 정보 조회:', summonerUrl);
+    
     const summonerRes = await fetch(summonerUrl, {
       headers: {
         'Accept': 'application/json',
@@ -27,15 +39,29 @@ export async function GET(req) {
       cache: 'no-store'
     });
 
+    console.log('🔍 소환사 API 응답:', summonerRes.status, summonerRes.statusText);
+
     if (!summonerRes.ok) {
-      const errorData = await summonerRes.json();
-      return NextResponse.json(errorData, { status: summonerRes.status });
+      const contentType = summonerRes.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        const errorData = await summonerRes.json();
+        return NextResponse.json(errorData, { status: summonerRes.status });
+      } else {
+        const errorText = await summonerRes.text();
+        return NextResponse.json(
+          { message: `소환사 API 오류: ${summonerRes.status} ${summonerRes.statusText}`, detail: errorText },
+          { status: summonerRes.status }
+        );
+      }
     }
 
     const summonerData = await summonerRes.json();
+    console.log('🔍 소환사 정보:', { id: summonerData.id, name: summonerData.name, level: summonerData.summonerLevel });
 
     // 2. 랭크 정보 조회 (by summonerId)
     const rankUrl = `${LOL_BASE}/lol/league/v4/entries/by-summoner/${summonerData.id}`;
+    console.log('🔍 랭크 정보 조회:', rankUrl);
+    
     const rankRes = await fetch(rankUrl, {
       headers: {
         'Accept': 'application/json',
@@ -44,9 +70,14 @@ export async function GET(req) {
       cache: 'no-store'
     });
 
+    console.log('🔍 랭크 API 응답:', rankRes.status, rankRes.statusText);
+
     let rankData = [];
     if (rankRes.ok) {
       rankData = await rankRes.json();
+      console.log('🔍 랭크 정보:', rankData);
+    } else {
+      console.error('🔍 랭크 정보 조회 실패:', rankRes.status, rankRes.statusText);
     }
 
     // 3. 최근 매치 목록 조회 (by PUUID) - 최근 5경기
@@ -88,6 +119,37 @@ export async function GET(req) {
     const soloRank = rankData.find(rank => rank.queueType === 'RANKED_SOLO_5x5');
     const flexRank = rankData.find(rank => rank.queueType === 'RANKED_FLEX_SR');
 
+    // 티어 정보만 요청하는 경우
+    if (tierOnly === 'true') {
+      return NextResponse.json({
+        summoner: {
+          id: summonerData.id,
+          name: summonerData.name,
+          summonerLevel: summonerData.summonerLevel,
+          profileIconId: summonerData.profileIconId
+        },
+        ranks: {
+          solo: soloRank ? {
+            tier: soloRank.tier,
+            rank: soloRank.rank,
+            leaguePoints: soloRank.leaguePoints,
+            wins: soloRank.wins,
+            losses: soloRank.losses,
+            winRate: Math.round((soloRank.wins / (soloRank.wins + soloRank.losses)) * 100)
+          } : null,
+          flex: flexRank ? {
+            tier: flexRank.tier,
+            rank: flexRank.rank,
+            leaguePoints: flexRank.leaguePoints,
+            wins: flexRank.wins,
+            losses: flexRank.losses,
+            winRate: Math.round((flexRank.wins / (flexRank.wins + flexRank.losses)) * 100)
+          } : null
+        }
+      });
+    }
+
+    // 전체 정보 응답 (기존 로직)
     // 응답 데이터 구성
     const responseData = {
       summoner: {
