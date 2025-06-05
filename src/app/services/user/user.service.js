@@ -863,21 +863,24 @@ export const userService = {
     try {
       console.log('🔍 getMentorReceivedFeedbacks 시작 - userId:', userId);
       
-      // 1. userId로 해당 사용자의 멘토 정보 조회
+      // 1. userId로 해당 사용자의 멘토 정보 조회 (승인된 멘토만)
       const mentorQuery = query(
         collection(db, 'mentors'),
-        where('userId', '==', userId)
+        where('userId', '==', userId),
+        where('isApproved', '==', true) // 승인된 멘토만 조회
       );
       const mentorSnapshot = await getDocs(mentorQuery);
       
       if (mentorSnapshot.empty) {
-        console.log('🔍 해당 userId의 멘토 정보 없음:', userId);
+        console.log('🔍 해당 userId의 승인된 멘토 정보 없음:', userId);
         return [];
       }
       
       const mentorDoc = mentorSnapshot.docs[0];
       const mentorId = mentorDoc.id;
+      const mentorData = mentorDoc.data();
       console.log('🔍 찾은 멘토 ID:', mentorId);
+      console.log('🔍 멘토 데이터:', { nickname: mentorData.nickname, isApproved: mentorData.isApproved });
       
       // 2. 해당 멘토ID로 피드백 요청 조회
       const feedbackQuery = query(
@@ -890,19 +893,27 @@ export const userService = {
       
       snapshot.forEach((doc) => {
         const data = doc.data();
+        console.log(`🔍 피드백 요청 #${feedbacks.length + 1}:`, {
+          id: doc.id,
+          userName: data.userName,
+          service: data.service,
+          status: data.status,
+          createdAt: data.createdAt
+        });
+        
         feedbacks.push({
           id: doc.id,
           ...data,
           // 멘토 정보도 포함
           mentorInfo: {
             id: mentorId,
-            nickname: mentorDoc.data().nickname,
-            selectedGame: mentorDoc.data().selectedGame
+            nickname: mentorData.nickname,
+            selectedGame: mentorData.selectedGame
           }
         });
       });
       
-      console.log(`🔍 찾은 피드백 요청: ${feedbacks.length}개`);
+      console.log(`🔍 최종 찾은 피드백 요청: ${feedbacks.length}개`);
       
       // 클라이언트에서 날짜순 정렬 (최신순)
       feedbacks.sort((a, b) => {
@@ -914,6 +925,137 @@ export const userService = {
       return feedbacks;
     } catch (error) {
       console.error('받은 피드백 요청 목록 조회 실패:', error);
+      return [];
+    }
+  },
+
+  // 멘토의 최근 활동 조회 (게시글 + 댓글)
+  async getMentorRecentActivity(userId, limit = 10) {
+    try {
+      console.log('🔍 getMentorRecentActivity 시작 - userId:', userId);
+      
+      if (!userId) {
+        return [];
+      }
+
+      const activities = [];
+
+      // 1. 멘토가 작성한 게시글 조회 (LoL, Valorant)
+      const [lolPosts, valorantPosts] = await Promise.all([
+        this.getUserPostsByGame(userId, 'lol'),
+        this.getUserPostsByGame(userId, 'valorant')
+      ]);
+
+      // 게시글을 활동으로 변환
+      [...lolPosts, ...valorantPosts].forEach(post => {
+        activities.push({
+          type: 'post',
+          id: post.id,
+          title: post.title,
+          content: post.content?.substring(0, 100) + (post.content?.length > 100 ? '...' : ''),
+          gameType: post.gameType,
+          createdAt: post.createdAt?.toDate ? post.createdAt.toDate() : new Date(post.createdAt),
+          likes: post.likes || 0,
+          commentCount: post.commentCount || 0,
+          views: post.views || 0
+        });
+      });
+
+      // 2. 멘토가 작성한 댓글 조회 (LoL, Valorant)
+      const [lolCommentedPosts, valorantCommentedPosts] = await Promise.all([
+        this.getUserCommentedPostsData(userId, 'lol'),
+        this.getUserCommentedPostsData(userId, 'valorant')
+      ]);
+
+      // 댓글을 활동으로 변환 (댓글 내용을 가져오기 위해 추가 처리 필요)
+      for (const post of [...lolCommentedPosts, ...valorantCommentedPosts]) {
+        // 해당 게시글에서 이 사용자의 댓글들을 찾기
+        try {
+          const comments = await this.getUserCommentsOnPost(userId, post.gameType, post.id);
+          comments.forEach(comment => {
+            activities.push({
+              type: 'comment',
+              id: comment.id,
+              content: comment.content?.substring(0, 100) + (comment.content?.length > 100 ? '...' : ''),
+              postTitle: post.title,
+              postId: post.id,
+              gameType: post.gameType,
+              createdAt: comment.createdAt?.toDate ? comment.createdAt.toDate() : new Date(comment.createdAt),
+              likes: comment.likes || 0
+            });
+          });
+        } catch (error) {
+          console.error(`댓글 조회 실패 - postId: ${post.id}`, error);
+        }
+      }
+
+      // 최신순으로 정렬하고 제한된 수만 반환
+      activities.sort((a, b) => b.createdAt - a.createdAt);
+      
+      console.log(`🔍 멘토 최근 활동: ${activities.length}개 (제한: ${limit}개)`);
+      return activities.slice(0, limit);
+    } catch (error) {
+      console.error('멘토 최근 활동 조회 실패:', error);
+      return [];
+    }
+  },
+
+  // 특정 게시글에서 사용자의 댓글 조회
+  async getUserCommentsOnPost(userId, gameType, postId) {
+    try {
+      const { collection, query, where, getDocs } = await import('firebase/firestore');
+      
+      // 사용자 ID의 다양한 형태 생성
+      const possibleIds = new Set([
+        userId,
+        userId?.toString(),
+        userId?.includes('@') ? userId.replace(/[^a-zA-Z0-9]/g, '_') : null,
+        userId?.includes('@') ? userId.split('@')[0] : null,
+      ]);
+      const finalIds = Array.from(possibleIds).filter(Boolean);
+
+      const queries = [];
+      finalIds.forEach(id => {
+        queries.push(query(
+          collection(db, `${gameType}_comments`), 
+          where('postId', '==', postId),
+          where('authorId', '==', id)
+        ));
+        queries.push(query(
+          collection(db, `${gameType}_comments`), 
+          where('postId', '==', postId),
+          where('authorUid', '==', id)
+        ));
+      });
+
+      const snapshots = await Promise.all(queries.map(async (q) => {
+        try {
+          return await getDocs(q);
+        } catch (error) {
+          console.error('개별 댓글 쿼리 실행 오류:', error);
+          return { docs: [] };
+        }
+      }));
+
+      const comments = [];
+      const commentIds = new Set();
+
+      snapshots.forEach(snapshot => {
+        const docs = snapshot.docs || [];
+        docs.forEach(doc => {
+          if (!commentIds.has(doc.id)) {
+            comments.push({
+              id: doc.id,
+              ...doc.data()
+            });
+            commentIds.add(doc.id);
+          }
+        });
+      });
+
+      return comments;
+    } catch (error) {
+      console.error('게시글 댓글 조회 실패:', error);
       return [];
     }
   }

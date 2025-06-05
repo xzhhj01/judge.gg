@@ -58,6 +58,7 @@ export default function MentorDetailPage() {
     const [selectedService, setSelectedService] = useState("");
     const [feedbackMessage, setFeedbackMessage] = useState("");
     const [submittingFeedback, setSubmittingFeedback] = useState(false);
+    const [recentActivities, setRecentActivities] = useState([]);
 
     // 멘토 데이터 로드 및 찜하기 상태 확인
     useEffect(() => {
@@ -115,6 +116,25 @@ export default function MentorDetailPage() {
             loadReviews();
         }
     }, [mentorId]);
+
+    // 멘토의 최근 활동 로드
+    useEffect(() => {
+        const loadRecentActivities = async () => {
+            if (mentor?.userId) {
+                try {
+                    const activities = await userService.getMentorRecentActivity(mentor.userId, 10);
+                    setRecentActivities(activities);
+                } catch (error) {
+                    console.error('최근 활동 로드 실패:', error);
+                    setRecentActivities([]);
+                }
+            }
+        };
+
+        if (mentor) {
+            loadRecentActivities();
+        }
+    }, [mentor]);
 
     const showSnackbar = (message) => {
         setSnackbar({ show: true, message });
@@ -216,12 +236,13 @@ export default function MentorDetailPage() {
 
         setSubmittingReview(true);
         try {
+            const currentUser = user || session?.user;
             const reviewData = {
                 mentorId: mentorId,
                 rating: rating,
                 comment: reviewText.trim(),
-                reviewerId: user.uid,
-                reviewerName: user.displayName || user.email || "익명",
+                reviewerId: currentUser.uid || currentUser.id || currentUser.sub,
+                reviewerName: currentUser.displayName || currentUser.name || currentUser.email || "익명",
             };
 
             await mentorService.addMentorReview(reviewData);
@@ -681,6 +702,17 @@ export default function MentorDetailPage() {
                             <div className="p-6">
                                 {activeTab === "reviews" && (
                                     <div className="space-y-6">
+                                        {/* 리뷰 작성 버튼 */}
+                                        {(user || session) && (
+                                            <div className="flex justify-end">
+                                                <button
+                                                    onClick={() => setShowReviewModal(true)}
+                                                    className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium transition-colors"
+                                                >
+                                                    리뷰 작성하기
+                                                </button>
+                                            </div>
+                                        )}
 
                                         {/* 리뷰 목록 */}
                                         <div className="space-y-4">
@@ -741,8 +773,112 @@ export default function MentorDetailPage() {
                                     </div>
                                 )}
                                 {activeTab === "activity" && (
-                                    <div className="text-center py-8 text-gray-500">
-                                        최근 활동 내용이 여기에 표시됩니다
+                                    <div className="space-y-4">
+                                        {recentActivities.length === 0 ? (
+                                            <div className="text-center py-8 text-gray-500">
+                                                최근 활동이 없습니다
+                                            </div>
+                                        ) : (
+                                            recentActivities.map((activity) => (
+                                                <div
+                                                    key={`${activity.type}_${activity.id}`}
+                                                    className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors"
+                                                >
+                                                    <div className="flex items-start space-x-3">
+                                                        {/* 활동 타입 아이콘 */}
+                                                        <div className="flex-shrink-0 mt-1">
+                                                            {activity.type === 'post' ? (
+                                                                <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                                                                    <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                                    </svg>
+                                                                </div>
+                                                            ) : (
+                                                                <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                                                                    <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                                                                    </svg>
+                                                                </div>
+                                                            )}
+                                                        </div>
+
+                                                        {/* 활동 내용 */}
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="flex items-center space-x-2 mb-1">
+                                                                <span className="text-sm font-medium text-gray-900">
+                                                                    {activity.type === 'post' ? '게시글 작성' : '댓글 작성'}
+                                                                </span>
+                                                                <span className={`px-2 py-1 text-xs rounded-full ${
+                                                                    activity.gameType === 'lol' 
+                                                                        ? 'bg-blue-100 text-blue-700' 
+                                                                        : 'bg-red-100 text-red-700'
+                                                                }`}>
+                                                                    {activity.gameType === 'lol' ? 'LoL' : 'VALORANT'}
+                                                                </span>
+                                                                <span className="text-sm text-gray-500">
+                                                                    {activity.createdAt.toLocaleDateString('ko-KR')}
+                                                                </span>
+                                                            </div>
+                                                            
+                                                            {activity.type === 'post' ? (
+                                                                <div>
+                                                                    <Link 
+                                                                        href={`/${activity.gameType}/community/post/${activity.id}`}
+                                                                        className="font-medium text-gray-900 hover:text-blue-600 transition-colors block mb-1"
+                                                                    >
+                                                                        {activity.title}
+                                                                    </Link>
+                                                                    <p className="text-sm text-gray-600 mb-2">
+                                                                        {activity.content}
+                                                                    </p>
+                                                                    <div className="flex items-center space-x-4 text-xs text-gray-500">
+                                                                        <span className="flex items-center">
+                                                                            <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                                                                            </svg>
+                                                                            {activity.likes}
+                                                                        </span>
+                                                                        <span className="flex items-center">
+                                                                            <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                                                                            </svg>
+                                                                            {activity.commentCount}
+                                                                        </span>
+                                                                        <span className="flex items-center">
+                                                                            <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                                                            </svg>
+                                                                            {activity.views}
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                            ) : (
+                                                                <div>
+                                                                    <Link 
+                                                                        href={`/${activity.gameType}/community/post/${activity.postId}`}
+                                                                        className="text-sm text-gray-600 hover:text-blue-600 transition-colors block mb-1"
+                                                                    >
+                                                                        {activity.postTitle}에 댓글 작성
+                                                                    </Link>
+                                                                    <p className="text-sm text-gray-700 mb-2">
+                                                                        {activity.content}
+                                                                    </p>
+                                                                    <div className="flex items-center space-x-4 text-xs text-gray-500">
+                                                                        <span className="flex items-center">
+                                                                            <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                                                                            </svg>
+                                                                            {activity.likes}
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))
+                                        )}
                                     </div>
                                 )}
                             </div>

@@ -76,7 +76,20 @@ export default function MyPage() {
                     let isMentor = false;
                     let mentorStats = { totalFeedbacks: 0, totalReviews: 0, rating: 0 };
                     try {
+                        console.log('🔍 마이페이지 - 멘토 상태 확인 시작');
+                        console.log('🔍 현재 사용자 정보:', {
+                            currentUserId,
+                            currentUser: {
+                                uid: currentUser.uid,
+                                id: currentUser.id,
+                                email: currentUser.email,
+                                name: currentUser.name || currentUser.displayName
+                            }
+                        });
+                        
                         const mentorInfo = await mentorService.getMentorByUserId(currentUserId);
+                        console.log('🔍 getMentorByUserId 결과:', mentorInfo);
+                        
                         if (mentorInfo) {
                             isMentor = true;
                             mentorStats = {
@@ -84,7 +97,14 @@ export default function MyPage() {
                                 totalReviews: mentorInfo.totalReviews || 0,
                                 rating: mentorInfo.rating || 0,
                             };
-                            console.log('🔍 멘토 정보 확인됨:', mentorInfo);
+                            console.log('🔍 멘토 정보 확인됨:', {
+                                mentorId: mentorInfo.id,
+                                nickname: mentorInfo.nickname,
+                                isApproved: mentorInfo.isApproved,
+                                userId: mentorInfo.userId
+                            });
+                        } else {
+                            console.log('🔍 멘토 정보 없음 - 일반 사용자');
                         }
                     } catch (error) {
                         console.error('멘토 정보 조회 실패:', error);
