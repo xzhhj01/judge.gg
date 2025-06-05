@@ -87,27 +87,11 @@ export default function MentorDetailPage() {
     useEffect(() => {
         const loadReviews = async () => {
             try {
-                // 실제로는 mentorService.getMentorReviews(mentorId) 호출
-                // 현재는 임시 데이터로 초기화
-                const mockReviews = [
-                    {
-                        id: 1,
-                        userName: "실버탈출가능?",
-                        rating: 5,
-                        comment: "정글링 루트부터 갱킹 타이밍까지 자세히 설명해주셔서 많이 배웠습니다. 특히 오브젝트 우선순위 설정하는 법을 알려주셔서 좋았어요!",
-                        createdAt: "2024-03-15",
-                    },
-                    {
-                        id: 2,
-                        userName: "브론즈마스터",
-                        rating: 4,
-                        comment: "친절하게 알려주시고 실력도 많이 늘었어요. 다만 조금 더 구체적인 예시가 있었으면 좋겠어요.",
-                        createdAt: "2024-03-10",
-                    },
-                ];
-                setReviews(mockReviews);
+                const reviewData = await mentorService.getMentorReviews(mentorId);
+                setReviews(reviewData);
             } catch (error) {
                 console.error('리뷰 로드 실패:', error);
+                setReviews([]);
             }
         };
 
@@ -211,38 +195,6 @@ export default function MentorDetailPage() {
         );
     }
 
-    // 임시 리뷰 데이터
-    const mockReviews = [
-        {
-            id: 1,
-            userName: "실버탈출가능?",
-            rating: 5,
-            content:
-                "정글링 루트부터 갱킹 타이밍까지 자세히 설명해주셔서 많이 배웠습니다. 특히 오브젝트 우선순위 설정하는 법을 알려주셔서 좋았어요!",
-            createdAt: "2024-03-15",
-            serviceType: "영상 피드백",
-        },
-        {
-            id: 2,
-            userName: "미드장인될래요",
-            rating: 4,
-            content:
-                "친절하게 설명해주시고 실전에서 바로 써먹을 수 있는 팁들을 많이 알려주셨습니다.",
-            createdAt: "2024-03-10",
-            serviceType: "실시간 1:1",
-        },
-    ];
-
-    // 임시 받은 피드백 데이터 (리뷰 작성 가능 여부 확인용)
-    const mockReceivedFeedbacks = [
-        {
-            id: 1,
-            status: "completed",
-            hasReview: false,
-            completedAt: "2024-03-20",
-            serviceType: "영상 피드백",
-        },
-    ];
 
     if (!mentor) {
         return (
@@ -643,52 +595,6 @@ export default function MentorDetailPage() {
                             <div className="p-6">
                                 {activeTab === "reviews" && (
                                     <div className="space-y-6">
-                                        {/* 리뷰 작성 가능한 경우 표시 */}
-                                        {mockReceivedFeedbacks
-                                            .filter(
-                                                (feedback) =>
-                                                    feedback.status ===
-                                                        "completed" &&
-                                                    !feedback.hasReview
-                                            )
-                                            .map((feedback) => (
-                                                <div
-                                                    key={feedback.id}
-                                                    className="bg-blue-50 border border-blue-200 rounded-lg p-4"
-                                                >
-                                                    <div className="flex justify-between items-center">
-                                                        <div>
-                                                            <h3 className="text-sm font-medium text-blue-900">
-                                                                피드백을
-                                                                받으셨네요!
-                                                                멘토님의
-                                                                피드백은
-                                                                어떠셨나요?
-                                                            </h3>
-                                                            <p className="text-sm text-blue-700 mt-1">
-                                                                {
-                                                                    feedback.serviceType
-                                                                }{" "}
-                                                                ·{" "}
-                                                                {
-                                                                    feedback.completedAt
-                                                                }{" "}
-                                                                완료
-                                                            </p>
-                                                        </div>
-                                                        <button
-                                                            onClick={() =>
-                                                                setShowReviewModal(
-                                                                    true
-                                                                )
-                                                            }
-                                                            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
-                                                        >
-                                                            리뷰 작성하기
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            ))}
 
                                         {/* 리뷰 목록 */}
                                         <div className="space-y-4">

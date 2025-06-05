@@ -15,31 +15,46 @@ export default function AdminMentorsPage() {
     const [activeTab, setActiveTab] = useState('pending');
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [authError, setAuthError] = useState('');
+    const [showPasswordModal, setShowPasswordModal] = useState(false);
+    const [password, setPassword] = useState('');
     const [actionLoading, setActionLoading] = useState({});
     const [showRejectModal, setShowRejectModal] = useState(false);
     const [selectedMentor, setSelectedMentor] = useState(null);
     const [rejectReason, setRejectReason] = useState('');
 
     useEffect(() => {
-        // 이메일 기반 관리자 권한 확인
+        // 로그인 상태 확인
         const currentUser = session?.user || firebaseUser;
-        const adminEmails = [
-            'admin@judge.gg',
-            'leaf4937@gmail.com',  // 개발자 계정
-            // 필요에 따라 다른 관리자 이메일 추가
-        ];
         
-        if (currentUser && adminEmails.includes(currentUser.email)) {
-            setIsAuthenticated(true);
-            loadMentors();
-        } else if (currentUser) {
-            setAuthError('관리자 권한이 없습니다.');
+        if (currentUser) {
+            // 로그인한 사용자라면 비밀번호 입력 모달 표시
+            setShowPasswordModal(true);
             setLoading(false);
         } else {
             setAuthError('로그인이 필요합니다.');
             setLoading(false);
         }
     }, [session, firebaseUser]);
+
+    const handlePasswordSubmit = () => {
+        const adminPassword = 'judge2024!'; // 관리자 비밀번호
+        
+        if (password === adminPassword) {
+            setIsAuthenticated(true);
+            setShowPasswordModal(false);
+            setPassword('');
+            loadMentors();
+        } else {
+            setAuthError('비밀번호가 올바르지 않습니다.');
+            setPassword('');
+        }
+    };
+
+    const handlePasswordCancel = () => {
+        setShowPasswordModal(false);
+        setAuthError('관리자 인증이 필요합니다.');
+        setPassword('');
+    };
 
     const loadMentors = async () => {
         try {
@@ -252,7 +267,7 @@ export default function AdminMentorsPage() {
     );
 
     // 인증되지 않은 경우 오류 화면
-    if (!isAuthenticated) {
+    if (!isAuthenticated && !showPasswordModal) {
         return (
             <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
                 <div className="max-w-md w-full bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8">
@@ -444,6 +459,57 @@ export default function AdminMentorsPage() {
                                 ) : (
                                     '거절하기'
                                 )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* 관리자 비밀번호 입력 모달 */}
+            {showPasswordModal && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md mx-4">
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                            관리자 인증
+                        </h3>
+                        
+                        <div className="mb-4">
+                            <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
+                                관리자 페이지에 접근하려면 비밀번호를 입력해주세요.
+                            </p>
+                            
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                관리자 비밀번호
+                            </label>
+                            <input
+                                type="password"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                onKeyPress={(e) => e.key === 'Enter' && handlePasswordSubmit()}
+                                placeholder="비밀번호를 입력하세요"
+                                className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                                autoFocus
+                            />
+                            {authError && (
+                                <p className="text-red-600 dark:text-red-400 text-sm mt-2">
+                                    {authError}
+                                </p>
+                            )}
+                        </div>
+
+                        <div className="flex justify-end space-x-3">
+                            <button
+                                onClick={handlePasswordCancel}
+                                className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-600 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors"
+                            >
+                                취소
+                            </button>
+                            <button
+                                onClick={handlePasswordSubmit}
+                                disabled={!password.trim()}
+                                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                확인
                             </button>
                         </div>
                     </div>

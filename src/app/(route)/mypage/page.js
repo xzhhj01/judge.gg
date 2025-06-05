@@ -66,8 +66,8 @@ export default function MyPage() {
                         },
                     });
 
-                    // 사용자 통계 로드
-                    const userStats = await userService.getUserStats(currentUserId);
+                    // 사용자 통계 로드 (사용자 객체 정보 전달)
+                    const userStats = await userService.getUserStats(currentUserId, currentUser);
                     setStats(userStats);
                 } catch (error) {
                     console.error("Error loading user data:", error);

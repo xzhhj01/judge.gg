@@ -308,25 +308,31 @@ export const userService = {
   },
 
   // 사용자 통계 조회
-  async getUserStats(userId) {
+  async getUserStats(userId, userObject = null) {
     try {
+      console.log(`🔍 getUserStats 시작 - userId: ${userId}`);
+      
       const stats = {
         all: { posts: 0, commentedPosts: 0, votedPosts: 0, likedMentors: 0 },
         lol: { posts: 0, commentedPosts: 0, votedPosts: 0, likedMentors: 0 },
         valorant: { posts: 0, commentedPosts: 0, votedPosts: 0, likedMentors: 0 }
       };
 
-      // 작성한 게시글 수 계산
-      const lolPosts = await this.getUserPostsByGame(userId, 'lol');
-      const valorantPosts = await this.getUserPostsByGame(userId, 'valorant');
+      // 작성한 게시글 수 계산 (사용자 객체 정보 전달)
+      const lolPosts = await this.getUserPostsByGame(userId, 'lol', userObject);
+      const valorantPosts = await this.getUserPostsByGame(userId, 'valorant', userObject);
+      
+      console.log(`🔍 통계 계산 - LoL 게시글: ${lolPosts.length}개, Valorant 게시글: ${valorantPosts.length}개`);
       
       stats.lol.posts = lolPosts.length;
       stats.valorant.posts = valorantPosts.length;
       stats.all.posts = lolPosts.length + valorantPosts.length;
 
       // 댓글 단 게시글 수 계산 (중복 제거)
-      const lolCommentedPosts = await this.getUserCommentedPosts(userId, 'lol');
-      const valorantCommentedPosts = await this.getUserCommentedPosts(userId, 'valorant');
+      const lolCommentedPosts = await this.getUserCommentedPosts(userId, 'lol', userObject);
+      const valorantCommentedPosts = await this.getUserCommentedPosts(userId, 'valorant', userObject);
+      
+      console.log(`🔍 통계 계산 - LoL 댓글: ${lolCommentedPosts.length}개, Valorant 댓글: ${valorantCommentedPosts.length}개`);
       
       stats.lol.commentedPosts = lolCommentedPosts.length;
       stats.valorant.commentedPosts = valorantCommentedPosts.length;
@@ -336,6 +342,8 @@ export const userService = {
       const lolVotedPosts = await this.getUserVotedPosts(userId, 'lol');
       const valorantVotedPosts = await this.getUserVotedPosts(userId, 'valorant');
       
+      console.log(`🔍 통계 계산 - LoL 투표: ${lolVotedPosts.length}개, Valorant 투표: ${valorantVotedPosts.length}개`);
+      
       stats.lol.votedPosts = lolVotedPosts.length;
       stats.valorant.votedPosts = valorantVotedPosts.length;
       stats.all.votedPosts = lolVotedPosts.length + valorantVotedPosts.length;
@@ -343,6 +351,7 @@ export const userService = {
       // 찜한 멘토는 추후 구현 (현재는 0으로 설정)
       // TODO: 멘토 찜 기능 구현 후 추가
       
+      console.log(`🔍 최종 통계:`, stats);
       return stats;
     } catch (error) {
       console.error('사용자 통계 조회 실패:', error);
