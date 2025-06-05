@@ -111,14 +111,26 @@ export default function MyPageSidebar({
                                     LoL
                                 </span>
                                 {user?.riotIds?.lol ? (
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-sm text-blue-600 font-medium">
-                                            {user.riotIds.lol}
-                                        </span>
-                                        <TierBadge
-                                            tier={user?.tiers?.lol}
-                                            game="lol"
-                                        />
+                                    <div className="flex flex-col gap-1">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-sm text-blue-600 font-medium">
+                                                {user.riotIds.lol}
+                                            </span>
+                                            <TierBadge
+                                                tier={user?.tiers?.lol}
+                                                game="lol"
+                                            />
+                                        </div>
+                                        {user?.lolProfile && (
+                                            <div className="text-xs text-gray-500">
+                                                Lv.{user.lolProfile.summonerLevel}
+                                                {user.lolProfile.topChampions && user.lolProfile.topChampions.length > 0 && (
+                                                    <span className="ml-2">
+                                                        주챔: {user.lolProfile.topChampions.slice(0, 2).map(c => `${c.championId}(${c.championLevel})`).join(', ')}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
                                 ) : (
                                     <span className="text-sm text-gray-400">

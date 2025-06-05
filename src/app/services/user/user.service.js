@@ -128,7 +128,7 @@ export const userService = {
     }
   },
 
-  // Riot ID 연결
+  // Riot ID 연결 (기존 방식 - 단순 저장)
   async connectRiotId(riotId, gameType) {
     try {
       const user = auth.currentUser;
@@ -151,6 +151,57 @@ export const userService = {
       return true;
     } catch (error) {
       console.error('Riot ID 연결 실패:', error);
+      throw error;
+    }
+  },
+
+  // LoL Riot API를 통한 검증된 계정 연동
+  async verifyAndConnectLolAccount(riotId, sessionUser = null) {
+    try {
+      // API 엔드포인트를 통해 검증 및 연동
+      const response = await fetch('/api/riot/verify', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ riotId })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'LoL 계정 연동에 실패했습니다.');
+      }
+
+      return result;
+    } catch (error) {
+      console.error('LoL 계정 검증 및 연동 실패:', error);
+      throw error;
+    }
+  },
+
+  // 사용자의 LoL 프로필 정보 조회
+  async getLolProfile(sessionUser = null) {
+    try {
+      const response = await fetch('/api/riot/verify', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('로그인이 필요합니다.');
+        }
+        throw new Error(result.error || 'LoL 프로필 조회에 실패했습니다.');
+      }
+
+      return result;
+    } catch (error) {
+      console.error('LoL 프로필 조회 실패:', error);
       throw error;
     }
   },

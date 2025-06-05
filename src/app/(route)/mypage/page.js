@@ -71,6 +71,22 @@ export default function MyPage() {
                 try {
                     // 사용자 정보 로드
                     const info = await userService.getUserInfo(currentUserId);
+                    
+                    // LoL 프로필 정보 로드 (연동된 경우)
+                    let lolProfile = null;
+                    let lolTier = null;
+                    if (info?.lolRiotId && info?.lolVerified) {
+                        try {
+                            const lolProfileData = await userService.getLolProfile();
+                            if (lolProfileData.verified) {
+                                lolProfile = lolProfileData.profile;
+                                lolTier = lolProfileData.profile.soloRank;
+                            }
+                        } catch (error) {
+                            console.error('LoL 프로필 로드 실패:', error);
+                        }
+                    }
+                    
                     setUserInfo({
                         nickname: info?.displayName || currentUser.displayName || currentUser.name || currentUser.email,
                         riotIds: {
@@ -78,9 +94,10 @@ export default function MyPage() {
                             valorant: info?.valorantRiotId || null,
                         },
                         tiers: {
-                            lol: null,
+                            lol: lolTier,
                             valorant: null,
                         },
+                        lolProfile: lolProfile,
                         isMentor: info?.isMentor || false,
                         mentorStats: info?.mentorInfo || {
                             totalFeedbacks: 0,
@@ -410,38 +427,78 @@ export default function MyPage() {
     // Riot ID 연동 처리
     const handleRiotIdSubmit = async (riotId, game) => {
         try {
-            await userService.connectRiotId(riotId, game);
-            console.log("Riot ID 연동 성공:", riotId, game);
-            
-            // 성공 후 사용자 정보 다시 로드
-            if (user || session) {
-                const currentUser = user || session.user;
-                const currentUserId = communityService.generateConsistentUserId(currentUser);
-                const info = await userService.getUserInfo(currentUserId);
-                setUserInfo({
-                    nickname: info?.displayName || currentUser.displayName || currentUser.name || currentUser.email,
-                    riotIds: {
-                        lol: info?.lolRiotId || null,
-                        valorant: info?.valorantRiotId || null,
-                    },
-                    tiers: {
-                        lol: null,
-                        valorant: null,
-                    },
-                    isMentor: info?.isMentor || false,
-                    mentorStats: info?.mentorInfo || {
-                        totalFeedbacks: 0,
-                        totalReviews: 0,
-                        rating: 0,
-                    },
-                });
+            if (game === 'lol') {
+                // LoL의 경우 Riot API 검증을 통한 연동
+                const result = await userService.verifyAndConnectLolAccount(riotId);
+                console.log("LoL 계정 검증 및 연동 성공:", result);
+                
+                // 성공 후 사용자 정보 다시 로드
+                if (user || session) {
+                    const currentUser = user || session.user;
+                    const currentUserId = communityService.generateConsistentUserId(currentUser);
+                    const info = await userService.getUserInfo(currentUserId);
+                    
+                    // LoL 프로필 정보 업데이트
+                    const updatedUserInfo = {
+                        nickname: info?.displayName || currentUser.displayName || currentUser.name || currentUser.email,
+                        riotIds: {
+                            lol: info?.lolRiotId || null,
+                            valorant: info?.valorantRiotId || null,
+                        },
+                        tiers: {
+                            lol: result.profile?.soloRank || 'Unranked',
+                            valorant: null,
+                        },
+                        lolProfile: result.profile || null,
+                        isMentor: info?.isMentor || false,
+                        mentorStats: info?.mentorInfo || {
+                            totalFeedbacks: 0,
+                            totalReviews: 0,
+                            rating: 0,
+                        },
+                    };
+                    
+                    setUserInfo(updatedUserInfo);
+                }
+                
+                showSnackbar("LoL 계정이 성공적으로 연동되었습니다!", "success");
+            } else {
+                // 발로란트의 경우 기존 방식 사용
+                await userService.connectRiotId(riotId, game);
+                console.log("Riot ID 연동 성공:", riotId, game);
+                
+                // 성공 후 사용자 정보 다시 로드
+                if (user || session) {
+                    const currentUser = user || session.user;
+                    const currentUserId = communityService.generateConsistentUserId(currentUser);
+                    const info = await userService.getUserInfo(currentUserId);
+                    setUserInfo({
+                        nickname: info?.displayName || currentUser.displayName || currentUser.name || currentUser.email,
+                        riotIds: {
+                            lol: info?.lolRiotId || null,
+                            valorant: info?.valorantRiotId || null,
+                        },
+                        tiers: {
+                            lol: userInfo?.tiers?.lol || null,
+                            valorant: null,
+                        },
+                        lolProfile: userInfo?.lolProfile || null,
+                        isMentor: info?.isMentor || false,
+                        mentorStats: info?.mentorInfo || {
+                            totalFeedbacks: 0,
+                            totalReviews: 0,
+                            rating: 0,
+                        },
+                    });
+                }
+                
+                showSnackbar("Riot ID가 성공적으로 연동되었습니다!", "success");
             }
             
-            alert("Riot ID가 성공적으로 연동되었습니다!");
             return true;
         } catch (error) {
             console.error("Error connecting Riot ID:", error);
-            alert("Riot ID 연동에 실패했습니다: " + error.message);
+            showSnackbar("Riot ID 연동에 실패했습니다: " + error.message, "error");
             return false;
         }
     };
