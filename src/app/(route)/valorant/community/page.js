@@ -5,7 +5,7 @@ import PostCard from "../../../components/PostCard";
 import PostFilter from "../../../components/PostFilter";
 import CommunityHeader from "../../../components/CommunityHeader";
 import communityTags from "@/data/communityTags.json";
-import dummyPosts from "@/data/dummyPosts.json";
+import { communityService } from '@/app/services/community/community.service';
 
 export default function ValorantCommunityPage() {
     const [selectedSituations, setSelectedSituations] = useState([]);
@@ -61,84 +61,75 @@ export default function ValorantCommunityPage() {
         const fetchPosts = async () => {
             setLoading(true);
             try {
-                // 더미 데이터에서 Valorant 게시물만 필터링
-                let filteredPosts = dummyPosts.posts.filter(
-                    (post) => post.gameType === "valorant"
+                // 선택된 태그들을 모두 합침
+                const allSelectedTags = [
+                    ...selectedSituations,
+                    ...selectedMaps,
+                    ...selectedAgents
+                ];
+                
+                console.log("Fetching posts with tags:", allSelectedTags);
+                
+                const result = await communityService.getPosts(
+                    'valorant',
+                    allSelectedTags,
+                    searchQuery,
+                    1,
+                    20
                 );
-
-                // 검색어 필터링
-                if (searchQuery) {
-                    filteredPosts = filteredPosts.filter((post) =>
-                        post.title
-                            .toLowerCase()
-                            .includes(searchQuery.toLowerCase())
-                    );
-                }
-
-                // 태그 필터링
-                if (selectedSituations.length > 0) {
-                    filteredPosts = filteredPosts.filter((post) =>
-                        post.tags.some((tag) =>
-                            selectedSituations.includes(tag)
-                        )
-                    );
-                }
-
-                if (selectedMaps.length > 0) {
-                    filteredPosts = filteredPosts.filter((post) =>
-                        post.tags.some((tag) => selectedMaps.includes(tag))
-                    );
-                }
-
-                if (selectedAgents.length > 0) {
-                    filteredPosts = filteredPosts.filter((post) =>
-                        post.tags.some((tag) => selectedAgents.includes(tag))
-                    );
-                }
-
-                // 정렬
+                
+                let filteredPosts = result.posts || [];
+                
+                // 정렬 처리
                 switch (sortBy) {
                     case "popular":
-                        filteredPosts.sort((a, b) => b.votes - a.votes);
+                        filteredPosts.sort((a, b) => (b.likes || 0) - (a.likes || 0));
+                        break;
+                    case "views":
+                        filteredPosts.sort((a, b) => (b.views || 0) - (a.views || 0));
+                        break;
+                    case "comments":
+                        filteredPosts.sort((a, b) => (b.commentCount || 0) - (a.commentCount || 0));
                         break;
                     case "controversial":
+                        // 댓글 수대비 좋아요 비율로 논란 정도 계산
                         filteredPosts.sort((a, b) => {
-                            if (!a.voteCounts || !b.voteCounts) return 0;
-                            const ratioA = Math.abs(
-                                a.voteCounts.option1 /
-                                    (a.voteCounts.option1 +
-                                        a.voteCounts.option2) -
-                                    0.5
-                            );
-                            const ratioB = Math.abs(
-                                b.voteCounts.option1 /
-                                    (b.voteCounts.option1 +
-                                        b.voteCounts.option2) -
-                                    0.5
-                            );
-                            return ratioA - ratioB;
+                            const ratioA = (a.commentCount || 0) / Math.max(a.likes || 1, 1);
+                            const ratioB = (b.commentCount || 0) / Math.max(b.likes || 1, 1);
+                            return ratioB - ratioA;
                         });
-                        break;
-                    case "deadline":
-                        filteredPosts = filteredPosts
-                            .filter((post) => post.voteEndTime)
-                            .sort(
-                                (a, b) =>
-                                    new Date(a.voteEndTime) -
-                                    new Date(b.voteEndTime)
-                            );
                         break;
                     case "latest":
                     default:
-                        filteredPosts.sort(
-                            (a, b) =>
-                                new Date(b.createdAt) - new Date(a.createdAt)
-                        );
+                        filteredPosts.sort((a, b) => {
+                            const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt);
+                            const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt);
+                            return dateB - dateA;
+                        });
                 }
-
-                setPosts(filteredPosts);
+                
+                // 게시글 데이터를 PostCard에 맞게 변환
+                const formattedPosts = filteredPosts.map(post => ({
+                    id: post.id,
+                    title: post.title,
+                    content: post.content,
+                    votes: post.likes || 0,
+                    views: post.views || 0,
+                    tags: post.tags || [],
+                    author: {
+                        nickname: post.authorName || '알 수 없음',
+                        profileImage: post.authorPhoto,
+                        tier: 'Unranked'
+                    },
+                    commentCount: post.commentCount || 0,
+                    createdAt: post.createdAt?.toDate ? post.createdAt.toDate() : new Date(post.createdAt),
+                    videoUrl: post.videoUrl
+                }));
+                
+                setPosts(formattedPosts);
             } catch (error) {
                 console.error("Error fetching posts:", error);
+                setPosts([]);
             } finally {
                 setLoading(false);
             }

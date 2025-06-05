@@ -3,12 +3,19 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
+import { useAuth } from "@/app/utils/providers";
+import { useTheme } from "./ThemeProvider";
+import LoginButton from "./LoginButton";
 
 export default function Header() {
     const router = useRouter();
     const pathname = usePathname();
+    const { user, loading } = useAuth();
+    
+    const { theme, toggleTheme } = useTheme();
     const [currentGame, setCurrentGame] = useState("lol");
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const dropdownRef = useRef(null);
 
     // 현재 경로에서 게임 타입 감지
@@ -68,237 +75,228 @@ export default function Header() {
         router.push(newPath);
     };
 
-    const currentGameData = {
-        lol: {
-            name: "LoL",
-            logo: "/logo-lol.svg",
-        },
-        valorant: {
-            name: "VALORANT",
-            logo: "/logo-valorant.svg",
-        },
-        none: {
-            name: "게임",
-            logo: "/logo-service.svg", // 기본 로고 사용
-        },
-    };
-
-    const games = [
-        {
-            key: "lol",
-            name: "LoL",
-            logo: "/logo-lol.svg",
-        },
-        {
-            key: "valorant",
-            name: "VALORANT",
-            logo: "/logo-valorant.svg",
-        },
-    ];
-
     return (
-        <header className="bg-white shadow-lg border-b border-gray-200 sticky top-0 z-50 animate-slide-in">
+        <header className="bg-white dark:bg-dark-900 border-b border-gray-200 dark:border-dark-700 sticky top-0 z-50 backdrop-blur-lg">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex justify-between items-center h-16">
-                    {/* 왼쪽: 서비스 로고 + 게임 드롭다운 */}
+                    {/* 왼쪽: 로고 + 게임 선택 */}
                     <div className="flex items-center space-x-6">
-                        {/* 서비스 로고 */}
+                        {/* Judge.gg 로고 */}
                         <Link
                             href="/"
                             className="flex items-center hover:opacity-80 transition-opacity"
                         >
                             <img
-                                src="/logo-service.svg"
+                                src="/logo-judge.svg"
                                 alt="Judge.gg"
-                                className="h-8 w-auto"
-                                onError={(e) => {
-                                    e.target.style.display = "none";
-                                    e.target.nextSibling.style.display =
-                                        "block";
-                                }}
+                                className="w-8 h-8"
                             />
-                            <span
-                                className="text-xl font-bold text-gray-900 hidden"
-                                style={{ display: "none" }}
-                            >
+                            <span className="ml-3 text-xl font-bold text-gray-900 dark:text-white">
                                 Judge.gg
                             </span>
                         </Link>
 
-                        {/* 구분선 */}
-                        <div className="h-6 w-px bg-gray-300"></div>
-
-                        {/* 게임 드롭다운 */}
-                        <div className="relative" ref={dropdownRef}>
+                        {/* 게임 탭 */}
+                        <div className="hidden md:flex items-center space-x-1 bg-gray-100 dark:bg-dark-800 rounded-lg p-1">
                             <button
-                                onClick={() =>
-                                    setIsDropdownOpen(!isDropdownOpen)
-                                }
-                                className={`flex items-center justify-between w-48 px-3 py-2 rounded-lg transition-all duration-200 border ${
-                                    currentGame === "none"
-                                        ? "bg-gray-100 border-gray-300 text-gray-500"
-                                        : "bg-gray-50 hover:bg-gray-100 border-gray-200 hover:border-gray-300"
+                                onClick={() => handleGameChange("lol")}
+                                className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                                    currentGame === "lol"
+                                        ? "bg-white dark:bg-dark-700 text-lol-600 shadow-sm"
+                                        : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
                                 }`}
                             >
                                 <div className="flex items-center space-x-2">
-                                    {/* 현재 게임 로고 */}
-                                    {currentGame !== "none" && (
-                                        <img
-                                            src={
-                                                currentGameData[currentGame]
-                                                    .logo
-                                            }
-                                            alt={
-                                                currentGameData[currentGame]
-                                                    .name
-                                            }
-                                            className="h-4 w-4"
-                                            onError={(e) => {
-                                                e.target.style.display = "none";
-                                            }}
-                                        />
-                                    )}
-                                    {currentGame === "none" && (
-                                        <svg
-                                            className="h-4 w-4 text-gray-400"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            viewBox="0 0 24 24"
-                                        >
-                                            <path
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                                strokeWidth={2}
-                                                d="M7 4V2a1 1 0 011-1h8a1 1 0 011 1v2m-9 0h10m-10 0a2 2 0 00-2 2v14a2 2 0 002 2h8a2 2 0 002-2V6a2 2 0 00-2-2"
-                                            />
-                                        </svg>
-                                    )}
-
-                                    {/* 게임 이름 */}
-                                    <span
-                                        className={`text-sm font-medium ${
-                                            currentGame === "none"
-                                                ? "text-gray-500"
-                                                : "text-gray-700"
-                                        }`}
-                                    >
-                                        {currentGameData[currentGame].name}
-                                    </span>
+                                    <div className="w-4 h-4 bg-lol-500 rounded"></div>
+                                    <span>LoL</span>
                                 </div>
-
-                                {/* 드롭다운 화살표 */}
-                                <svg
-                                    className={`w-4 h-4 transition-transform duration-200 flex-shrink-0 ${
-                                        currentGame === "none"
-                                            ? "text-gray-400"
-                                            : "text-gray-500"
-                                    } ${isDropdownOpen ? "rotate-180" : ""}`}
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
-                                >
-                                    <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth={2}
-                                        d="M19 9l-7 7-7-7"
-                                    />
-                                </svg>
                             </button>
-
-                            {/* 드롭다운 메뉴 */}
-                            {isDropdownOpen && (
-                                <div className="absolute top-full left-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50 animate-fade-in">
-                                    {games.map((game) => (
-                                        <button
-                                            key={game.key}
-                                            onClick={() =>
-                                                handleGameChange(game.key)
-                                            }
-                                            className={`w-full flex items-center space-x-3 px-4 py-3 text-left hover:bg-gray-50 transition-colors ${
-                                                currentGame === game.key &&
-                                                currentGame !== "none"
-                                                    ? "bg-gray-100"
-                                                    : ""
-                                            }`}
-                                        >
-                                            <img
-                                                src={game.logo}
-                                                alt={game.name}
-                                                className="h-5 w-5"
-                                            />
-                                            <div>
-                                                <div className="font-medium text-gray-900">
-                                                    {game.name}
-                                                </div>
-                                            </div>
-                                            {currentGame === game.key &&
-                                                currentGame !== "none" && (
-                                                    <svg
-                                                        className="w-4 h-4 text-primary-500 ml-auto"
-                                                        fill="currentColor"
-                                                        viewBox="0 0 20 20"
-                                                    >
-                                                        <path
-                                                            fillRule="evenodd"
-                                                            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                                                            clipRule="evenodd"
-                                                        />
-                                                    </svg>
-                                                )}
-                                        </button>
-                                    ))}
+                            <button
+                                onClick={() => handleGameChange("valorant")}
+                                className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                                    currentGame === "valorant"
+                                        ? "bg-white dark:bg-dark-700 text-valorant-600 shadow-sm"
+                                        : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                                }`}
+                            >
+                                <div className="flex items-center space-x-2">
+                                    <div className="w-4 h-4 bg-valorant-500 rounded"></div>
+                                    <span>VALORANT</span>
                                 </div>
-                            )}
+                            </button>
                         </div>
                     </div>
 
-                    {/* 중앙: 네비게이션 메뉴 */}
-                    <nav className="flex items-center space-x-8">
+                    {/* 중앙: 네비게이션 */}
+                    <nav className="hidden md:flex items-center space-x-8">
                         <Link
-                            href={`/${
-                                currentGame === "none" ? "lol" : currentGame
-                            }/community`}
-                            className={`text-gray-700 hover:text-primary-600 font-medium transition-all duration-200 hover:scale-105 ${
+                            href={`/${currentGame === "none" ? "lol" : currentGame}/community`}
+                            className={`text-sm font-medium transition-colors ${
                                 pathname.includes("/community")
-                                    ? "text-primary-600 font-semibold"
-                                    : ""
+                                    ? "text-accent-600 dark:text-accent-400"
+                                    : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
                             }`}
                         >
                             법원
                         </Link>
                         <Link
                             href="/mentor"
-                            className={`text-gray-700 hover:text-primary-600 font-medium transition-all duration-200 hover:scale-105 ${
+                            className={`text-sm font-medium transition-colors ${
                                 pathname.includes("/mentor")
-                                    ? "text-primary-600 font-semibold"
-                                    : ""
+                                    ? "text-accent-600 dark:text-accent-400"
+                                    : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
                             }`}
                         >
                             변호사
                         </Link>
-                    </nav>
-
-                    {/* 오른쪽: 마이페이지 + 로그인 */}
-                    <div className="flex items-center space-x-4">
                         <Link
-                            href="/mypage"
-                            className={`text-gray-700 hover:text-primary-600 font-medium transition-all duration-200 hover:scale-105 ${
-                                pathname.includes("/mypage")
-                                    ? "text-primary-600 font-semibold"
-                                    : ""
+                            href="/admin/mentors"
+                            className={`text-sm font-medium transition-colors ${
+                                pathname.includes("/admin")
+                                    ? "text-accent-600 dark:text-accent-400"
+                                    : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
                             }`}
                         >
-                            마이페이지
+                            관리자
                         </Link>
-                        <Link
-                            href="/login"
-                            className="bg-primary-500 hover:bg-primary-600 text-white px-4 py-2 rounded-lg font-medium transition-all duration-200 hover:scale-105 hover:shadow-lg"
+                    </nav>
+
+                    {/* 오른쪽: 다크모드 토글 + 사용자 메뉴 */}
+                    <div className="flex items-center space-x-4">
+                        {/* 다크모드 토글 */}
+                        <button
+                            onClick={toggleTheme}
+                            className="p-2 rounded-lg bg-gray-100 dark:bg-dark-800 hover:bg-gray-200 dark:hover:bg-dark-700 transition-colors"
+                            aria-label="다크모드 토글"
                         >
-                            로그인
-                        </Link>
+                            {theme === 'light' ? (
+                                <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                                </svg>
+                            ) : (
+                                <svg className="w-5 h-5 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                                </svg>
+                            )}
+                        </button>
+
+                        {/* 로그인/사용자 정보 */}
+                        {!loading && (
+                            <>
+                                {user ? (
+                                    <div className="flex items-center space-x-3">
+                                        <Link
+                                            href="/mypage"
+                                            className={`text-sm font-medium transition-colors ${
+                                                pathname.includes("/mypage")
+                                                    ? "text-accent-600 dark:text-accent-400"
+                                                    : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
+                                            }`}
+                                        >
+                                            마이페이지
+                                        </Link>
+                                        <LoginButton />
+                                    </div>
+                                ) : (
+                                    <Link
+                                        href="/login"
+                                        className="bg-accent-600 hover:bg-accent-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                                    >
+                                        로그인
+                                    </Link>
+                                )}
+                            </>
+                        )}
+
+                        {/* 모바일 메뉴 버튼 */}
+                        <button
+                            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                            className="md:hidden p-2 rounded-lg bg-gray-100 dark:bg-dark-800 hover:bg-gray-200 dark:hover:bg-dark-700 transition-colors"
+                        >
+                            <svg
+                                className="w-5 h-5 text-gray-600 dark:text-gray-400"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d={isMobileMenuOpen ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16M4 18h16"}
+                                />
+                            </svg>
+                        </button>
                     </div>
                 </div>
+
+                {/* 모바일 메뉴 */}
+                {isMobileMenuOpen && (
+                    <div className="md:hidden border-t border-gray-200 dark:border-dark-700 py-4 space-y-4">
+                        {/* 모바일 게임 선택 */}
+                        <div className="flex space-x-2">
+                            <button
+                                onClick={() => {
+                                    handleGameChange("lol");
+                                    setIsMobileMenuOpen(false);
+                                }}
+                                className={`flex-1 p-3 rounded-lg text-sm font-medium transition-all ${
+                                    currentGame === "lol"
+                                        ? "bg-lol-100 dark:bg-lol-900 text-lol-700 dark:text-lol-300"
+                                        : "bg-gray-100 dark:bg-dark-800 text-gray-600 dark:text-gray-400"
+                                }`}
+                            >
+                                <div className="flex items-center justify-center space-x-2">
+                                    <div className="w-4 h-4 bg-lol-500 rounded"></div>
+                                    <span>LoL</span>
+                                </div>
+                            </button>
+                            <button
+                                onClick={() => {
+                                    handleGameChange("valorant");
+                                    setIsMobileMenuOpen(false);
+                                }}
+                                className={`flex-1 p-3 rounded-lg text-sm font-medium transition-all ${
+                                    currentGame === "valorant"
+                                        ? "bg-valorant-100 dark:bg-valorant-900 text-valorant-700 dark:text-valorant-300"
+                                        : "bg-gray-100 dark:bg-dark-800 text-gray-600 dark:text-gray-400"
+                                }`}
+                            >
+                                <div className="flex items-center justify-center space-x-2">
+                                    <div className="w-4 h-4 bg-valorant-500 rounded"></div>
+                                    <span>VALORANT</span>
+                                </div>
+                            </button>
+                        </div>
+
+                        {/* 모바일 네비게이션 */}
+                        <div className="space-y-2">
+                            <Link
+                                href={`/${currentGame === "none" ? "lol" : currentGame}/community`}
+                                className="block w-full text-left p-3 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-dark-800 transition-colors"
+                                onClick={() => setIsMobileMenuOpen(false)}
+                            >
+                                법원
+                            </Link>
+                            <Link
+                                href="/mentor"
+                                className="block w-full text-left p-3 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-dark-800 transition-colors"
+                                onClick={() => setIsMobileMenuOpen(false)}
+                            >
+                                변호사
+                            </Link>
+                            {user && (
+                                <Link
+                                    href="/mypage"
+                                    className="block w-full text-left p-3 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-dark-800 transition-colors"
+                                    onClick={() => setIsMobileMenuOpen(false)}
+                                >
+                                    마이페이지
+                                </Link>
+                            )}
+                        </div>
+                    </div>
+                )}
             </div>
         </header>
     );

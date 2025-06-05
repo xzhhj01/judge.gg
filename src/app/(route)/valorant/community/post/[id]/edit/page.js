@@ -17,30 +17,69 @@ export default function ValorantCommunityEditPage() {
     useEffect(() => {
         const loadPostData = async () => {
             try {
-                // 실제로는 API에서 데이터를 가져옴
-                // const response = await fetch(`/api/posts/${postId}`);
-                // const data = await response.json();
-
-                // 더미 데이터 (실제 구현 시 API 호출로 교체)
-                const dummyData = {
-                    title: "제트 vs 레이즈 듀얼 상황 판단 부탁드립니다",
-                    content:
-                        "바인드 A사이트에서 제트로 레이즈와 듀얼을 하던 중 애매한 상황이 발생했습니다. 레이즈가 그레네이드를 던지고 피크를 했는데, 제가 대시를 사용한 타이밍이 맞았는지 궁금합니다. 그리고 이후 업드래프트로 각도를 바꾼 것이 올바른 판단이었는지도 의견 부탁드립니다.",
-                    tags: {
+                const response = await fetch(`/api/community/valorant/posts/${postId}`);
+                
+                if (!response.ok) {
+                    throw new Error('게시글을 찾을 수 없습니다.');
+                }
+                
+                const data = await response.json();
+                
+                if (data.success && data.post) {
+                    // 태그 데이터 변환 (더미 데이터와 Firebase 데이터 호환)
+                    let tagsData = {
                         champions: [],
                         lanes: [],
-                        situations: ["듀얼"],
-                        maps: ["바인드"],
-                        agents: ["제트", "레이즈"],
-                    },
-                    voteOptions: ["제트가 잘했다", "레이즈가 잘했다"],
-                    allowNeutral: true,
-                    voteDeadline: "2024-01-22T10:30:00",
-                };
+                        situations: [],
+                        maps: [],
+                        agents: [],
+                        roles: []
+                    };
 
-                setInitialData(dummyData);
+                    // 더미 데이터의 경우 tags가 배열로 되어 있음
+                    if (Array.isArray(data.post.tags)) {
+                        // 더미 데이터 태그를 적절한 카테고리로 분류
+                        data.post.tags.forEach(tag => {
+                            // Valorant 에이전트 태그
+                            if (['제트', '레이즈', '세이지', '소바', '피닉스', '브림스톤'].includes(tag)) {
+                                tagsData.agents.push(tag);
+                            }
+                            // 맵 태그
+                            else if (['바인드', '헤이븐', '스플릿', '어센트', '아이스박스'].includes(tag)) {
+                                tagsData.maps.push(tag);
+                            }
+                            // 상황 태그
+                            else if (['듀얼', '사이트 실행', '리테이크', '클러치'].includes(tag)) {
+                                tagsData.situations.push(tag);
+                            }
+                            // 기타는 상황에 추가
+                            else {
+                                tagsData.situations.push(tag);
+                            }
+                        });
+                    } else if (data.post.tags && typeof data.post.tags === 'object') {
+                        // Firebase 데이터의 경우 객체 형태
+                        tagsData = data.post.tags;
+                    }
+
+                    // API 응답 데이터를 PostForm에 맞는 형태로 변환
+                    const formattedData = {
+                        title: data.post.title || "",
+                        content: data.post.content || "",
+                        tags: tagsData,
+                        videoUrl: data.post.videoUrl || "",
+                        voteOptions: data.post.voteOptions || ["", ""],
+                        allowNeutral: data.post.allowNeutral || false,
+                        voteDeadline: data.post.voteDeadline || "",
+                    };
+                    
+                    setInitialData(formattedData);
+                } else {
+                    throw new Error('게시글 데이터를 불러올 수 없습니다.');
+                }
             } catch (error) {
                 console.error("게시글 로드 실패:", error);
+                alert(error.message || '게시글을 불러오는데 실패했습니다.');
                 // 에러 처리 (예: 404 페이지로 리다이렉트)
                 router.push("/valorant/community");
             } finally {
@@ -57,17 +96,22 @@ export default function ValorantCommunityEditPage() {
         try {
             console.log("발로란트 게시글 수정:", { postId, ...formData });
 
-            // 실제로는 API 호출
-            // const response = await fetch(`/api/posts/${postId}`, {
-            //     method: 'PUT',
-            //     headers: { 'Content-Type': 'application/json' },
-            //     body: JSON.stringify(formData)
-            // });
+            const response = await fetch(`/api/community/valorant/posts/${postId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(formData)
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || '게시글 수정에 실패했습니다.');
+            }
 
             // 성공 시 상세 페이지로 리다이렉트
             router.push(`/valorant/community/post/${postId}`);
         } catch (error) {
             console.error("게시글 수정 실패:", error);
+            alert(error.message || '게시글 수정에 실패했습니다.');
         }
     };
 

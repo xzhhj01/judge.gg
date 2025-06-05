@@ -91,21 +91,23 @@ export default function SignUp() {
 
         setIsSubmitting(true);
         try {
-            const response = await axios.post(
-                `${process.env.DEPLOY_PATH}/api/auth/signup`,
-                formData
-            );
+            const response = await axios.post('/api/auth/signup', formData);
             if (response.status === 200) {
                 router.push("/login");
             }
         } catch (error) {
             console.error("회원가입 실패:", error);
-            // 서버에서 500 에러가 오면 중복 관련 에러로 처리
-            if (error.response?.status === 500) {
+            const errorMessage = error.response?.data?.error || "회원가입에 실패했습니다.";
+            
+            if (errorMessage.includes("이메일")) {
                 setErrors((prev) => ({
                     ...prev,
-                    email: "이미 사용 중인 이메일입니다",
-                    nickname: "이미 사용 중인 닉네임입니다",
+                    email: errorMessage,
+                }));
+            } else {
+                setErrors((prev) => ({
+                    ...prev,
+                    email: errorMessage,
                 }));
             }
         } finally {

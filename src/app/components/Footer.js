@@ -24,7 +24,7 @@ export default function Footer() {
                                     </li>
                                     <li>
                                         <Link
-                                            href="/lol/court"
+                                            href="/lol/community"
                                             className="text-sm hover:text-white transition-colors"
                                         >
                                             법원
@@ -49,7 +49,7 @@ export default function Footer() {
                                     </li>
                                     <li>
                                         <Link
-                                            href="/valorant/court"
+                                            href="/valorant/community"
                                             className="text-sm hover:text-white transition-colors"
                                         >
                                             법원
@@ -75,7 +75,7 @@ export default function Footer() {
                                 마이페이지
                             </h3>
                         </Link>
-                        <Link href="#" className="block">
+                        <Link href="/help" className="block">
                             <h3 className="text-white text-base font-semibold hover:text-gray-400 transition-colors">
                                 도움말
                             </h3>

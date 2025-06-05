@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run dev:*)",
+      "Bash(curl:*)",
+      "Bash(grep:*)",
+      "Bash(tail:*)",
+      "Bash(ls:*)",
+      "Bash(open:*)",
+      "Bash(node test-storage.js)",
+      "Bash(pkill:*)",
+      "Bash(rm:*)"
+    ],
+    "deny": []
+  }
+}

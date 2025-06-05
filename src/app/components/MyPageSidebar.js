@@ -92,7 +92,7 @@ export default function MyPageSidebar({
             {/* 프로필 섹션 */}
             <div className="border-b border-gray-200 pb-4">
                 <div className="flex items-center justify-between mb-4">
-                    <span className="font-medium text-lg">{user.nickname}</span>
+                    <span className="font-medium text-lg">{user?.nickname || '사용자'}</span>
                 </div>
             </div>
 
@@ -110,13 +110,13 @@ export default function MyPageSidebar({
                                     <span className="mr-2">⚔️</span>
                                     LoL
                                 </span>
-                                {user.riotIds.lol ? (
+                                {user?.riotIds?.lol ? (
                                     <div className="flex items-center gap-2">
                                         <span className="text-sm text-blue-600 font-medium">
                                             {user.riotIds.lol}
                                         </span>
                                         <TierBadge
-                                            tier={user.tiers.lol}
+                                            tier={user?.tiers?.lol}
                                             game="lol"
                                         />
                                     </div>
@@ -126,7 +126,7 @@ export default function MyPageSidebar({
                                     </span>
                                 )}
                             </div>
-                            {!user.riotIds.lol && (
+                            {!user?.riotIds?.lol && (
                                 <button
                                     onClick={() => handleConnectClick("lol")}
                                     className="w-full py-2 text-sm text-blue-600 hover:text-blue-700 font-medium"
@@ -143,13 +143,13 @@ export default function MyPageSidebar({
                                     <span className="mr-2">🎯</span>
                                     VALORANT
                                 </span>
-                                {user.riotIds.valorant ? (
+                                {user?.riotIds?.valorant ? (
                                     <div className="flex items-center gap-2">
                                         <span className="text-sm text-red-600 font-medium">
                                             {user.riotIds.valorant}
                                         </span>
                                         <TierBadge
-                                            tier={user.tiers.valorant}
+                                            tier={user?.tiers?.valorant}
                                             game="valorant"
                                         />
                                     </div>
@@ -159,7 +159,7 @@ export default function MyPageSidebar({
                                     </span>
                                 )}
                             </div>
-                            {!user.riotIds.valorant && (
+                            {!user?.riotIds?.valorant && (
                                 <button
                                     onClick={() =>
                                         handleConnectClick("valorant")
@@ -330,7 +330,7 @@ export default function MyPageSidebar({
             </div>
 
             {/* 멘토 활동 현황 섹션 */}
-            {user.isMentor && (
+            {user?.isMentor && (
                 <div className="py-4 border-b border-gray-200">
                     <h3 className="text-sm font-medium text-gray-900 mb-4">
                         멘토 활동 현황
@@ -353,7 +353,7 @@ export default function MyPageSidebar({
                                             : "text-gray-500"
                                     }`}
                                 >
-                                    {user.mentorStats.totalFeedbacks}개
+                                    {user?.mentorStats?.totalFeedbacks || 0}개
                                 </span>
                             </div>
                         </button>

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { userService } from '@/app/services/user/user.service';
 
 export default function AccountSettings() {
     const router = useRouter();
@@ -27,8 +28,7 @@ export default function AccountSettings() {
         }
 
         try {
-            // API 호출하여 비밀번호 변경
-            // await updatePassword(currentPassword, newPassword);
+            await userService.changePassword(newPassword);
 
             setSuccess("비밀번호가 성공적으로 변경되었습니다.");
             setCurrentPassword("");
@@ -36,7 +36,7 @@ export default function AccountSettings() {
             setConfirmPassword("");
         } catch (error) {
             setError(
-                "비밀번호 변경에 실패했습니다. 현재 비밀번호를 확인해주세요."
+                "비밀번호 변경에 실패했습니다: " + error.message
             );
         }
     };

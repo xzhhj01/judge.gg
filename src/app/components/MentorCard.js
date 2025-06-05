@@ -86,65 +86,75 @@ export default function MentorCard({ mentor }) {
                 <div className="flex justify-between items-start mb-4">
                     <span
                         className={`px-2 py-1 rounded-full text-xs font-medium ${getGameBadgeColor(
-                            mentor.game
+                            mentor.selectedGame || mentor.game
                         )}`}
                     >
-                        {getGameName(mentor.game)}
+                        {getGameName(mentor.selectedGame || mentor.game)}
                     </span>
                 </div>
 
                 {/* 프로필 사진 */}
                 <div className="text-center mb-4">
                     <div className="relative inline-block">
-                        <div className="w-16 h-16 bg-gradient-to-br from-primary-400 to-primary-600 rounded-full mx-auto flex items-center justify-center text-white font-bold text-xl">
-                            {mentor.nickname.charAt(0)}
-                        </div>
+                        {mentor.profileImageUrl ? (
+                            <img
+                                src={mentor.profileImageUrl}
+                                alt={`${mentor.nickname || mentor.userName} 프로필`}
+                                className="w-16 h-16 rounded-full mx-auto object-cover"
+                            />
+                        ) : (
+                            <div className="w-16 h-16 bg-gradient-to-br from-primary-400 to-primary-600 rounded-full mx-auto flex items-center justify-center text-white font-bold text-xl">
+                                {(mentor.nickname || mentor.userName || 'U').charAt(0)}
+                            </div>
+                        )}
                     </div>
                 </div>
 
                 {/* 닉네임 */}
                 <h3 className="font-semibold text-gray-900 text-center mb-2 truncate">
-                    {mentor.nickname}
+                    {mentor.nickname || mentor.userName || '알 수 없음'}
                 </h3>
 
                 {/* 평점 */}
                 <div className="flex items-center justify-center mb-3">
                     <div className="flex items-center mr-2">
-                        {renderStars(mentor.rating)}
+                        {renderStars(mentor.rating || 0)}
                     </div>
                     <span className="text-sm text-gray-600">
-                        {mentor.rating.toFixed(1)} ({mentor.reviewCount})
+                        {(mentor.rating || 0).toFixed(1)} ({mentor.totalReviews || mentor.reviewCount || 0})
                     </span>
                 </div>
 
                 {/* 태그 */}
-                <div className="flex flex-wrap gap-1 mb-3 justify-center">
-                    {mentor.tags.slice(0, 2).map((tag, index) => (
-                        <span
-                            key={index}
-                            className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full"
-                        >
-                            {tag}
-                        </span>
-                    ))}
-                    {mentor.tags.length > 2 && (
-                        <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
-                            +{mentor.tags.length - 2}
-                        </span>
-                    )}
-                </div>
+                {mentor.tags && mentor.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mb-3 justify-center">
+                        {mentor.tags.slice(0, 2).map((tag, index) => (
+                            <span
+                                key={index}
+                                className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full"
+                            >
+                                {tag}
+                            </span>
+                        ))}
+                        {mentor.tags.length > 2 && (
+                            <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
+                                +{mentor.tags.length - 2}
+                            </span>
+                        )}
+                    </div>
+                )}
 
                 {/* 응답률 & 총 답변 */}
                 <div className="flex justify-between text-sm text-gray-600 border-t border-gray-100 pt-3">
                     <div className="text-center">
                         <div className="font-medium text-gray-900">
-                            {mentor.responseRate}%
+                            {mentor.responseRate || 95}%
                         </div>
                         <div className="text-xs">응답률</div>
                     </div>
                     <div className="text-center">
                         <div className="font-medium text-gray-900">
-                            {mentor.totalAnswers}
+                            {mentor.totalFeedbacks || mentor.totalAnswers || 0}
                         </div>
                         <div className="text-xs">총 답변</div>
                     </div>

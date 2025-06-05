@@ -11,16 +11,18 @@ export default function PopularPostCard({ post, gameType }) {
                         {post.title}
                     </h3>
                 </div>
-                <div className="flex flex-wrap gap-2 mb-3">
-                    {post.tags.map((tag) => (
-                        <span
-                            key={tag}
-                            className={`px-2 py-1 text-xs bg-${colorClass}-100 text-${colorClass}-700 rounded-full`}
-                        >
-                            {tag}
-                        </span>
-                    ))}
-                </div>
+                {post.tags && post.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mb-3">
+                        {post.tags.map((tag) => (
+                            <span
+                                key={tag}
+                                className={`px-2 py-1 text-xs bg-${colorClass}-100 text-${colorClass}-700 rounded-full`}
+                            >
+                                {tag}
+                            </span>
+                        ))}
+                    </div>
+                )}
                 <div className="flex items-center justify-end space-x-3 text-sm text-gray-500">
                     <div className="flex items-center space-x-1">
                         <svg
@@ -42,7 +44,7 @@ export default function PopularPostCard({ post, gameType }) {
                                 d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
                             ></path>
                         </svg>
-                        <span>{post.views}</span>
+                        <span>{post.views || 0}</span>
                     </div>
                     <div className="flex items-center space-x-1">
                         <svg
@@ -58,7 +60,7 @@ export default function PopularPostCard({ post, gameType }) {
                                 d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
                             ></path>
                         </svg>
-                        <span>{post.comments}</span>
+                        <span>{post.commentCount || post.comments || 0}</span>
                     </div>
                     <div
                         className={`flex items-center space-x-1 bg-${colorClass}-50 px-2 py-1 rounded-lg`}
@@ -77,7 +79,7 @@ export default function PopularPostCard({ post, gameType }) {
                         <span
                             className={`text-sm font-medium text-${colorClass}-700`}
                         >
-                            {post.votes}
+                            {post.likes || post.votes || 0}
                         </span>
                     </div>
                 </div>

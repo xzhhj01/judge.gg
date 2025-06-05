@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from 'next/navigation';
 import Link from "next/link";
+import { mentorService } from '@/app/services/mentor/mentor.service';
 
 const SERVICE_TYPES = [
     {
@@ -25,6 +27,7 @@ const SERVICE_TYPES = [
 ];
 
 export default function MentorRegisterPage() {
+    const router = useRouter();
     const [selectedGame, setSelectedGame] = useState("lol");
     const [profileImage, setProfileImage] = useState(null);
     const [nickname, setNickname] = useState("");
@@ -476,7 +479,7 @@ export default function MentorRegisterPage() {
                             value={nickname}
                             onChange={(e) => setNickname(e.target.value)}
                             placeholder="멘토로 활동할 닉네임을 입력해주세요"
-                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                             required
                         />
                     </section>
@@ -491,7 +494,7 @@ export default function MentorRegisterPage() {
                             value={oneLineIntro}
                             onChange={(e) => setOneLineIntro(e.target.value)}
                             placeholder="자신을 한줄로 소개해주세요"
-                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                             maxLength={100}
                             required
                         />
@@ -572,7 +575,7 @@ export default function MentorRegisterPage() {
                                                 )
                                             }
                                             placeholder="플레이어 이름 + #태그"
-                                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                             required
                                         />
                                         <input
@@ -837,7 +840,7 @@ export default function MentorRegisterPage() {
                                                 )
                                             }
                                             placeholder="상세 경력을 입력해주세요"
-                                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                         />
                                         {experienceDetails.length > 1 && (
                                             <button
@@ -898,8 +901,8 @@ export default function MentorRegisterPage() {
                                                 selectedCurriculums.includes(
                                                     curriculum
                                                 )
-                                                    ? "bg-primary-500 border-primary-500"
-                                                    : "border-gray-300 group-hover:border-primary-500"
+                                                    ? "bg-blue-500 border-blue-500"
+                                                    : "border-gray-300 group-hover:border-blue-500"
                                             }`}
                                         >
                                             {selectedCurriculums.includes(
@@ -939,7 +942,7 @@ export default function MentorRegisterPage() {
                             onChange={(e) => setDetailedIntro(e.target.value)}
                             placeholder="자신에 대해 자세히 소개해주세요. 멘토링 스타일, 강점, 경험 등을 포함해주세요."
                             rows={6}
-                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none"
+                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
                             required
                         />
                         <p className="text-sm text-gray-500 mt-2">

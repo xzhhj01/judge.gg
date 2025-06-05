@@ -1,16 +1,38 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import MentorCard from "../../../components/MentorCard";
 import MentorSearchFilter from "../../../components/MentorSearchFilter";
+import { mentorService } from "@/app/services/mentor/mentor.service";
 
 export default function AllMentorsPage() {
     const [selectedGame, setSelectedGame] = useState("all");
     const [searchQuery, setSearchQuery] = useState("");
     const [sortBy, setSortBy] = useState("rating"); // rating, price, reviews
+    const [mentors, setMentors] = useState([]);
+    const [loading, setLoading] = useState(true);
 
-    // 확장된 더미 멘토 데이터 (실제로는 API에서 가져올 데이터)
+    // Firebase에서 멘토 데이터 로드
+    useEffect(() => {
+        const loadMentors = async () => {
+            try {
+                setLoading(true);
+                const mentorList = await mentorService.getMentors(selectedGame);
+                setMentors(mentorList);
+            } catch (error) {
+                console.error('멘토 목록 로드 실패:', error);
+                // 에러 발생 시 더미 데이터로 폴백
+                setMentors(mockMentors);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        loadMentors();
+    }, [selectedGame]);
+
+    // 확장된 더미 멘토 데이터 (fallback용)
     const mockMentors = [
         {
             id: 1,
@@ -119,14 +141,14 @@ export default function AllMentorsPage() {
     ];
 
     // 필터링된 멘토 목록
-    const filteredMentors = mockMentors.filter((mentor) => {
+    const filteredMentors = mentors.filter((mentor) => {
         const matchesGame =
-            selectedGame === "all" || mentor.game === selectedGame;
+            selectedGame === "all" || mentor.selectedGame === selectedGame;
         const matchesSearch =
-            mentor.nickname.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            mentor.tags.some((tag) =>
+            (mentor.nickname || mentor.userName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (mentor.tags && mentor.tags.some((tag) =>
                 tag.toLowerCase().includes(searchQuery.toLowerCase())
-            );
+            ));
 
         return matchesGame && matchesSearch;
     });
@@ -135,11 +157,11 @@ export default function AllMentorsPage() {
     const sortedMentors = [...filteredMentors].sort((a, b) => {
         switch (sortBy) {
             case "rating":
-                return b.rating - a.rating;
+                return (b.rating || 0) - (a.rating || 0);
             case "reviews":
-                return b.reviewCount - a.reviewCount;
+                return (b.totalReviews || 0) - (a.totalReviews || 0);
             case "answers":
-                return b.totalAnswers - a.totalAnswers;
+                return (b.totalFeedbacks || 0) - (a.totalFeedbacks || 0);
             default:
                 return 0;
         }
@@ -167,7 +189,12 @@ export default function AllMentorsPage() {
                     </h1>
                 </div>
 
-                {sortedMentors.length > 0 ? (
+                {loading ? (
+                    <div className="text-center py-12">
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                        <p className="text-gray-600">멘토 목록을 불러오는 중...</p>
+                    </div>
+                ) : sortedMentors.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                         {sortedMentors.map((mentor) => (
                             <MentorCard key={mentor.id} mentor={mentor} />

@@ -4,56 +4,78 @@ import { useState, useEffect } from "react";
 import MyPageSidebar from "@/app/components/MyPageSidebar";
 import PostCard from "@/app/components/PostCard";
 import Link from "next/link";
+import { userService } from '@/app/services/user/user.service';
+import { useAuth } from '@/app/utils/providers';
+import { useRouter } from 'next/navigation';
 
 export default function MyPage() {
+    const { user, loading: authLoading } = useAuth();
+    const router = useRouter();
     const [selectedMenu, setSelectedMenu] = useState("posts");
     const [selectedGame, setSelectedGame] = useState("all");
     const [posts, setPosts] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState("profile"); // profile, feedbacks, settings
-    const [userType, setUserType] = useState("user"); // 임시로 user/mentor 구분 (실제로는 API에서 받아와야 함)
+    const [activeTab, setActiveTab] = useState("profile");
+    const [userType, setUserType] = useState("user");
     const [showFeedbackModal, setShowFeedbackModal] = useState(false);
     const [selectedFeedback, setSelectedFeedback] = useState(null);
+    const [userInfo, setUserInfo] = useState(null);
+    const [stats, setStats] = useState({
+        all: { posts: 0, commentedPosts: 0, votedPosts: 0, likedMentors: 0 },
+        lol: { posts: 0, commentedPosts: 0, votedPosts: 0, likedMentors: 0 },
+        valorant: { posts: 0, commentedPosts: 0, votedPosts: 0, likedMentors: 0 }
+    });
 
-    // 임시 데이터 (실제로는 API에서 받아와야 함)
-    const user = {
-        nickname: "사용자123",
-        riotIds: {
-            lol: null,
-            valorant: null,
-        },
-        tiers: {
-            lol: null,
-            valorant: null,
-        },
-        isMentor: true,
-        mentorStats: {
-            totalFeedbacks: 28,
-            totalReviews: 42,
-            rating: 4.8,
-        },
-    };
+    // Redirect if not authenticated
+    useEffect(() => {
+        if (!authLoading && !user) {
+            router.push('/login');
+        }
+    }, [user, authLoading, router]);
 
-    const stats = {
-        all: {
-            posts: 5,
-            commentedPosts: 8,
-            votedPosts: 15,
-            likedMentors: 3,
-        },
-        lol: {
-            posts: 3,
-            commentedPosts: 5,
-            votedPosts: 10,
-            likedMentors: 2,
-        },
-        valorant: {
-            posts: 2,
-            commentedPosts: 3,
-            votedPosts: 5,
-            likedMentors: 1,
-        },
-    };
+    // Load user info and stats
+    useEffect(() => {
+        const loadUserData = async () => {
+            if (user) {
+                try {
+                    // 사용자 정보 로드
+                    const info = await userService.getUserInfo(user.uid);
+                    setUserInfo({
+                        nickname: info?.displayName || user.displayName || user.email,
+                        riotIds: {
+                            lol: info?.lolRiotId || null,
+                            valorant: info?.valorantRiotId || null,
+                        },
+                        tiers: {
+                            lol: null,
+                            valorant: null,
+                        },
+                        isMentor: info?.isMentor || false,
+                        mentorStats: info?.mentorInfo || {
+                            totalFeedbacks: 0,
+                            totalReviews: 0,
+                            rating: 0,
+                        },
+                    });
+
+                    // 사용자 통계 로드
+                    const userStats = await userService.getUserStats(user.uid);
+                    setStats(userStats);
+                } catch (error) {
+                    console.error("Error loading user data:", error);
+                    setUserInfo({
+                        nickname: user.displayName || user.email,
+                        riotIds: { lol: null, valorant: null },
+                        tiers: { lol: null, valorant: null },
+                        isMentor: false,
+                        mentorStats: { totalFeedbacks: 0, totalReviews: 0, rating: 0 },
+                    });
+                }
+            }
+        };
+
+        loadUserData();
+    }, [user]);
 
     // 임시 게시글 데이터
     const mockPosts = {
@@ -216,35 +238,74 @@ export default function MyPage() {
         const loadPosts = async () => {
             setLoading(true);
             try {
-                // 실제로는 API 호출
-                // const response = await fetch(`/api/mypage/${selectedMenu}?game=${selectedGame}`);
-                // const data = await response.json();
-
-                // 임시로 목업 데이터 사용
-                setTimeout(() => {
-                    setPosts(mockPosts[selectedMenu] || []);
-                    setLoading(false);
-                }, 500);
+                if (user) {
+                    let userPosts = [];
+                    
+                    if (selectedMenu === 'posts') {
+                        userPosts = await userService.getUserPosts(user.uid);
+                    } else if (selectedMenu === 'commentedPosts') {
+                        // 댓글 단 게시글 가져오기
+                        const [lolCommentedPosts, valorantCommentedPosts] = await Promise.all([
+                            userService.getUserCommentedPostsData(user.uid, 'lol'),
+                            userService.getUserCommentedPostsData(user.uid, 'valorant')
+                        ]);
+                        userPosts = [...lolCommentedPosts, ...valorantCommentedPosts];
+                        
+                        // 최신순으로 재정렬
+                        userPosts.sort((a, b) => {
+                            const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt);
+                            const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt);
+                            return dateB - dateA;
+                        });
+                    } else {
+                        // 다른 메뉴에 대해서는 목업 데이터 사용 (추후 구현)
+                        setPosts(mockPosts[selectedMenu] || []);
+                        setLoading(false);
+                        return;
+                    }
+                    
+                    // 게임 필터 적용
+                    if (selectedGame !== 'all') {
+                        userPosts = userPosts.filter(post => post.gameType === selectedGame);
+                    }
+                    
+                    // PostCard 형식으로 변환
+                    setPosts(userPosts.map(post => ({
+                        id: post.id,
+                        title: post.title,
+                        content: post.content,
+                        votes: post.likes || 0,
+                        views: post.views || 0,
+                        tags: post.tags || [],
+                        author: {
+                            nickname: post.authorName || 'Unknown',
+                            tier: 'Unranked'
+                        },
+                        commentCount: post.commentCount || 0,
+                        createdAt: post.createdAt?.toDate() || new Date(),
+                        gameType: post.gameType
+                    })));
+                } else {
+                    setPosts([]);
+                }
+                setLoading(false);
             } catch (error) {
                 console.error("Error loading posts:", error);
+                setPosts([]);
                 setLoading(false);
             }
         };
 
-        loadPosts();
-    }, [selectedMenu, selectedGame]);
+        if (user) {
+            loadPosts();
+        }
+    }, [selectedMenu, selectedGame, user]);
 
     // Riot ID 연동 처리
     const handleRiotIdSubmit = async (riotId, game) => {
         try {
-            // 실제로는 API 호출
-            // const response = await fetch("/api/riot/connect", {
-            //     method: "POST",
-            //     body: JSON.stringify({ riotId, game }),
-            // });
-            // if (!response.ok) throw new Error("Failed to connect Riot ID");
-
-            console.log("Riot ID 연동:", riotId, game);
+            await userService.connectRiotId(riotId, game);
+            console.log("Riot ID 연동 성공:", riotId, game);
             return true;
         } catch (error) {
             console.error("Error connecting Riot ID:", error);
@@ -315,23 +376,40 @@ export default function MyPage() {
         }
     };
 
+    if (authLoading) {
+        return (
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
+                    <p className="mt-2 text-gray-600">로딩 중...</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (!user) {
+        return null; // Will redirect to login
+    }
+
     return (
         <div className="min-h-screen bg-gray-50">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 <div className="flex gap-8">
                     {/* 사이드바 */}
-                    <MyPageSidebar
-                        user={user}
-                        stats={stats[selectedGame]}
-                        selectedMenu={selectedMenu}
-                        onMenuSelect={setSelectedMenu}
-                        onRiotIdSubmit={(riotId) =>
-                            handleRiotIdSubmit(riotId, selectedGame)
-                        }
-                        selectedGame={selectedGame}
-                        onGameSelect={setSelectedGame}
-                        riotId={user.riotIds[selectedGame]}
-                    />
+                    {userInfo && (
+                        <MyPageSidebar
+                            user={userInfo}
+                            stats={stats[selectedGame]}
+                            selectedMenu={selectedMenu}
+                            onMenuSelect={setSelectedMenu}
+                            onRiotIdSubmit={(riotId) =>
+                                handleRiotIdSubmit(riotId, selectedGame)
+                            }
+                            selectedGame={selectedGame}
+                            onGameSelect={setSelectedGame}
+                            riotId={userInfo?.riotIds[selectedGame]}
+                        />
+                    )}
 
                     {/* 메인 컨텐츠 */}
                     <div className="flex-1">

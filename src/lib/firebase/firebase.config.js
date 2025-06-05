@@ -1,6 +1,8 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp, getApps } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
+import { getAuth } from "firebase/auth";
+import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -12,6 +14,14 @@ const firebaseConfig = {
 };
 
 // 환경 변수 확인을 위한 디버그 로그
+console.log("Firebase Config:", {
+  apiKey: firebaseConfig.apiKey ? "✓" : "✗",
+  authDomain: firebaseConfig.authDomain,
+  projectId: firebaseConfig.projectId,
+  storageBucket: firebaseConfig.storageBucket,
+  messagingSenderId: firebaseConfig.messagingSenderId,
+  appId: firebaseConfig.appId ? "✓" : "✗"
+});
 
 // Firebase가 이미 초기화되었는지 확인
 let firebase_app;
@@ -21,7 +31,9 @@ if (!getApps().length) {
   firebase_app = getApps()[0];
 }
 
-// Initialize Firestore
+// Initialize Firebase services
 export const db = getFirestore(firebase_app);
+export const auth = getAuth(firebase_app);
+export const storage = getStorage(firebase_app);
 
 export default firebase_app; 

@@ -8,6 +8,8 @@ import {
 } from "@/app/components/MainPostCard";
 import FixedWidthPostCard from "@/app/components/FixedWidthPostCard";
 import PopularPostCard from "@/app/components/PopularPostCard";
+import { useAuth } from "@/app/utils/providers";
+import { communityService } from "@/app/services/community/community.service";
 import dummyPosts from "@/data/dummyPosts.json";
 
 // 배너 데이터
@@ -43,56 +45,104 @@ export default function LoLMainPage() {
     const [controversialPosts, setControversialPosts] = useState([]);
     const [deadlinePosts, setDeadlinePosts] = useState([]);
     const [recentPosts, setRecentPosts] = useState([]);
+    const [userPosts, setUserPosts] = useState([]);
+    const { user } = useAuth();
 
     useEffect(() => {
-        // 더미 데이터에서 LoL 게시물만 필터링
-        const lolPosts = dummyPosts.posts.filter(
-            (post) => post.gameType === "lol"
-        );
-        console.log("LoL 게시물:", lolPosts); // 데이터 확인용 로그
-
-        // 인기 게시물 (votes 기준 내림차순)
-        const popular = [...lolPosts]
-            .sort((a, b) => b.votes - a.votes)
-            .slice(0, 3);
-        setPopularPosts(popular);
-        console.log("인기 게시물:", popular); // 데이터 확인용 로그
-
-        // 분쟁 활발 게시물 (투표 비율이 비슷한 순)
-        const controversial = [...lolPosts]
-            .filter((post) => post.voteCounts)
-            .sort((a, b) => {
-                const ratioA = Math.abs(
-                    a.voteCounts.option1 /
-                        (a.voteCounts.option1 + a.voteCounts.option2) -
-                        0.5
+        const loadPosts = async () => {
+            try {
+                // Firebase에서 실제 게시물 조회
+                const popularResult = await communityService.getPosts('lol', [], '', 1, 10, 'popular');
+                const recentResult = await communityService.getPosts('lol', [], '', 1, 10, 'recent');
+                
+                // 더미 데이터에서 LoL 게시물 필터링
+                const lolPosts = dummyPosts.posts.filter(
+                    (post) => post.gameType === "lol"
                 );
-                const ratioB = Math.abs(
-                    b.voteCounts.option1 /
-                        (b.voteCounts.option1 + b.voteCounts.option2) -
-                        0.5
+
+                // Firebase 데이터와 더미 데이터 합치기
+                const allPopularPosts = [...popularResult.posts, ...lolPosts];
+                const allRecentPosts = [...recentResult.posts, ...lolPosts];
+
+                // 인기 게시물 (가중치 기반 정렬)
+                const popular = communityService.sortPosts(allPopularPosts, 'popular').slice(0, 3);
+                setPopularPosts(popular);
+
+                // 최신 게시물 (최신순 정렬)
+                const recent = communityService.sortPosts(allRecentPosts, 'recent').slice(0, 3);
+                setRecentPosts(recent);
+
+                // 분쟁 활발 게시물 (투표 비율이 비슷한 순)
+                const controversial = [...lolPosts]
+                    .filter((post) => post.voteCounts)
+                    .sort((a, b) => {
+                        const ratioA = Math.abs(
+                            a.voteCounts.option1 /
+                                (a.voteCounts.option1 + a.voteCounts.option2) -
+                                0.5
+                        );
+                        const ratioB = Math.abs(
+                            b.voteCounts.option1 /
+                                (b.voteCounts.option1 + b.voteCounts.option2) -
+                                0.5
+                        );
+                        return ratioA - ratioB;
+                    })
+                    .slice(0, 1);
+                setControversialPosts(controversial);
+
+                // 마감 임박 게시물
+                const deadline = [...lolPosts]
+                    .filter((post) => post.voteEndTime)
+                    .sort((a, b) => new Date(a.voteEndTime) - new Date(b.voteEndTime))
+                    .slice(0, 1);
+                setDeadlinePosts(deadline);
+
+                console.log("인기 게시물:", popular);
+                console.log("최신 게시물:", recent);
+            } catch (error) {
+                console.error('게시물 로드 실패:', error);
+                // 에러 발생 시 더미 데이터만 사용
+                const lolPosts = dummyPosts.posts.filter(
+                    (post) => post.gameType === "lol"
                 );
-                return ratioA - ratioB;
-            })
-            .slice(0, 1);
-        setControversialPosts(controversial);
-        console.log("분쟁 활발:", controversial); // 데이터 확인용 로그
+                
+                const popular = [...lolPosts]
+                    .sort((a, b) => (b.votes || 0) - (a.votes || 0))
+                    .slice(0, 3);
+                setPopularPosts(popular);
 
-        // 마감 임박 게시물
-        const deadline = [...lolPosts]
-            .filter((post) => post.voteEndTime)
-            .sort((a, b) => new Date(a.voteEndTime) - new Date(b.voteEndTime))
-            .slice(0, 1);
-        setDeadlinePosts(deadline);
-        console.log("마감 임박:", deadline); // 데이터 확인용 로그
+                const recent = [...lolPosts]
+                    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+                    .slice(0, 3);
+                setRecentPosts(recent);
+            }
+        };
 
-        // 최신 게시물
-        const recent = [...lolPosts]
-            .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-            .slice(0, 3);
-        setRecentPosts(recent);
-        console.log("최신 게시물:", recent); // 데이터 확인용 로그
+        loadPosts();
     }, []);
+
+    // 사용자 게시물 로드
+    useEffect(() => {
+        const loadUserPosts = async () => {
+            if (user && user.uid) {
+                try {
+                    const result = await communityService.getUserPosts('lol', user.uid, 3);
+                    setUserPosts(result.posts);
+                    console.log("사용자 게시물:", result.posts);
+                } catch (error) {
+                    console.error("사용자 게시물 로드 실패:", error);
+                    // 에러 발생 시 빈 배열로 설정하여 UI 오류 방지
+                    setUserPosts([]);
+                }
+            } else {
+                // 사용자가 로그인하지 않은 경우 빈 배열로 설정
+                setUserPosts([]);
+            }
+        };
+
+        loadUserPosts();
+    }, [user]);
 
     const handleBannerChange = (index) => {
         if (index > currentBanner) {
@@ -284,6 +334,54 @@ export default function LoLMainPage() {
                         </div>
                     </div>
                 </section>
+
+                {/* 내가 작성한 글 섹션 */}
+                {user && userPosts.length > 0 && (
+                    <section className="mb-12">
+                        <div className="flex justify-between items-center mb-6">
+                            <h2 className="text-2xl font-bold text-gray-900">
+                                ✍️ 내가 작성한 글
+                            </h2>
+                            <Link
+                                href="/lol/community?filter=my"
+                                className="text-blue-600 hover:text-blue-700"
+                            >
+                                더 보기 →
+                            </Link>
+                        </div>
+                        <div className="overflow-x-auto">
+                            <div className="flex gap-4 pb-4">
+                                {userPosts.map((post) => (
+                                    <PopularPostCard
+                                        key={post.id}
+                                        post={post}
+                                        gameType="lol"
+                                    />
+                                ))}
+                            </div>
+                        </div>
+                    </section>
+                )}
+
+                {/* 로그인하지 않은 사용자를 위한 안내 */}
+                {!user && (
+                    <section className="mb-12">
+                        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-8 text-center">
+                            <h2 className="text-xl font-bold text-gray-900 mb-2">
+                                나만의 재판 기록을 남겨보세요!
+                            </h2>
+                            <p className="text-gray-600 mb-4">
+                                로그인하시면 작성한 글들을 여기서 확인할 수 있습니다.
+                            </p>
+                            <Link
+                                href="/login"
+                                className="inline-flex items-center px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                            >
+                                로그인하기
+                            </Link>
+                        </div>
+                    </section>
+                )}
             </div>
         </div>
     );
