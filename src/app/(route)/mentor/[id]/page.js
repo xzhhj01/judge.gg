@@ -4,13 +4,44 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 
+const ServiceCard = ({ service, game }) => {
+    const gameColor = game === "lol" ? "blue" : "red";
+
+    return (
+        <div className="border border-gray-200 rounded-lg p-4">
+            <div className="flex items-center gap-2 mb-2">
+                <span>{service.icon}</span>
+                <h3 className="font-medium">{service.name}</h3>
+            </div>
+            <p className="text-sm text-gray-600 mb-3">{service.description}</p>
+            <div className="flex justify-between items-center">
+                <span className="font-medium text-gray-900">
+                    {service.price.toLocaleString()}원
+                </span>
+                <button
+                    onClick={() => {
+                        /* 신청 모달 열기 */
+                    }}
+                    className={`px-4 py-2 rounded-lg text-white bg-${gameColor}-500 hover:bg-${gameColor}-600`}
+                >
+                    신청하기
+                </button>
+            </div>
+        </div>
+    );
+};
+
 export default function MentorDetailPage() {
     const params = useParams();
     const mentorId = params.id;
-    const [activeTab, setActiveTab] = useState("feedback"); // feedback, reviews, activity
+    const [activeTab, setActiveTab] = useState("reviews");
     const [showContactModal, setShowContactModal] = useState(false);
+    const [showApplyModal, setShowApplyModal] = useState(false);
     const [isLiked, setIsLiked] = useState(false);
     const [snackbar, setSnackbar] = useState({ show: false, message: "" });
+    const [showReviewModal, setShowReviewModal] = useState(false);
+    const [rating, setRating] = useState(0);
+    const [hoveredRating, setHoveredRating] = useState(0);
 
     // 스낵바 자동 숨김
     useEffect(() => {
@@ -99,6 +130,20 @@ export default function MentorDetailPage() {
                         ],
                     },
                 ],
+                mentoring_types: {
+                    video_feedback: {
+                        isSelected: true,
+                        price: 10000,
+                    },
+                    realtime_onepoint: {
+                        isSelected: true,
+                        price: 15000,
+                    },
+                    realtime_private: {
+                        isSelected: true,
+                        price: 20000,
+                    },
+                },
             },
             // 상세 소개
             detailedIntroduction:
@@ -150,11 +195,58 @@ export default function MentorDetailPage() {
                         ],
                     },
                 ],
+                mentoring_types: {
+                    video_feedback: {
+                        isSelected: true,
+                        price: 10000,
+                    },
+                    realtime_onepoint: {
+                        isSelected: true,
+                        price: 15000,
+                    },
+                    realtime_private: {
+                        isSelected: true,
+                        price: 20000,
+                    },
+                },
             },
         },
     };
 
     const mentor = mockMentors[mentorId];
+
+    // 임시 리뷰 데이터
+    const mockReviews = [
+        {
+            id: 1,
+            userName: "실버탈출가능?",
+            rating: 5,
+            content:
+                "정글링 루트부터 갱킹 타이밍까지 자세히 설명해주셔서 많이 배웠습니다. 특히 오브젝트 우선순위 설정하는 법을 알려주셔서 좋았어요!",
+            createdAt: "2024-03-15",
+            serviceType: "영상 피드백",
+        },
+        {
+            id: 2,
+            userName: "미드장인될래요",
+            rating: 4,
+            content:
+                "친절하게 설명해주시고 실전에서 바로 써먹을 수 있는 팁들을 많이 알려주셨습니다.",
+            createdAt: "2024-03-10",
+            serviceType: "실시간 1:1",
+        },
+    ];
+
+    // 임시 받은 피드백 데이터 (리뷰 작성 가능 여부 확인용)
+    const mockReceivedFeedbacks = [
+        {
+            id: 1,
+            status: "completed",
+            hasReview: false,
+            completedAt: "2024-03-20",
+            serviceType: "영상 피드백",
+        },
+    ];
 
     if (!mentor) {
         return (
@@ -424,42 +516,67 @@ export default function MentorDetailPage() {
                         </section>
 
                         {/* 4. Curriculum 영역 */}
-                        <section className="bg-white rounded-xl border border-gray-200 p-6">
+                        <section
+                            id="curriculum"
+                            className="bg-white rounded-xl border border-gray-200 p-6"
+                        >
                             <h2 className="text-lg font-semibold text-gray-900 mb-4">
                                 커리큘럼
                             </h2>
-
                             <div className="space-y-4">
-                                {mentor.curriculum.sessions.map(
-                                    (session, index) => (
+                                {[
+                                    {
+                                        type: "video_feedback",
+                                        title: "영상 피드백",
+                                        description:
+                                            "녹화된 게임 영상을 보고 상세한 피드백을 제공합니다",
+                                    },
+                                    {
+                                        type: "realtime_onepoint",
+                                        title: "실시간 원포인트 피드백",
+                                        description:
+                                            "특정 스킬이나 전략에 대해 실시간으로 피드백합니다",
+                                    },
+                                    {
+                                        type: "realtime_private",
+                                        title: "실시간 1:1 피드백",
+                                        description:
+                                            "1:1 맞춤형 실시간 코칭을 제공합니다",
+                                    },
+                                ].map((service) => {
+                                    const serviceData =
+                                        mentor.curriculum.mentoring_types[
+                                            service.type
+                                        ];
+                                    if (!serviceData.isSelected) return null;
+
+                                    return (
                                         <div
-                                            key={index}
-                                            className="border border-gray-200 rounded-lg p-4"
+                                            key={service.type}
+                                            className="border border-gray-200 rounded-lg hover:border-primary-500 transition-colors p-4"
                                         >
-                                            <div className="flex justify-between items-start mb-2">
-                                                <h4 className="font-semibold text-gray-900">
-                                                    {session.title}
-                                                </h4>
-                                                <span className="text-sm text-gray-500">
-                                                    {session.duration}
-                                                </span>
+                                            <div className="flex justify-between items-start">
+                                                <div>
+                                                    <h4 className="text-base font-semibold text-gray-900 mb-1">
+                                                        {service.title}
+                                                    </h4>
+                                                    <p className="text-sm text-gray-600">
+                                                        {service.description}
+                                                    </p>
+                                                </div>
+                                                <div className="text-right">
+                                                    <div className="text-lg font-bold text-primary-600">
+                                                        {serviceData.price.toLocaleString()}
+                                                        원
+                                                    </div>
+                                                    <div className="text-sm text-gray-500">
+                                                        회당
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <ul className="space-y-1">
-                                                {session.content.map(
-                                                    (item, itemIndex) => (
-                                                        <li
-                                                            key={itemIndex}
-                                                            className="text-sm text-gray-600 flex items-center"
-                                                        >
-                                                            <span className="w-1.5 h-1.5 bg-gray-400 rounded-full mr-2"></span>
-                                                            {item}
-                                                        </li>
-                                                    )
-                                                )}
-                                            </ul>
                                         </div>
-                                    )
-                                )}
+                                    );
+                                })}
                             </div>
                         </section>
 
@@ -478,12 +595,8 @@ export default function MentorDetailPage() {
                         <section className="bg-white rounded-xl border border-gray-200">
                             {/* 탭 헤더 */}
                             <div className="border-b border-gray-200">
-                                <nav className="grid grid-cols-3">
+                                <nav className="grid grid-cols-2">
                                     {[
-                                        {
-                                            key: "feedback",
-                                            label: "피드백 답변",
-                                        },
                                         { key: "reviews", label: "리뷰" },
                                         { key: "activity", label: "최근 활동" },
                                     ].map((tab) => (
@@ -506,14 +619,111 @@ export default function MentorDetailPage() {
 
                             {/* 탭 콘텐츠 */}
                             <div className="p-6">
-                                {activeTab === "feedback" && (
-                                    <div className="text-center py-8 text-gray-500">
-                                        피드백 답변 내용이 여기에 표시됩니다
-                                    </div>
-                                )}
                                 {activeTab === "reviews" && (
-                                    <div className="text-center py-8 text-gray-500">
-                                        리뷰 내용이 여기에 표시됩니다
+                                    <div className="space-y-6">
+                                        {/* 리뷰 작성 가능한 경우 표시 */}
+                                        {mockReceivedFeedbacks
+                                            .filter(
+                                                (feedback) =>
+                                                    feedback.status ===
+                                                        "completed" &&
+                                                    !feedback.hasReview
+                                            )
+                                            .map((feedback) => (
+                                                <div
+                                                    key={feedback.id}
+                                                    className="bg-blue-50 border border-blue-200 rounded-lg p-4"
+                                                >
+                                                    <div className="flex justify-between items-center">
+                                                        <div>
+                                                            <h3 className="text-sm font-medium text-blue-900">
+                                                                피드백을
+                                                                받으셨네요!
+                                                                멘토님의
+                                                                피드백은
+                                                                어떠셨나요?
+                                                            </h3>
+                                                            <p className="text-sm text-blue-700 mt-1">
+                                                                {
+                                                                    feedback.serviceType
+                                                                }{" "}
+                                                                ·{" "}
+                                                                {
+                                                                    feedback.completedAt
+                                                                }{" "}
+                                                                완료
+                                                            </p>
+                                                        </div>
+                                                        <button
+                                                            onClick={() =>
+                                                                setShowReviewModal(
+                                                                    true
+                                                                )
+                                                            }
+                                                            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+                                                        >
+                                                            리뷰 작성하기
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ))}
+
+                                        {/* 리뷰 목록 */}
+                                        <div className="space-y-4">
+                                            {mockReviews.map((review) => (
+                                                <div
+                                                    key={review.id}
+                                                    className="border border-gray-200 rounded-lg p-4"
+                                                >
+                                                    <div className="flex justify-between items-start mb-2">
+                                                        <div>
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="font-medium text-gray-900">
+                                                                    {
+                                                                        review.userName
+                                                                    }
+                                                                </span>
+                                                                <span className="text-sm text-gray-500">
+                                                                    {
+                                                                        review.serviceType
+                                                                    }
+                                                                </span>
+                                                            </div>
+                                                            <div className="flex items-center mt-1">
+                                                                {[
+                                                                    1, 2, 3, 4,
+                                                                    5,
+                                                                ].map(
+                                                                    (star) => (
+                                                                        <svg
+                                                                            key={
+                                                                                star
+                                                                            }
+                                                                            className={`w-4 h-4 ${
+                                                                                star <=
+                                                                                review.rating
+                                                                                    ? "text-yellow-400"
+                                                                                    : "text-gray-300"
+                                                                            }`}
+                                                                            fill="currentColor"
+                                                                            viewBox="0 0 20 20"
+                                                                        >
+                                                                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                                                        </svg>
+                                                                    )
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                        <span className="text-sm text-gray-500">
+                                                            {review.createdAt}
+                                                        </span>
+                                                    </div>
+                                                    <p className="text-gray-700">
+                                                        {review.content}
+                                                    </p>
+                                                </div>
+                                            ))}
+                                        </div>
                                     </div>
                                 )}
                                 {activeTab === "activity" && (
@@ -525,60 +735,102 @@ export default function MentorDetailPage() {
                         </section>
                     </div>
 
-                    {/* 오른쪽: 액션 버튼 사이드바 (1/4) */}
+                    {/* 오른쪽: 사이드바 */}
                     <div className="lg:col-span-1">
-                        <div className="bg-white rounded-xl border border-gray-200 p-6 sticky top-24">
-                            <div className="space-y-3">
-                                <button className="w-full bg-blue-500 hover:bg-blue-600 text-white py-3 rounded-lg font-medium transition-colors">
-                                    피드백 문의
-                                </button>
-                                <button
-                                    onClick={() => setShowContactModal(true)}
-                                    className="w-full border border-gray-300 text-gray-700 hover:bg-gray-50 py-3 rounded-lg font-medium transition-colors"
-                                >
-                                    연락처 보기
-                                </button>
-                                <div className="flex space-x-2">
+                        <div className="space-y-6 sticky top-24">
+                            {/* 액션 버튼 */}
+                            <div className="bg-white rounded-xl border border-gray-200 p-6">
+                                <div className="space-y-3">
                                     <button
-                                        onClick={handleLike}
-                                        className="flex-1 border border-gray-300 text-gray-700 hover:bg-gray-50 py-2 rounded-lg font-medium transition-colors flex items-center justify-center"
+                                        onClick={() => setShowApplyModal(true)}
+                                        className={`w-full ${
+                                            mentor.game === "lol"
+                                                ? "bg-blue-500 hover:bg-blue-600"
+                                                : "bg-red-500 hover:bg-red-600"
+                                        } text-white py-3 rounded-lg font-medium transition-colors`}
                                     >
-                                        <svg
-                                            className={`w-4 h-4 mr-1 ${
-                                                isLiked
-                                                    ? "text-red-500 fill-current"
-                                                    : "text-gray-400"
-                                            }`}
-                                            viewBox="0 0 20 20"
-                                        >
-                                            <path
-                                                fillRule="evenodd"
-                                                d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z"
-                                                clipRule="evenodd"
-                                            />
-                                        </svg>
-                                        찜
+                                        피드백 신청하기
                                     </button>
                                     <button
-                                        onClick={handleShare}
-                                        className="flex-1 border border-gray-300 text-gray-700 hover:bg-gray-50 py-2 rounded-lg font-medium transition-colors flex items-center justify-center"
+                                        onClick={() =>
+                                            setShowContactModal(true)
+                                        }
+                                        className="w-full border border-gray-300 text-gray-700 hover:bg-gray-50 py-3 rounded-lg font-medium transition-colors"
                                     >
-                                        <svg
-                                            className="w-4 h-4 mr-1"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            viewBox="0 0 24 24"
-                                        >
-                                            <path
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                                strokeWidth={2}
-                                                d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z"
-                                            />
-                                        </svg>
-                                        공유
+                                        연락처 보기
                                     </button>
+                                    <div className="flex space-x-2">
+                                        <button
+                                            onClick={handleLike}
+                                            className="flex-1 border border-gray-300 text-gray-700 hover:bg-gray-50 py-2 rounded-lg font-medium transition-colors flex items-center justify-center"
+                                        >
+                                            <svg
+                                                className={`w-4 h-4 mr-1 ${
+                                                    isLiked
+                                                        ? "text-red-500 fill-current"
+                                                        : "text-gray-400"
+                                                }`}
+                                                viewBox="0 0 20 20"
+                                            >
+                                                <path
+                                                    fillRule="evenodd"
+                                                    d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z"
+                                                    clipRule="evenodd"
+                                                />
+                                            </svg>
+                                            찜
+                                        </button>
+                                        <button
+                                            onClick={handleShare}
+                                            className="flex-1 border border-gray-300 text-gray-700 hover:bg-gray-50 py-2 rounded-lg font-medium transition-colors flex items-center justify-center"
+                                        >
+                                            <svg
+                                                className="w-4 h-4 mr-1"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                viewBox="0 0 24 24"
+                                            >
+                                                <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    strokeWidth={2}
+                                                    d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z"
+                                                />
+                                            </svg>
+                                            공유
+                                        </button>
+                                    </div>
                                 </div>
+                            </div>
+
+                            {/* 목차 네비게이션 */}
+                            <div className="bg-white rounded-xl border border-gray-200 p-6">
+                                <nav className="space-y-3">
+                                    <a
+                                        href="#experience"
+                                        className="block text-gray-600 hover:text-primary-600 transition-colors"
+                                    >
+                                        경력
+                                    </a>
+                                    <a
+                                        href="#curriculum"
+                                        className="block text-gray-600 hover:text-primary-600 transition-colors"
+                                    >
+                                        커리큘럼
+                                    </a>
+                                    <a
+                                        href="#introduction"
+                                        className="block text-gray-600 hover:text-primary-600 transition-colors"
+                                    >
+                                        상세 소개
+                                    </a>
+                                    <a
+                                        href="#reviews"
+                                        className="block text-gray-600 hover:text-primary-600 transition-colors"
+                                    >
+                                        리뷰
+                                    </a>
+                                </nav>
                             </div>
                         </div>
                     </div>
@@ -641,6 +893,206 @@ export default function MentorDetailPage() {
                                 className="flex-1 border border-gray-300 text-gray-700 hover:bg-gray-50 py-2 rounded-lg font-medium transition-colors"
                             >
                                 닫기
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* 신청 모달 */}
+            {showApplyModal && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-lg font-semibold text-gray-900">
+                                피드백 신청하기
+                            </h3>
+                            <button
+                                onClick={() => setShowApplyModal(false)}
+                                className="text-gray-400 hover:text-gray-600"
+                            >
+                                <svg
+                                    className="w-6 h-6"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M6 18L18 6M6 6l12 12"
+                                    />
+                                </svg>
+                            </button>
+                        </div>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    신청할 서비스
+                                </label>
+                                <select className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500">
+                                    <option value="">
+                                        서비스를 선택해주세요
+                                    </option>
+                                    {Object.entries(
+                                        mentor.curriculum.mentoring_types
+                                    ).map(([type, data]) => {
+                                        if (!data.isSelected) return null;
+                                        const serviceTitle = {
+                                            video_feedback: "영상 피드백",
+                                            realtime_onepoint:
+                                                "실시간 원포인트 피드백",
+                                            realtime_private:
+                                                "실시간 1:1 피드백",
+                                        }[type];
+                                        return (
+                                            <option key={type} value={type}>
+                                                {serviceTitle} (
+                                                {data.price.toLocaleString()}원)
+                                            </option>
+                                        );
+                                    })}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    메시지
+                                </label>
+                                <textarea
+                                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 min-h-[100px]"
+                                    placeholder="멘토에게 전달할 메시지를 입력해주세요"
+                                />
+                            </div>
+                        </div>
+                        <div className="flex space-x-3 mt-6">
+                            <button
+                                onClick={() => {
+                                    /* TODO: 신청 로직 구현 */
+                                    setShowApplyModal(false);
+                                    showSnackbar("신청이 완료되었습니다");
+                                }}
+                                className={`flex-1 ${
+                                    mentor.game === "lol"
+                                        ? "bg-blue-500 hover:bg-blue-600"
+                                        : "bg-red-500 hover:bg-red-600"
+                                } text-white py-2 rounded-lg font-medium transition-colors`}
+                            >
+                                신청하기
+                            </button>
+                            <button
+                                onClick={() => setShowApplyModal(false)}
+                                className="flex-1 border border-gray-300 text-gray-700 hover:bg-gray-50 py-2 rounded-lg font-medium transition-colors"
+                            >
+                                취소
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* 리뷰 작성 모달 */}
+            {showReviewModal && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-xl p-6 max-w-lg w-full mx-4">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-lg font-semibold text-gray-900">
+                                리뷰 작성하기
+                            </h3>
+                            <button
+                                onClick={() => {
+                                    setShowReviewModal(false);
+                                    setRating(0);
+                                    setHoveredRating(0);
+                                }}
+                                className="text-gray-400 hover:text-gray-600"
+                            >
+                                <svg
+                                    className="w-6 h-6"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M6 18L18 6M6 6l12 12"
+                                    />
+                                </svg>
+                            </button>
+                        </div>
+
+                        <div className="space-y-4">
+                            {/* 별점 선택 */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    멘토님의 피드백은 어떠셨나요?
+                                </label>
+                                <div className="flex items-center gap-1">
+                                    {[1, 2, 3, 4, 5].map((star) => (
+                                        <button
+                                            key={star}
+                                            onMouseEnter={() =>
+                                                setHoveredRating(star)
+                                            }
+                                            onMouseLeave={() =>
+                                                setHoveredRating(0)
+                                            }
+                                            onClick={() => setRating(star)}
+                                            className="p-1"
+                                        >
+                                            <svg
+                                                className={`w-8 h-8 ${
+                                                    star <=
+                                                    (hoveredRating || rating)
+                                                        ? "text-yellow-400"
+                                                        : "text-gray-300"
+                                                }`}
+                                                fill="currentColor"
+                                                viewBox="0 0 20 20"
+                                            >
+                                                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                            </svg>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* 리뷰 내용 */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    상세한 리뷰를 작성해주세요
+                                </label>
+                                <textarea
+                                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 min-h-[120px]"
+                                    placeholder="멘토님의 피드백이 어떤 점에서 도움이 되었나요?"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex justify-end space-x-3 mt-6">
+                            <button
+                                onClick={() => {
+                                    setShowReviewModal(false);
+                                    setRating(0);
+                                    setHoveredRating(0);
+                                }}
+                                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium"
+                            >
+                                취소
+                            </button>
+                            <button
+                                onClick={() => {
+                                    // TODO: 리뷰 제출 로직 구현
+                                    setShowReviewModal(false);
+                                    setRating(0);
+                                    setHoveredRating(0);
+                                }}
+                                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium"
+                                disabled={!rating}
+                            >
+                                리뷰 등록
                             </button>
                         </div>
                     </div>

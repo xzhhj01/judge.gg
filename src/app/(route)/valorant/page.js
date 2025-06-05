@@ -1,121 +1,356 @@
-export default function ValorantPage() {
+"use client";
+
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import Image from "next/image";
+import {
+    MainPostCard,
+    MainPopularPostCard,
+} from "@/app/components/MainPostCard";
+import FixedWidthPostCard from "@/app/components/FixedWidthPostCard";
+import PopularPostCard from "@/app/components/PopularPostCard";
+import dummyPosts from "@/data/dummyPosts.json";
+
+// 인기 게시물 카드 컴포넌트
+const PostCard = ({ post }) => {
     return (
-        <div className="min-h-screen bg-gradient-to-br from-valorant-50 to-valorant-100">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-                <div className="text-center">
-                    <div className="flex justify-center mb-8">
-                        <img
-                            src="/logo-valorant.svg"
-                            alt="Valorant"
-                            className="h-20 w-20"
-                        />
-                    </div>
-
-                    <h1 className="text-4xl font-bold text-gray-900 mb-4">
-                        발로란트
-                    </h1>
-
-                    <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
-                        전술적 FPS 게임에서 발생하는 모든 분쟁을 공정하게
-                        해결합니다. Judge.gg와 함께 더 깨끗한 게임 환경을
-                        만들어보세요.
-                    </p>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-12">
-                        {/* 법원 카드 */}
-                        <div className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
-                            <div className="text-center">
-                                <div className="w-12 h-12 bg-valorant-500 rounded-lg flex items-center justify-center mx-auto mb-4">
-                                    <svg
-                                        className="w-6 h-6 text-white"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        viewBox="0 0 24 24"
-                                    >
-                                        <path
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            strokeWidth={2}
-                                            d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16l3-1m-3 1l-3-1"
-                                        />
-                                    </svg>
-                                </div>
-                                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                                    법원
-                                </h3>
-                                <p className="text-gray-600 mb-4">
-                                    게임 내 분쟁을 신고하고 해결받으세요
-                                </p>
-                                <a
-                                    href="/valorant/community"
-                                    className="inline-block bg-valorant-500 text-white px-4 py-2 rounded-lg hover:bg-valorant-600 transition-colors"
+        <Link href={`/valorant/community/post/${post.id}`}>
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md transition-shadow">
+                <div className="flex items-start justify-between">
+                    <div>
+                        <h3 className="text-lg font-medium text-gray-900">
+                            {post.title}
+                        </h3>
+                        <div className="mt-2 flex flex-wrap gap-1">
+                            {post.tags.map((tag) => (
+                                <span
+                                    key={tag}
+                                    className="px-2 py-1 text-xs bg-red-50 text-red-600 rounded-full"
                                 >
-                                    바로가기
-                                </a>
-                            </div>
+                                    {tag}
+                                </span>
+                            ))}
                         </div>
-
-                        {/* 에이전트 가이드 카드 */}
-                        <div className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
-                            <div className="text-center">
-                                <div className="w-12 h-12 bg-valorant-500 rounded-lg flex items-center justify-center mx-auto mb-4">
-                                    <svg
-                                        className="w-6 h-6 text-white"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        viewBox="0 0 24 24"
-                                    >
-                                        <path
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            strokeWidth={2}
-                                            d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                                        />
-                                    </svg>
-                                </div>
-                                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                                    에이전트 가이드
-                                </h3>
-                                <p className="text-gray-600 mb-4">
-                                    각 에이전트별 전략과 팁을 확인하세요
-                                </p>
-                                <button className="inline-block bg-gray-300 text-gray-600 px-4 py-2 rounded-lg cursor-not-allowed">
-                                    준비중
-                                </button>
-                            </div>
+                    </div>
+                    <div className="flex flex-col items-end text-sm text-gray-500">
+                        <span className="flex items-center">
+                            <span className="mr-1">⬆️</span>
+                            {post.votes}
+                        </span>
+                        {post.voteEndTime && (
+                            <span className="text-red-500 mt-1">
+                                {new Date(
+                                    post.voteEndTime
+                                ).toLocaleDateString()}{" "}
+                                마감
+                            </span>
+                        )}
+                    </div>
+                </div>
+                {post.voteCounts && (
+                    <div className="mt-3">
+                        <div className="flex justify-between text-sm mb-1 text-gray-600">
+                            <span>{post.voteCounts.option1Text}</span>
+                            <span>{post.voteCounts.option2Text}</span>
                         </div>
+                        <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                            <div
+                                className="h-full bg-red-500"
+                                style={{
+                                    width: `${
+                                        (post.voteCounts.option1 /
+                                            (post.voteCounts.option1 +
+                                                post.voteCounts.option2)) *
+                                        100
+                                    }%`,
+                                }}
+                            ></div>
+                        </div>
+                        <div className="flex justify-between text-sm mt-1 text-gray-500">
+                            <span>{post.voteCounts.option1}표</span>
+                            <span>{post.voteCounts.option2}표</span>
+                        </div>
+                    </div>
+                )}
+            </div>
+        </Link>
+    );
+};
 
-                        {/* 맵 분석 카드 */}
-                        <div className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
-                            <div className="text-center">
-                                <div className="w-12 h-12 bg-valorant-500 rounded-lg flex items-center justify-center mx-auto mb-4">
-                                    <svg
-                                        className="w-6 h-6 text-white"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        viewBox="0 0 24 24"
-                                    >
-                                        <path
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            strokeWidth={2}
-                                            d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"
-                                        />
-                                    </svg>
-                                </div>
-                                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                                    맵 분석
-                                </h3>
-                                <p className="text-gray-600 mb-4">
-                                    각 맵별 전략과 포지션을 분석하세요
-                                </p>
-                                <button className="inline-block bg-gray-300 text-gray-600 px-4 py-2 rounded-lg cursor-not-allowed">
-                                    준비중
-                                </button>
-                            </div>
+// 배너 데이터
+const bannerData = [
+    {
+        id: 1,
+        title: "VALORANT 법정",
+        description: "여러분의 게임 판단을 공유하고 토론하세요",
+        imageUrl:
+            "https://images.contentstack.io/v3/assets/bltb6530b271fddd0b1/blt81e8a3c8e7bbb140/65be265adc7e3c6a11eea3b5/VAL_Ep8_Homepage-CG-Still_4K_3440x1308.jpg",
+    },
+    {
+        id: 2,
+        title: "새로운 에피소드가 시작됐습니다",
+        description: "에피소드 8의 새로운 변화에 대해 토론해보세요",
+        imageUrl:
+            "https://images.contentstack.io/v3/assets/bltb6530b271fddd0b1/blt516d37c47b7caf01/65bf97cd6d23b74d63c93dd7/Patch_Notes_8_01_Header.jpg",
+    },
+    {
+        id: 3,
+        title: "새로운 요원 ISO",
+        description: "ISO의 플레이 스타일에 대해 의견을 나눠보세요",
+        imageUrl:
+            "https://images.contentstack.io/v3/assets/bltb6530b271fddd0b1/blt0bb2db683f703d4c/659ef80d8a4a4c6a31e5c713/ISO_KeyArt_10x10_3440x1308.jpg",
+    },
+];
+
+export default function ValorantMainPage() {
+    const [currentBanner, setCurrentBanner] = useState(0);
+    const [isTransitioning, setIsTransitioning] = useState(false);
+    const [slideDirection, setSlideDirection] = useState("right");
+    const [popularPosts, setPopularPosts] = useState([]);
+    const [controversialPosts, setControversialPosts] = useState([]);
+    const [deadlinePosts, setDeadlinePosts] = useState([]);
+    const [recentPosts, setRecentPosts] = useState([]);
+
+    useEffect(() => {
+        // 더미 데이터에서 Valorant 게시물만 필터링
+        const valorantPosts = dummyPosts.posts.filter(
+            (post) => post.gameType === "valorant"
+        );
+        console.log("Valorant 게시물:", valorantPosts); // 데이터 확인용 로그
+
+        // 인기 게시물 (votes 기준 내림차순)
+        const popular = [...valorantPosts]
+            .sort((a, b) => b.votes - a.votes)
+            .slice(0, 3);
+        setPopularPosts(popular);
+        console.log("인기 게시물:", popular); // 데이터 확인용 로그
+
+        // 분쟁 활발 게시물 (투표 비율이 비슷한 순)
+        const controversial = [...valorantPosts]
+            .filter((post) => post.voteCounts)
+            .sort((a, b) => {
+                const ratioA = Math.abs(
+                    a.voteCounts.option1 /
+                        (a.voteCounts.option1 + a.voteCounts.option2) -
+                        0.5
+                );
+                const ratioB = Math.abs(
+                    b.voteCounts.option1 /
+                        (b.voteCounts.option1 + b.voteCounts.option2) -
+                        0.5
+                );
+                return ratioA - ratioB;
+            })
+            .slice(0, 1);
+        setControversialPosts(controversial);
+        console.log("분쟁 활발:", controversial); // 데이터 확인용 로그
+
+        // 마감 임박 게시물
+        const deadline = [...valorantPosts]
+            .filter((post) => post.voteEndTime)
+            .sort((a, b) => new Date(a.voteEndTime) - new Date(b.voteEndTime))
+            .slice(0, 1);
+        setDeadlinePosts(deadline);
+        console.log("마감 임박:", deadline); // 데이터 확인용 로그
+
+        // 최신 게시물
+        const recent = [...valorantPosts]
+            .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+            .slice(0, 3);
+        setRecentPosts(recent);
+        console.log("최신 게시물:", recent); // 데이터 확인용 로그
+    }, []);
+
+    const handleBannerChange = (index) => {
+        if (index > currentBanner) {
+            setSlideDirection("right");
+        } else {
+            setSlideDirection("left");
+        }
+        setCurrentBanner(index);
+    };
+
+    return (
+        <div className="min-h-screen bg-gray-50">
+            {/* 히어로 섹션 */}
+            <div className="relative h-[280px] overflow-hidden">
+                {/* 현재 배너 */}
+                <div
+                    className="absolute inset-0 w-full h-full transition-transform duration-500 ease-in-out"
+                    style={{
+                        transform: `translateX(0%)`,
+                        backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url(${bannerData[currentBanner].imageUrl})`,
+                        backgroundSize: "cover",
+                        backgroundPosition: "center",
+                        backgroundRepeat: "no-repeat",
+                    }}
+                >
+                    <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-center">
+                        <div className="text-white max-w-2xl">
+                            <h1 className="text-3xl font-bold mb-2">
+                                {bannerData[currentBanner].title}
+                            </h1>
+                            <p className="text-lg">
+                                {bannerData[currentBanner].description}
+                            </p>
                         </div>
                     </div>
                 </div>
+
+                {/* 다음/이전 배너 (transition 중에만 보임) */}
+                <div
+                    className="absolute inset-0 w-full h-full transition-transform duration-500 ease-in-out"
+                    style={{
+                        transform: `translateX(${
+                            slideDirection === "right" ? "100%" : "-100%"
+                        })`,
+                        backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url(${
+                            bannerData[
+                                (currentBanner +
+                                    (slideDirection === "right" ? 1 : -1) +
+                                    bannerData.length) %
+                                    bannerData.length
+                            ].imageUrl
+                        })`,
+                        backgroundSize: "cover",
+                        backgroundPosition: "center",
+                        backgroundRepeat: "no-repeat",
+                    }}
+                />
+
+                {/* 배너 인디케이터 */}
+                <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2 z-10">
+                    {bannerData.map((_, index) => (
+                        <button
+                            key={index}
+                            className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${
+                                currentBanner === index
+                                    ? "bg-white w-4"
+                                    : "bg-white/50"
+                            }`}
+                            onClick={() => handleBannerChange(index)}
+                        />
+                    ))}
+                </div>
+
+                {/* 이전/다음 버튼 */}
+                <button
+                    className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white p-2 rounded-full z-10"
+                    onClick={() => {
+                        setSlideDirection("left");
+                        setCurrentBanner(
+                            (prev) =>
+                                (prev - 1 + bannerData.length) %
+                                bannerData.length
+                        );
+                    }}
+                >
+                    ←
+                </button>
+                <button
+                    className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white p-2 rounded-full z-10"
+                    onClick={() => {
+                        setSlideDirection("right");
+                        setCurrentBanner(
+                            (prev) => (prev + 1) % bannerData.length
+                        );
+                    }}
+                >
+                    →
+                </button>
+            </div>
+
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                {/* 분쟁 활발 & 마감 임박 row */}
+                <div className="grid md:grid-cols-2 gap-8 mb-12">
+                    {/* 분쟁 활발 섹션 */}
+                    <section>
+                        <div className="flex justify-between items-center mb-6">
+                            <h2 className="text-2xl font-bold text-gray-900">
+                                🔥 분쟁 활발
+                            </h2>
+                        </div>
+                        <div>
+                            {controversialPosts.map((post) => (
+                                <MainPostCard
+                                    key={post.id}
+                                    post={post}
+                                    gameType="valorant"
+                                />
+                            ))}
+                        </div>
+                    </section>
+
+                    {/* 마감 임박 섹션 */}
+                    <section>
+                        <div className="flex justify-between items-center mb-6">
+                            <h2 className="text-2xl font-bold text-gray-900">
+                                ⏰ 마감 임박
+                            </h2>
+                        </div>
+                        <div>
+                            {deadlinePosts.map((post) => (
+                                <MainPostCard
+                                    key={post.id}
+                                    post={post}
+                                    gameType="valorant"
+                                />
+                            ))}
+                        </div>
+                    </section>
+                </div>
+
+                {/* 인기 재판 섹션 */}
+                <section className="mb-12">
+                    <div className="flex justify-between items-center mb-6">
+                        <h2 className="text-2xl font-bold text-gray-900">
+                            ⚖️ 인기 재판
+                        </h2>
+                        <Link
+                            href="/valorant/community?sort=popular"
+                            className="text-red-600 hover:text-red-700"
+                        >
+                            더 보기 →
+                        </Link>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <div className="flex gap-4 pb-4">
+                            {popularPosts.map((post) => (
+                                <PopularPostCard
+                                    key={post.id}
+                                    post={post}
+                                    gameType="valorant"
+                                />
+                            ))}
+                        </div>
+                    </div>
+                </section>
+
+                {/* 최신 재판 섹션 */}
+                <section className="mb-12">
+                    <div className="flex justify-between items-center mb-6">
+                        <h2 className="text-2xl font-bold text-gray-900">
+                            📝 최신 재판
+                        </h2>
+                        <Link
+                            href="/valorant/community?sort=recent"
+                            className="text-red-600 hover:text-red-700"
+                        >
+                            더 보기 →
+                        </Link>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <div className="flex gap-4 pb-4">
+                            {recentPosts.map((post) => (
+                                <PopularPostCard
+                                    key={post.id}
+                                    post={post}
+                                    gameType="valorant"
+                                />
+                            ))}
+                        </div>
+                    </div>
+                </section>
             </div>
         </div>
     );

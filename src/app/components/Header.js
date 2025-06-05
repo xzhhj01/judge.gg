@@ -13,7 +13,10 @@ export default function Header() {
 
     // 현재 경로에서 게임 타입 감지
     const detectCurrentGame = () => {
+        if (pathname.includes("/mypage")) return "none"; // 마이페이지는 게임 선택 안함
         if (pathname.includes("/mentor")) return "none"; // 멘토 페이지는 게임 선택 안함
+        if (pathname.includes("/login")) return "none"; // 로그인 페이지는 게임 선택 안함
+        if (pathname.includes("/signup")) return "none"; // 회원가입 페이지는 게임 선택 안함
         if (pathname.includes("/valorant")) return "valorant";
         return "lol";
     };
