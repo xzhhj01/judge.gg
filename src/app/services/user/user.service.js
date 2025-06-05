@@ -3,6 +3,81 @@ import { doc, updateDoc, getDoc, serverTimestamp, query, collection, where, orde
 import { updatePassword } from "firebase/auth";
 
 export const userService = {
+  // 디버깅용 헬퍼 함수 - 실제 저장된 데이터 확인
+  async debugUserContent(userId, gameType) {
+    try {
+      console.log(`🔍 [DEBUG] ${gameType} 컨텐츠 분석 시작 - userId: ${userId}`);
+      
+      // 모든 게시글 조회해서 authorId 패턴 확인
+      const postsSnapshot = await getDocs(collection(db, `${gameType}_posts`));
+      console.log(`🔍 [DEBUG] 총 ${postsSnapshot.size}개 게시글 존재`);
+      
+      const authorIds = new Set();
+      postsSnapshot.forEach((doc) => {
+        const data = doc.data();
+        if (data.authorId) authorIds.add(data.authorId);
+        if (data.authorUid) authorIds.add(data.authorUid);
+      });
+      
+      console.log(`🔍 [DEBUG] 발견된 작성자 ID 패턴들:`, Array.from(authorIds));
+      
+      // 모든 댓글 조회해서 authorId 패턴 확인
+      const commentsSnapshot = await getDocs(collection(db, `${gameType}_comments`));
+      console.log(`🔍 [DEBUG] 총 ${commentsSnapshot.size}개 댓글 존재`);
+      
+      const commentAuthorIds = new Set();
+      commentsSnapshot.forEach((doc) => {
+        const data = doc.data();
+        if (data.authorId) commentAuthorIds.add(data.authorId);
+        if (data.authorUid) commentAuthorIds.add(data.authorUid);
+      });
+      
+      console.log(`🔍 [DEBUG] 발견된 댓글 작성자 ID 패턴들:`, Array.from(commentAuthorIds));
+      
+      // 현재 사용자 ID와 일치하는 것들 찾기
+      const userPosts = [];
+      const userComments = [];
+      
+      postsSnapshot.forEach((doc) => {
+        const data = doc.data();
+        if (data.authorId === userId || data.authorUid === userId) {
+          userPosts.push({
+            id: doc.id,
+            title: data.title,
+            authorId: data.authorId,
+            authorUid: data.authorUid
+          });
+        }
+      });
+      
+      commentsSnapshot.forEach((doc) => {
+        const data = doc.data();
+        if (data.authorId === userId || data.authorUid === userId) {
+          userComments.push({
+            id: doc.id,
+            postId: data.postId,
+            authorId: data.authorId,
+            authorUid: data.authorUid
+          });
+        }
+      });
+      
+      console.log(`🔍 [DEBUG] 현재 사용자의 게시글:`, userPosts);
+      console.log(`🔍 [DEBUG] 현재 사용자의 댓글:`, userComments);
+      
+      return {
+        totalPosts: postsSnapshot.size,
+        totalComments: commentsSnapshot.size,
+        allAuthorIds: Array.from(authorIds),
+        allCommentAuthorIds: Array.from(commentAuthorIds),
+        userPosts,
+        userComments
+      };
+    } catch (error) {
+      console.error(`[DEBUG] ${gameType} 컨텐츠 분석 실패:`, error);
+      return null;
+    }
+  },
   // 사용자 프로필 업데이트
   async updateProfile(profileData) {
     try {
@@ -81,11 +156,11 @@ export const userService = {
   },
 
   // 사용자의 게시글 조회
-  async getUserPosts(userId) {
+  async getUserPosts(userId, userObject = null) {
     try {
       // LoL과 Valorant 게시글을 모두 조회
-      const lolPosts = await this.getUserPostsByGame(userId, 'lol');
-      const valorantPosts = await this.getUserPostsByGame(userId, 'valorant');
+      const lolPosts = await this.getUserPostsByGame(userId, 'lol', userObject);
+      const valorantPosts = await this.getUserPostsByGame(userId, 'valorant', userObject);
       
       return [...lolPosts, ...valorantPosts].sort((a, b) => 
         b.createdAt?.toDate() - a.createdAt?.toDate()
@@ -96,7 +171,7 @@ export const userService = {
     }
   },
 
-  async getUserPostsByGame(userId, gameType) {
+  async getUserPostsByGame(userId, gameType, userObject = null) {
     try {
       console.log(`🔍 getUserPostsByGame 시작 - userId: ${userId}, gameType: ${gameType}`);
       
@@ -105,24 +180,40 @@ export const userService = {
         return [];
       }
       
-      // 사용자 ID의 다양한 형태 생성
+      // 사용자 ID의 다양한 형태 생성 (사용자 객체가 있으면 이메일도 포함)
       const possibleIds = new Set([
         userId,
         userId?.toString(),
-        // 이메일 형태일 경우 변환
+        // 이메일 형태 변환 (기존 로직 유지)
         userId?.includes('@') ? userId.replace(/[^a-zA-Z0-9]/g, '_') : null,
         userId?.includes('@') ? userId.split('@')[0] : null,
-        // 구글 OAuth ID 형태 처리
-        userId?.startsWith('google-') ? userId : `google-${userId}`,
-        // 역순으로도 시도
-        userId?.startsWith('google-') ? userId.replace('google-', '') : null,
-      ].filter(Boolean));
+      ]);
       
-      console.log(`🔍 검색할 ID 목록:`, Array.from(possibleIds));
+      // 사용자 객체에서 이메일 정보가 있으면 추가 검색 ID 생성
+      if (userObject && userObject.email) {
+        const email = userObject.email;
+        possibleIds.add(email);
+        possibleIds.add(email.replace(/[^a-zA-Z0-9]/g, '_'));
+        possibleIds.add(email.split('@')[0]);
+        console.log(`🔍 사용자 이메일 추가: ${email}`);
+      }
+      
+      // null 값 제거
+      const finalIds = Array.from(possibleIds).filter(Boolean);
+      
+      console.log(`🔍 현재 사용자 ID: ${userId}`);
+      console.log(`🔍 사용자 객체 타입 확인:`, {
+        hasId: !!userId,
+        isNumericString: /^\d+$/.test(userId),
+        isEmail: userId?.includes('@'),
+        length: userId?.length
+      });
+      
+      console.log(`🔍 검색할 ID 목록:`, finalIds);
       
       // 각 ID에 대해 authorId와 authorUid 필드 모두 검색
       const queries = [];
-      possibleIds.forEach(id => {
+      finalIds.forEach(id => {
         queries.push(query(collection(db, `${gameType}_posts`), where('authorId', '==', id)));
         queries.push(query(collection(db, `${gameType}_posts`), where('authorUid', '==', id)));
       });
@@ -241,8 +332,16 @@ export const userService = {
       stats.valorant.commentedPosts = valorantCommentedPosts.length;
       stats.all.commentedPosts = lolCommentedPosts.length + valorantCommentedPosts.length;
 
-      // 투표한 글과 찜한 멘토는 추후 구현 (현재는 0으로 설정)
-      // TODO: 투표 시스템과 멘토 찜 기능 구현 후 추가
+      // 투표한 게시글 수 계산
+      const lolVotedPosts = await this.getUserVotedPosts(userId, 'lol');
+      const valorantVotedPosts = await this.getUserVotedPosts(userId, 'valorant');
+      
+      stats.lol.votedPosts = lolVotedPosts.length;
+      stats.valorant.votedPosts = valorantVotedPosts.length;
+      stats.all.votedPosts = lolVotedPosts.length + valorantVotedPosts.length;
+
+      // 찜한 멘토는 추후 구현 (현재는 0으로 설정)
+      // TODO: 멘토 찜 기능 구현 후 추가
       
       return stats;
     } catch (error) {
@@ -256,40 +355,87 @@ export const userService = {
   },
 
   // 댓글을 단 게시글 목록 (중복 제거)
-  async getUserCommentedPosts(userId, gameType) {
+  async getUserCommentedPosts(userId, gameType, userObject = null) {
     try {
-      // authorId와 authorUid 모두 체크
-      const q1 = query(
-        collection(db, `${gameType}_comments`),
-        where('authorId', '==', userId)
-      );
+      console.log(`🔍 getUserCommentedPosts 시작 - userId: ${userId}, gameType: ${gameType}`);
       
-      const q2 = query(
-        collection(db, `${gameType}_comments`),
-        where('authorUid', '==', userId)
-      );
+      if (!userId) {
+        console.log('🔍 userId가 없음, 빈 배열 반환');
+        return [];
+      }
       
-      const [snapshot1, snapshot2] = await Promise.all([
-        getDocs(q1),
-        getDocs(q2)
+      // 사용자 ID의 다양한 형태 생성 (게시글 검색과 동일한 로직)
+      const possibleIds = new Set([
+        userId,
+        userId?.toString(),
+        // 이메일 형태일 경우 변환 (Firebase Auth의 경우)
+        userId?.includes('@') ? userId.replace(/[^a-zA-Z0-9]/g, '_') : null,
+        userId?.includes('@') ? userId.split('@')[0] : null,
       ]);
+      
+      // 사용자 객체에서 이메일 정보가 있으면 추가 검색 ID 생성
+      if (userObject && userObject.email) {
+        const email = userObject.email;
+        possibleIds.add(email);
+        possibleIds.add(email.replace(/[^a-zA-Z0-9]/g, '_'));
+        possibleIds.add(email.split('@')[0]);
+        console.log(`🔍 댓글용 사용자 이메일 추가: ${email}`);
+      }
+      
+      // null 값 제거
+      const finalIds = Array.from(possibleIds).filter(Boolean);
+      
+      console.log(`🔍 댓글 검색할 ID 목록:`, finalIds);
+      
+      // 각 ID에 대해 authorId와 authorUid 필드 모두 검색
+      const queries = [];
+      finalIds.forEach(id => {
+        queries.push(query(collection(db, `${gameType}_comments`), where('authorId', '==', id)));
+        queries.push(query(collection(db, `${gameType}_comments`), where('authorUid', '==', id)));
+      });
+      
+      console.log(`🔍 총 ${queries.length}개 댓글 쿼리 실행 중 - collection: ${gameType}_comments`);
+      
+      // 모든 쿼리를 동시에 실행
+      const snapshots = await Promise.all(queries.map(async (q) => {
+        try {
+          return await getDocs(q);
+        } catch (error) {
+          console.error('🔍 개별 댓글 쿼리 실행 오류:', error);
+          return { docs: [] }; // 빈 결과 반환
+        }
+      }));
+      
+      let totalResults = 0;
+      snapshots.forEach((snapshot, index) => {
+        const size = snapshot.docs ? snapshot.docs.length : snapshot.size || 0;
+        console.log(`🔍 댓글 쿼리 ${index + 1} 결과: ${size}개`);
+        totalResults += size;
+      });
+      
+      console.log(`🔍 총 댓글 쿼리 결과 합계: ${totalResults}개`);
       
       const postIds = new Set(); // 중복 제거를 위한 Set 사용
       
-      snapshot1.forEach((doc) => {
-        const data = doc.data();
-        if (data.postId) {
-          postIds.add(data.postId);
-        }
+      // 모든 쿼리 결과 처리
+      snapshots.forEach((snapshot, index) => {
+        const docs = snapshot.docs || [];
+        docs.forEach((doc) => {
+          const data = doc.data();
+          if (data.postId) {
+            console.log(`🔍 찾은 댓글 #${postIds.size + 1}:`, {
+              commentId: doc.id,
+              postId: data.postId,
+              authorId: data.authorId,
+              authorUid: data.authorUid,
+              content: data.content?.substring(0, 30) + '...'
+            });
+            postIds.add(data.postId);
+          }
+        });
       });
       
-      snapshot2.forEach((doc) => {
-        const data = doc.data();
-        if (data.postId) {
-          postIds.add(data.postId);
-        }
-      });
-      
+      console.log(`🔍 최종 댓글 단 게시글 - ${gameType} ${postIds.size}개`);
       return Array.from(postIds);
     } catch (error) {
       console.error(`${gameType} 댓글 단 게시글 조회 실패:`, error);
@@ -298,9 +444,9 @@ export const userService = {
   },
 
   // 댓글을 단 게시글의 실제 게시글 데이터 가져오기
-  async getUserCommentedPostsData(userId, gameType) {
+  async getUserCommentedPostsData(userId, gameType, userObject = null) {
     try {
-      const postIds = await this.getUserCommentedPosts(userId, gameType);
+      const postIds = await this.getUserCommentedPosts(userId, gameType, userObject);
       const posts = [];
       
       for (const postId of postIds) {
@@ -337,9 +483,31 @@ export const userService = {
   // 좋아요/투표한 게시글 목록
   async getUserVotedPosts(userId, gameType) {
     try {
-      // 투표 시스템이 구현되면 실제 데이터를 가져옴
-      // 현재는 임시로 빈 배열 반환
-      return [];
+      console.log(`🔍 getUserVotedPosts 시작 - userId: ${userId}, gameType: ${gameType}`);
+      
+      if (!userId) {
+        console.log('🔍 userId가 없음, 빈 배열 반환');
+        return [];
+      }
+      
+      // 투표 기록에서 사용자의 투표한 게시글 ID 목록 가져오기
+      const q = query(
+        collection(db, `${gameType}_post_votes`),
+        where('userId', '==', userId)
+      );
+      
+      const snapshot = await getDocs(q);
+      const postIds = new Set(); // 중복 제거를 위한 Set 사용
+      
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        if (data.postId) {
+          postIds.add(data.postId);
+        }
+      });
+      
+      console.log(`🔍 ${gameType} 투표한 게시글 ${postIds.size}개 발견`);
+      return Array.from(postIds);
     } catch (error) {
       console.error(`${gameType} 투표한 게시글 조회 실패:`, error);
       return [];

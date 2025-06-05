@@ -15,6 +15,14 @@ export async function POST(request) {
 
     const postData = await request.json();
 
+    // 디버깅: 세션 사용자 정보 로깅
+    console.log('🔍 [API] LoL 게시글 작성 - 세션 사용자:', {
+      sessionUser: session.user,
+      userId: session.user?.id,
+      userEmail: session.user?.email,
+      userName: session.user?.name
+    });
+
     // 세션 사용자 정보를 communityService에 전달
     const result = await communityService.createPost('lol', postData, session.user);
 

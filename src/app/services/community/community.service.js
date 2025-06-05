@@ -12,7 +12,8 @@ import {
   startAfter,
   serverTimestamp,
   updateDoc,
-  deleteDoc 
+  deleteDoc,
+  setDoc
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
@@ -39,23 +40,35 @@ export const communityService = {
 
   // 일관된 사용자 ID 생성
   generateConsistentUserId(user) {
-    if (!user) return null;
+    if (!user) {
+      console.log('🔍 generateConsistentUserId: user 없음');
+      return null;
+    }
+    
+    let userId = null;
     
     // NextAuth 사용자 (Google OAuth)
     if (user.id) {
-      return user.id;
+      userId = user.id;
+      console.log(`🔍 generateConsistentUserId: NextAuth ID 사용 - ${userId}`);
+      return userId;
     }
     
     // Firebase 사용자
     if (user.uid) {
-      return user.uid;
+      userId = user.uid;
+      console.log(`🔍 generateConsistentUserId: Firebase UID 사용 - ${userId}`);
+      return userId;
     }
     
     // 이메일만 있는 경우 (fallback)
     if (user.email) {
-      return user.email;
+      userId = user.email;
+      console.log(`🔍 generateConsistentUserId: 이메일 사용 - ${userId}`);
+      return userId;
     }
     
+    console.log('🔍 generateConsistentUserId: ID 생성 실패, user 객체:', user);
     return null;
   },
   // 게시글 목록 조회
@@ -602,6 +615,44 @@ export const communityService = {
     }
   },
 
+  // 사용자의 투표 여부 확인
+  async checkUserVote(gameType, postId, sessionUser = null) {
+    try {
+      let currentUser = sessionUser;
+      if (!currentUser) {
+        currentUser = auth.currentUser;
+        if (!currentUser) {
+          console.log('🔍 checkUserVote: 사용자 없음');
+          return null;
+        }
+      }
+
+      const userId = this.generateConsistentUserId(currentUser);
+      if (!userId) {
+        console.log('🔍 checkUserVote: userId 생성 실패');
+        return null;
+      }
+
+      const voteDocId = `${postId}_${userId}`;
+      console.log(`🔍 checkUserVote: 투표 확인 시도 - gameType: ${gameType}, docId: ${voteDocId}`);
+
+      const voteRef = doc(db, `${gameType}_post_votes`, voteDocId);
+      const voteSnap = await getDoc(voteRef);
+      
+      if (voteSnap.exists()) {
+        const voteData = voteSnap.data();
+        console.log(`🔍 checkUserVote: 기존 투표 발견 - ${voteData.voteType}`);
+        return voteData.voteType;
+      }
+      
+      console.log('🔍 checkUserVote: 기존 투표 없음');
+      return null;
+    } catch (error) {
+      console.error('투표 확인 실패:', error);
+      return null;
+    }
+  },
+
   // 게시글 투표 (좋아요/싫어요 또는 커스텀 투표)
   async votePost(gameType, postId, voteType, sessionUser = null) {
     try {
@@ -614,6 +665,14 @@ export const communityService = {
         }
       }
 
+      const userId = this.generateConsistentUserId(currentUser);
+      if (!userId) {
+        throw new Error('사용자 정보를 확인할 수 없습니다.');
+      }
+
+      // 기존 투표 확인
+      const existingVote = await this.checkUserVote(gameType, postId, sessionUser);
+      
       const postRef = doc(db, `${gameType}_posts`, postId);
       const postSnap = await getDoc(postRef);
       
@@ -622,46 +681,171 @@ export const communityService = {
       }
 
       const currentData = postSnap.data();
+      const voteDocRef = doc(db, `${gameType}_post_votes`, `${postId}_${userId}`);
       
-      // 커스텀 투표 옵션이 있는 경우
-      if (this.validateVoteOptions(currentData.voteOptions)) {
-        const voteResults = currentData.voteResults || new Array(currentData.voteOptions.length).fill(0);
-        const totalVotes = currentData.totalVotes || 0;
+      // 같은 투표를 다시 누른 경우 투표 취소
+      if (existingVote === voteType) {
+        // 투표 취소
+        await deleteDoc(voteDocRef);
         
-        if (voteType.startsWith('option_')) {
-          const optionIndex = parseInt(voteType.split('_')[1]);
-          if (optionIndex >= 0 && optionIndex < voteResults.length) {
-            voteResults[optionIndex] += 1;
+        // 투표 수 감소
+        if (this.validateVoteOptions(currentData.voteOptions)) {
+          const voteResults = [...(currentData.voteResults || new Array(currentData.voteOptions.length).fill(0))];
+          const totalVotes = Math.max(0, (currentData.totalVotes || 0) - 1);
+          
+          if (voteType.startsWith('option_')) {
+            const optionIndex = parseInt(voteType.split('_')[1]);
+            if (optionIndex >= 0 && optionIndex < voteResults.length) {
+              voteResults[optionIndex] = Math.max(0, voteResults[optionIndex] - 1);
+            }
+          } else if (voteType === 'neutral' && currentData.allowNeutral) {
+            voteResults[voteResults.length - 1] = Math.max(0, voteResults[voteResults.length - 1] - 1);
           }
-        } else if (voteType === 'neutral' && currentData.allowNeutral) {
-          // 중립 투표는 배열의 마지막 인덱스
-          voteResults[voteResults.length - 1] += 1;
+          
+          await updateDoc(postRef, {
+            voteResults: voteResults,
+            totalVotes: totalVotes
+          });
+        } else {
+          // 기본 좋아요/싫어요 투표 취소
+          if (voteType === 'like') {
+            await updateDoc(postRef, {
+              likes: Math.max(0, (currentData.likes || 0) - 1)
+            });
+          } else if (voteType === 'dislike') {
+            await updateDoc(postRef, {
+              dislikes: Math.max(0, (currentData.dislikes || 0) - 1)
+            });
+          }
         }
         
-        await updateDoc(postRef, {
-          voteResults: voteResults,
-          totalVotes: totalVotes + 1
-        });
-      } else {
-        // 기본 좋아요/싫어요 투표
-        const currentLikes = currentData.likes || 0;
-        const currentDislikes = currentData.dislikes || 0;
-
-        if (voteType === 'like') {
+        return { action: 'removed', voteType };
+      }
+      
+      // 다른 투표가 있는 경우 기존 투표 제거 후 새 투표 추가
+      if (existingVote && existingVote !== voteType) {
+        // 기존 투표 제거
+        if (this.validateVoteOptions(currentData.voteOptions)) {
+          const voteResults = [...(currentData.voteResults || new Array(currentData.voteOptions.length).fill(0))];
+          
+          if (existingVote.startsWith('option_')) {
+            const optionIndex = parseInt(existingVote.split('_')[1]);
+            if (optionIndex >= 0 && optionIndex < voteResults.length) {
+              voteResults[optionIndex] = Math.max(0, voteResults[optionIndex] - 1);
+            }
+          } else if (existingVote === 'neutral' && currentData.allowNeutral) {
+            voteResults[voteResults.length - 1] = Math.max(0, voteResults[voteResults.length - 1] - 1);
+          }
+          
+          // 새 투표 추가
+          if (voteType.startsWith('option_')) {
+            const optionIndex = parseInt(voteType.split('_')[1]);
+            if (optionIndex >= 0 && optionIndex < voteResults.length) {
+              voteResults[optionIndex] += 1;
+            }
+          } else if (voteType === 'neutral' && currentData.allowNeutral) {
+            voteResults[voteResults.length - 1] += 1;
+          }
+          
           await updateDoc(postRef, {
-            likes: currentLikes + 1
+            voteResults: voteResults
           });
-        } else if (voteType === 'dislike') {
+        } else {
+          // 기본 좋아요/싫어요 투표 변경
+          const updateData = {};
+          
+          if (existingVote === 'like') {
+            updateData.likes = Math.max(0, (currentData.likes || 0) - 1);
+          } else if (existingVote === 'dislike') {
+            updateData.dislikes = Math.max(0, (currentData.dislikes || 0) - 1);
+          }
+          
+          if (voteType === 'like') {
+            updateData.likes = (updateData.likes !== undefined ? updateData.likes : (currentData.likes || 0)) + 1;
+          } else if (voteType === 'dislike') {
+            updateData.dislikes = (updateData.dislikes !== undefined ? updateData.dislikes : (currentData.dislikes || 0)) + 1;
+          }
+          
+          await updateDoc(postRef, updateData);
+        }
+      } else if (!existingVote) {
+        // 새로운 투표 추가
+        if (this.validateVoteOptions(currentData.voteOptions)) {
+          const voteResults = [...(currentData.voteResults || new Array(currentData.voteOptions.length).fill(0))];
+          const totalVotes = (currentData.totalVotes || 0) + 1;
+          
+          if (voteType.startsWith('option_')) {
+            const optionIndex = parseInt(voteType.split('_')[1]);
+            if (optionIndex >= 0 && optionIndex < voteResults.length) {
+              voteResults[optionIndex] += 1;
+            }
+          } else if (voteType === 'neutral' && currentData.allowNeutral) {
+            voteResults[voteResults.length - 1] += 1;
+          }
+          
           await updateDoc(postRef, {
-            dislikes: currentDislikes + 1
+            voteResults: voteResults,
+            totalVotes: totalVotes
           });
+        } else {
+          // 기본 좋아요/싫어요 투표
+          if (voteType === 'like') {
+            await updateDoc(postRef, {
+              likes: (currentData.likes || 0) + 1
+            });
+          } else if (voteType === 'dislike') {
+            await updateDoc(postRef, {
+              dislikes: (currentData.dislikes || 0) + 1
+            });
+          }
         }
       }
 
-      return true;
+      // 투표 기록 저장/업데이트
+      const voteDocId = `${postId}_${userId}`;
+      console.log(`🔍 votePost: 투표 저장 - gameType: ${gameType}, docId: ${voteDocId}, voteType: ${voteType}`);
+      
+      await setDoc(voteDocRef, {
+        userId: userId,
+        postId: postId,
+        voteType: voteType,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+
+      console.log(`🔍 votePost: 투표 저장 완료`);
+      return { action: 'added', voteType };
     } catch (error) {
       console.error('투표 실패:', error);
       throw error;
+    }
+  },
+
+  // 사용자의 댓글 투표 여부 확인
+  async checkUserCommentVote(gameType, commentId, sessionUser = null) {
+    try {
+      let currentUser = sessionUser;
+      if (!currentUser) {
+        currentUser = auth.currentUser;
+        if (!currentUser) {
+          return null;
+        }
+      }
+
+      const userId = this.generateConsistentUserId(currentUser);
+      if (!userId) return null;
+
+      const voteRef = doc(db, `${gameType}_comment_votes`, `${commentId}_${userId}`);
+      const voteSnap = await getDoc(voteRef);
+      
+      if (voteSnap.exists()) {
+        return voteSnap.data().voteType;
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('댓글 투표 확인 실패:', error);
+      return null;
     }
   },
 
@@ -678,6 +862,12 @@ export const communityService = {
       }
 
       const userId = this.generateConsistentUserId(currentUser);
+      if (!userId) {
+        throw new Error('사용자 정보를 확인할 수 없습니다.');
+      }
+
+      // 기존 투표 확인
+      const existingVote = await this.checkUserCommentVote(gameType, commentId, sessionUser);
 
       const commentRef = doc(db, `${gameType}_comments`, commentId);
       const commentSnap = await getDoc(commentRef);
@@ -687,15 +877,67 @@ export const communityService = {
       }
 
       const currentData = commentSnap.data();
-      const currentLikes = currentData.likes || 0;
+      const voteDocRef = doc(db, `${gameType}_comment_votes`, `${commentId}_${userId}`);
 
-      if (voteType === 'like') {
-        await updateDoc(commentRef, {
-          likes: currentLikes + 1
-        });
+      // 같은 투표를 다시 누른 경우 투표 취소
+      if (existingVote === voteType) {
+        // 투표 취소
+        await deleteDoc(voteDocRef);
+        
+        // 투표 수 감소
+        if (voteType === 'like') {
+          await updateDoc(commentRef, {
+            likes: Math.max(0, (currentData.likes || 0) - 1)
+          });
+        } else if (voteType === 'dislike') {
+          await updateDoc(commentRef, {
+            dislikes: Math.max(0, (currentData.dislikes || 0) - 1)
+          });
+        }
+        
+        return { action: 'removed', voteType };
       }
 
-      return true;
+      // 다른 투표가 있는 경우 기존 투표 제거 후 새 투표 추가
+      if (existingVote && existingVote !== voteType) {
+        const updateData = {};
+        
+        if (existingVote === 'like') {
+          updateData.likes = Math.max(0, (currentData.likes || 0) - 1);
+        } else if (existingVote === 'dislike') {
+          updateData.dislikes = Math.max(0, (currentData.dislikes || 0) - 1);
+        }
+        
+        if (voteType === 'like') {
+          updateData.likes = (updateData.likes !== undefined ? updateData.likes : (currentData.likes || 0)) + 1;
+        } else if (voteType === 'dislike') {
+          updateData.dislikes = (updateData.dislikes !== undefined ? updateData.dislikes : (currentData.dislikes || 0)) + 1;
+        }
+        
+        await updateDoc(commentRef, updateData);
+      } else if (!existingVote) {
+        // 새로운 투표 추가
+        if (voteType === 'like') {
+          await updateDoc(commentRef, {
+            likes: (currentData.likes || 0) + 1
+          });
+        } else if (voteType === 'dislike') {
+          await updateDoc(commentRef, {
+            dislikes: (currentData.dislikes || 0) + 1
+          });
+        }
+      }
+
+      // 투표 기록 저장/업데이트
+      await setDoc(voteDocRef, {
+        userId: userId,
+        commentId: commentId,
+        voteType: voteType,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+
+      return { action: 'added', voteType };
     } catch (error) {
       console.error('댓글 투표 실패:', error);
       throw error;

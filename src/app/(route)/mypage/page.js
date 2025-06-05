@@ -5,6 +5,7 @@ import MyPageSidebar from "@/app/components/MyPageSidebar";
 import PostCard from "@/app/components/PostCard";
 import Link from "next/link";
 import { userService } from '@/app/services/user/user.service';
+import { communityService } from '@/app/services/community/community.service';
 import { useAuth } from '@/app/utils/providers';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
@@ -43,7 +44,7 @@ export default function MyPage() {
         const loadUserData = async () => {
             if (user || session) {
                 const currentUser = user || session?.user;
-                const currentUserId = currentUser?.uid || currentUser?.id || currentUser?.email;
+                const currentUserId = communityService.generateConsistentUserId(currentUser);
                 try {
                     // 사용자 정보 로드
                     const info = await userService.getUserInfo(currentUserId);
@@ -247,7 +248,7 @@ export default function MyPage() {
             try {
                 if (user || session) {
                     const currentUser = user || session?.user;
-                    const currentUserId = currentUser?.uid || currentUser?.id || currentUser?.email;
+                    const currentUserId = communityService.generateConsistentUserId(currentUser);
                     
                     console.log("🔍 마이페이지 - 현재 사용자 정보:", {
                         user: user ? 'Firebase user 존재' : 'Firebase user 없음',
@@ -263,13 +264,24 @@ export default function MyPage() {
                     
                     if (selectedMenu === 'posts') {
                         console.log("🔍 작성한 글 로드 시작 - userId:", currentUserId);
-                        userPosts = await userService.getUserPosts(currentUserId);
+                        
+                        // 디버깅을 위해 실제 저장된 데이터 분석
+                        await userService.debugUserContent(currentUserId, 'lol');
+                        await userService.debugUserContent(currentUserId, 'valorant');
+                        
+                        userPosts = await userService.getUserPosts(currentUserId, currentUser);
                         console.log("🔍 작성한 글 로드 완료 - 결과:", userPosts);
                     } else if (selectedMenu === 'commentedPosts') {
+                        console.log("🔍 댓글 단 글 로드 시작 - userId:", currentUserId);
+                        
+                        // 디버깅을 위해 실제 저장된 데이터 분석
+                        await userService.debugUserContent(currentUserId, 'lol');
+                        await userService.debugUserContent(currentUserId, 'valorant');
+                        
                         // 댓글 단 게시글 가져오기
                         const [lolCommentedPosts, valorantCommentedPosts] = await Promise.all([
-                            userService.getUserCommentedPostsData(currentUserId, 'lol'),
-                            userService.getUserCommentedPostsData(currentUserId, 'valorant')
+                            userService.getUserCommentedPostsData(currentUserId, 'lol', currentUser),
+                            userService.getUserCommentedPostsData(currentUserId, 'valorant', currentUser)
                         ]);
                         userPosts = [...lolCommentedPosts, ...valorantCommentedPosts];
                         
@@ -346,7 +358,7 @@ export default function MyPage() {
             // 성공 후 사용자 정보 다시 로드
             if (user || session) {
                 const currentUser = user || session.user;
-                const currentUserId = currentUser.uid || currentUser.id;
+                const currentUserId = communityService.generateConsistentUserId(currentUser);
                 const info = await userService.getUserInfo(currentUserId);
                 setUserInfo({
                     nickname: info?.displayName || currentUser.displayName || currentUser.name || currentUser.email,

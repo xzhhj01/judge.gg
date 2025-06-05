@@ -25,10 +25,10 @@ export default function ValorantCommunityPostPage() {
     const [comments, setComments] = useState([]);
     const [newComment, setNewComment] = useState("");
     const [selectedVote, setSelectedVote] = useState(null);
-    const [hasVoted, setHasVoted] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const [isVoting, setIsVoting] = useState(false);
     const [commentVoting, setCommentVoting] = useState({}); // 댓글별 투표 상태
+    const [commentVotes, setCommentVotes] = useState({}); // 댓글별 사용자 투표 상태
     
     // 게시글 데이터 로드
     useEffect(() => {
@@ -38,8 +38,34 @@ export default function ValorantCommunityPostPage() {
                 const postData = await communityService.getPostById('valorant', postId);
                 setPost(postData);
                 
+                // 사용자의 투표 여부 확인
+                const currentUser = user || session?.user;
+                if (currentUser) {
+                    const userId = communityService.generateConsistentUserId(currentUser);
+                    console.log("🔍 페이지 로드 - 사용자 투표 확인:", {
+                        currentUser: currentUser,
+                        userId: userId,
+                        postId: postId
+                    });
+                    const userVote = await communityService.checkUserVote('valorant', postId, currentUser);
+                    console.log("🔍 페이지 로드 - 기존 투표:", userVote);
+                    setSelectedVote(userVote);
+                }
+                
                 const commentsData = await communityService.getComments('valorant', postId);
                 setComments(commentsData);
+                
+                // 댓글 투표 상태 확인
+                if (currentUser && commentsData.length > 0) {
+                    const commentVotesData = {};
+                    for (const comment of commentsData) {
+                        const commentVote = await communityService.checkUserCommentVote('valorant', comment.id, currentUser);
+                        if (commentVote) {
+                            commentVotesData[comment.id] = commentVote;
+                        }
+                    }
+                    setCommentVotes(commentVotesData);
+                }
                 
                 setError(null);
             } catch (err) {
@@ -53,7 +79,7 @@ export default function ValorantCommunityPostPage() {
         if (postId) {
             loadPost();
         }
-    }, [postId]);
+    }, [postId, user, session]);
 
     // 댓글 추가
     const handleAddComment = async (e) => {
@@ -79,7 +105,7 @@ export default function ValorantCommunityPostPage() {
     };
 
     // 댓글 좋아요/투표
-    const handleCommentVote = async (commentId) => {
+    const handleCommentVote = async (commentId, voteType = 'like') => {
         if (!user && !session) {
             alert('로그인이 필요합니다.');
             return;
@@ -92,14 +118,25 @@ export default function ValorantCommunityPostPage() {
             setCommentVoting(prev => ({ ...prev, [commentId]: true }));
             
             const currentUser = user || session?.user;
-            await communityService.voteComment('valorant', commentId, 'like', currentUser);
+            const result = await communityService.voteComment('valorant', commentId, voteType, currentUser);
             
-            // 댓글 목록에서 해당 댓글의 좋아요 수 업데이트
-            setComments(comments.map(comment => 
-                comment.id === commentId 
-                    ? { ...comment, likes: (comment.likes || 0) + 1 }
-                    : comment
-            ));
+            // 댓글 데이터 새로고침
+            const updatedComments = await communityService.getComments('valorant', postId);
+            setComments(updatedComments);
+            
+            // 투표 상태 업데이트
+            if (result.action === 'removed') {
+                setCommentVotes(prev => {
+                    const newVotes = { ...prev };
+                    delete newVotes[commentId];
+                    return newVotes;
+                });
+            } else {
+                setCommentVotes(prev => ({
+                    ...prev,
+                    [commentId]: voteType
+                }));
+            }
             
         } catch (error) {
             console.error('댓글 투표 실패:', error);
@@ -111,21 +148,30 @@ export default function ValorantCommunityPostPage() {
 
     // 투표 처리
     const handleVote = async (voteType) => {
-        if (hasVoted || isVoting || (!user && !session)) return;
+        if (isVoting || (!user && !session)) return;
         
         try {
             setIsVoting(true);
             const currentUser = user || session?.user;
-            await communityService.votePost('valorant', postId, voteType, currentUser);
+            
+            // 투표 전에 한 번 더 기존 투표 확인 (이중 투표 방지)
+            const existingVote = await communityService.checkUserVote('valorant', postId, currentUser);
+            console.log("🔍 투표 전 기존 투표 확인:", existingVote);
+            
+            const result = await communityService.votePost('valorant', postId, voteType, currentUser);
             
             // 게시글 데이터 새로고침
             const updatedPost = await communityService.getPostById('valorant', postId);
             setPost(updatedPost);
             
-            setHasVoted(true);
-            setSelectedVote(voteType);
-            
-            console.log("투표 완료:", voteType);
+            // 투표 상태 업데이트
+            if (result.action === 'removed') {
+                setSelectedVote(null);
+                console.log("투표 취소:", voteType);
+            } else {
+                setSelectedVote(voteType);
+                console.log("투표 완료:", voteType);
+            }
         } catch (error) {
             console.error('투표 실패:', error);
             alert('투표에 실패했습니다: ' + error.message);
@@ -350,12 +396,12 @@ export default function ValorantCommunityPostPage() {
                                     <button
                                         key={index}
                                         onClick={() => handleVote(`option_${index}`)}
-                                        disabled={hasVoted || isVoting}
+                                        disabled={isVoting}
                                         className={`p-4 border-2 rounded-lg transition-all ${
                                             selectedVote === `option_${index}`
                                                 ? 'border-red-500 bg-red-50 text-red-900'
                                                 : 'border-gray-300 hover:border-red-300 hover:bg-red-50'
-                                        } ${hasVoted || isVoting ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
+                                        } ${isVoting ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
                                     >
                                         <div className="text-center">
                                             <div className="font-medium text-lg mb-2">{option}</div>
@@ -382,12 +428,12 @@ export default function ValorantCommunityPostPage() {
                                 <div className="flex justify-center">
                                     <button
                                         onClick={() => handleVote('neutral')}
-                                        disabled={hasVoted || isVoting}
+                                        disabled={isVoting}
                                         className={`px-6 py-3 border-2 rounded-lg transition-all ${
                                             selectedVote === 'neutral'
                                                 ? 'border-gray-500 bg-gray-50 text-gray-900'
                                                 : 'border-gray-300 hover:border-gray-400'
-                                        } ${hasVoted || isVoting ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
+                                        } ${isVoting ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
                                     >
                                         판단하기 어려움
                                         <span className="ml-2 text-sm text-gray-600">
@@ -417,12 +463,12 @@ export default function ValorantCommunityPostPage() {
                         <div className="flex justify-center space-x-4">
                             <button
                                 onClick={() => handleVote('like')}
-                                disabled={hasVoted || isVoting}
+                                disabled={isVoting}
                                 className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-colors ${
                                     selectedVote === 'like'
                                         ? 'bg-green-500 text-white'
                                         : 'bg-green-50 text-green-700 hover:bg-green-100'
-                                } ${(hasVoted || isVoting) && selectedVote !== 'like' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                } ${isVoting ? 'opacity-50 cursor-not-allowed' : ''}`}
                             >
                                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                                     <path fillRule="evenodd" d="M10 18l-6-6h4V4h4v8h4l-6 6z" clipRule="evenodd" />
@@ -434,12 +480,12 @@ export default function ValorantCommunityPostPage() {
                             </button>
                             <button
                                 onClick={() => handleVote('dislike')}
-                                disabled={hasVoted || isVoting}
+                                disabled={isVoting}
                                 className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-colors ${
                                     selectedVote === 'dislike'
                                         ? 'bg-red-500 text-white'
                                         : 'bg-red-50 text-red-700 hover:bg-red-100'
-                                } ${(hasVoted || isVoting) && selectedVote !== 'dislike' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                } ${isVoting ? 'opacity-50 cursor-not-allowed' : ''}`}
                             >
                                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                                     <path fillRule="evenodd" d="M10 2l6 6h-4v8H8V8H4l6-6z" clipRule="evenodd" />
@@ -459,9 +505,9 @@ export default function ValorantCommunityPostPage() {
                         </div>
                     )}
                     
-                    {hasVoted && (
+                    {selectedVote && (
                         <p className="text-center text-green-600 mt-3 text-sm">
-                            투표해주셔서 감사합니다!
+                            투표해주셔서 감사합니다! 같은 옵션을 다시 클릭하면 투표를 취소할 수 있습니다.
                         </p>
                     )}
                 </section>
@@ -514,11 +560,13 @@ export default function ValorantCommunityPostPage() {
                                         </span>
                                     </div>
                                     <button 
-                                        onClick={() => handleCommentVote(comment.id)}
+                                        onClick={() => handleCommentVote(comment.id, 'like')}
                                         disabled={commentVoting[comment.id]}
                                         className={`text-sm flex items-center space-x-1 transition-colors ${
                                             commentVoting[comment.id] 
                                                 ? 'text-gray-400 cursor-not-allowed' 
+                                                : commentVotes[comment.id] === 'like'
+                                                ? 'text-red-600'
                                                 : 'text-gray-500 hover:text-red-600'
                                         }`}
                                     >
