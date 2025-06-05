@@ -8,10 +8,12 @@ import communityTags from "@/data/communityTags.json";
 import { communityService } from '@/app/services/community/community.service';
 import { useAuth } from '@/app/utils/providers';
 import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 
 export default function ValorantCommunityPage() {
     const { user } = useAuth();
     const { data: session } = useSession();
+    const router = useRouter();
     const [selectedSituations, setSelectedSituations] = useState([]);
     const [selectedMaps, setSelectedMaps] = useState([]);
     const [selectedAgents, setSelectedAgents] = useState([]);
@@ -21,6 +23,8 @@ export default function ValorantCommunityPage() {
     const [searchQuery, setSearchQuery] = useState("");
     const [posts, setPosts] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [postToDelete, setPostToDelete] = useState(null);
 
     // 태그 데이터
     const tagData = communityTags.valorant;
@@ -179,6 +183,42 @@ export default function ValorantCommunityPage() {
         setSelectedSituations([]);
         setSelectedMaps([]);
         setSelectedAgents([]);
+    };
+
+    // Handle post edit
+    const handlePostEdit = (post) => {
+        router.push(`/valorant/community/post/${post.id}/edit`);
+    };
+
+    // Handle post delete
+    const handlePostDelete = (post) => {
+        setPostToDelete(post);
+        setShowDeleteModal(true);
+    };
+
+    // Confirm post deletion
+    const confirmDelete = async () => {
+        if (!postToDelete) return;
+        
+        try {
+            const response = await fetch(`/api/community/valorant/posts/${postToDelete.id}`, {
+                method: 'DELETE',
+            });
+            
+            if (response.ok) {
+                // Remove post from local state
+                setPosts(posts.filter(p => p.id !== postToDelete.id));
+                alert('게시글이 삭제되었습니다.');
+            } else {
+                alert('게시글 삭제에 실패했습니다.');
+            }
+        } catch (error) {
+            console.error('Delete error:', error);
+            alert('게시글 삭제 중 오류가 발생했습니다.');
+        }
+        
+        setShowDeleteModal(false);
+        setPostToDelete(null);
     };
 
     // Handle post share
@@ -387,6 +427,8 @@ export default function ValorantCommunityPage() {
                                             post={post}
                                             gameType="valorant"
                                             currentUser={user || session?.user}
+                                            onEdit={handlePostEdit}
+                                            onDelete={handlePostDelete}
                                             onShare={handlePostShare}
                                         />
                                     ))}
@@ -447,6 +489,62 @@ export default function ValorantCommunityPage() {
                     </svg>
                 </button>
             </div>
+
+            {/* 게시글 삭제 확인 모달 */}
+            {showDeleteModal && postToDelete && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-lg font-semibold text-gray-900">
+                                게시글 삭제
+                            </h3>
+                            <button
+                                onClick={() => {
+                                    setShowDeleteModal(false);
+                                    setPostToDelete(null);
+                                }}
+                                className="text-gray-400 hover:text-gray-600"
+                            >
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                        
+                        <div className="mb-6">
+                            <p className="text-gray-700 mb-2">
+                                정말로 이 게시글을 삭제하시겠습니까?
+                            </p>
+                            <div className="bg-gray-50 rounded-lg p-3">
+                                <p className="font-medium text-gray-900 text-sm">
+                                    {postToDelete.title}
+                                </p>
+                            </div>
+                            <p className="text-red-600 text-sm mt-2">
+                                이 작업은 되돌릴 수 없습니다.
+                            </p>
+                        </div>
+                        
+                        <div className="flex justify-end space-x-3">
+                            <button
+                                onClick={() => {
+                                    setShowDeleteModal(false);
+                                    setPostToDelete(null);
+                                }}
+                                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium"
+                            >
+                                취소
+                            </button>
+                            <button
+                                onClick={confirmDelete}
+                                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium"
+                            >
+                                삭제하기
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <style jsx>{`
                 @keyframes float {

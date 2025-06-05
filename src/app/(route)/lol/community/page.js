@@ -6,8 +6,14 @@ import PostFilter from "../../../components/PostFilter";
 import CommunityHeader from "../../../components/CommunityHeader";
 import communityTags from "@/data/communityTags.json";
 import { communityService } from '@/app/services/community/community.service';
+import { useAuth } from '@/app/utils/providers';
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 
 export default function LoLCommunityPage() {
+    const { user } = useAuth();
+    const { data: session } = useSession();
+    const router = useRouter();
     const [selectedSituations, setSelectedSituations] = useState([]);
     const [selectedLanes, setSelectedLanes] = useState([]);
     const [selectedChampions, setSelectedChampions] = useState([]);
@@ -17,6 +23,8 @@ export default function LoLCommunityPage() {
     const [searchQuery, setSearchQuery] = useState("");
     const [posts, setPosts] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [postToDelete, setPostToDelete] = useState(null);
 
     // 태그 데이터
     const tagData = communityTags.lol;
@@ -140,6 +148,70 @@ export default function LoLCommunityPage() {
         setSelectedSituations([]);
         setSelectedLanes([]);
         setSelectedChampions([]);
+    };
+
+    // Handle post edit
+    const handlePostEdit = (post) => {
+        router.push(`/lol/community/post/${post.id}/edit`);
+    };
+
+    // Handle post delete
+    const handlePostDelete = (post) => {
+        setPostToDelete(post);
+        setShowDeleteModal(true);
+    };
+
+    // Confirm post deletion
+    const confirmDelete = async () => {
+        if (!postToDelete) return;
+        
+        try {
+            const response = await fetch(`/api/community/lol/posts/${postToDelete.id}`, {
+                method: 'DELETE',
+            });
+            
+            if (response.ok) {
+                // Remove post from local state
+                setPosts(posts.filter(p => p.id !== postToDelete.id));
+                alert('게시글이 삭제되었습니다.');
+            } else {
+                alert('게시글 삭제에 실패했습니다.');
+            }
+        } catch (error) {
+            console.error('Delete error:', error);
+            alert('게시글 삭제 중 오류가 발생했습니다.');
+        }
+        
+        setShowDeleteModal(false);
+        setPostToDelete(null);
+    };
+
+    // Handle post share
+    const handlePostShare = (post) => {
+        const url = `${window.location.origin}/lol/community/post/${post.id}`;
+        
+        if (navigator.share) {
+            navigator.share({
+                title: post.title,
+                text: `${post.title} - Judge.gg`,
+                url: url
+            }).catch(err => {
+                console.log('Error sharing:', err);
+                copyToClipboard(url);
+            });
+        } else {
+            copyToClipboard(url);
+        }
+    };
+
+    // Copy URL to clipboard
+    const copyToClipboard = (text) => {
+        navigator.clipboard.writeText(text).then(() => {
+            alert('링크가 클립보드에 복사되었습니다!');
+        }).catch(err => {
+            console.error('Could not copy text: ', err);
+            alert('링크 복사에 실패했습니다.');
+        });
     };
 
     return (
@@ -386,6 +458,10 @@ export default function LoLCommunityPage() {
                                             key={post.id}
                                             post={post}
                                             gameType="lol"
+                                            currentUser={user || session?.user}
+                                            onEdit={handlePostEdit}
+                                            onDelete={handlePostDelete}
+                                            onShare={handlePostShare}
                                         />
                                     ))}
                                 </div>
@@ -411,6 +487,62 @@ export default function LoLCommunityPage() {
                     </svg>
                 </button>
             </div>
+
+            {/* 게시글 삭제 확인 모달 */}
+            {showDeleteModal && postToDelete && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white dark:bg-dark-800 rounded-xl p-6 max-w-md w-full mx-4">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                                게시글 삭제
+                            </h3>
+                            <button
+                                onClick={() => {
+                                    setShowDeleteModal(false);
+                                    setPostToDelete(null);
+                                }}
+                                className="text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
+                            >
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                        
+                        <div className="mb-6">
+                            <p className="text-gray-700 dark:text-gray-300 mb-2">
+                                정말로 이 게시글을 삭제하시겠습니까?
+                            </p>
+                            <div className="bg-gray-50 dark:bg-dark-700 rounded-lg p-3">
+                                <p className="font-medium text-gray-900 dark:text-white text-sm">
+                                    {postToDelete.title}
+                                </p>
+                            </div>
+                            <p className="text-red-600 dark:text-red-400 text-sm mt-2">
+                                이 작업은 되돌릴 수 없습니다.
+                            </p>
+                        </div>
+                        
+                        <div className="flex justify-end space-x-3">
+                            <button
+                                onClick={() => {
+                                    setShowDeleteModal(false);
+                                    setPostToDelete(null);
+                                }}
+                                className="px-4 py-2 border border-gray-300 dark:border-dark-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-dark-700 font-medium"
+                            >
+                                취소
+                            </button>
+                            <button
+                                onClick={confirmDelete}
+                                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium"
+                            >
+                                삭제하기
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

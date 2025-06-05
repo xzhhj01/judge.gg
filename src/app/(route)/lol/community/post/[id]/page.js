@@ -340,7 +340,32 @@ export default function LoLCommunityPostPage() {
                         </h1>
                         <div className="flex space-x-2">
                             {/* 작성자만 수정/삭제 버튼 표시 */}
-                            {((user && post.authorUid === user.uid) || (session && (post.authorId === session.user.id || post.authorUid === session.user.id))) && (
+                            {(() => {
+                                const currentUser = user || session?.user;
+                                if (!currentUser) return false;
+                                
+                                // All possible user identifiers from currentUser
+                                const userIdentifiers = new Set();
+                                if (currentUser.id) userIdentifiers.add(currentUser.id);
+                                if (currentUser.uid) userIdentifiers.add(currentUser.uid);
+                                if (currentUser.email) {
+                                    userIdentifiers.add(currentUser.email);
+                                    userIdentifiers.add(currentUser.email.replace(/[^a-zA-Z0-9]/g, '_'));
+                                    userIdentifiers.add(currentUser.email.split('@')[0]);
+                                }
+                                if (currentUser.sub) userIdentifiers.add(currentUser.sub);
+                                
+                                // All possible author identifiers from post
+                                const authorIdentifiers = new Set();
+                                if (post.authorId) authorIdentifiers.add(post.authorId);
+                                if (post.authorUid) authorIdentifiers.add(post.authorUid);
+                                if (post.authorEmail) authorIdentifiers.add(post.authorEmail);
+                                
+                                // Check for any match
+                                return Array.from(userIdentifiers).some(userId => 
+                                    authorIdentifiers.has(userId)
+                                );
+                            })() && (
                                 <>
                                     <Link
                                         href={`/lol/community/post/${postId}/edit`}

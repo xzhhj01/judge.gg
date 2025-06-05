@@ -306,6 +306,28 @@ export default function MyPageSidebar({
                     </button>
 
                     <button
+                        onClick={() => onMenuSelect("receivedFeedbacks")}
+                        className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
+                            selectedMenu === "receivedFeedbacks"
+                                ? "bg-blue-50 text-blue-700 font-medium"
+                                : "text-gray-700 hover:bg-gray-50"
+                        }`}
+                    >
+                        <div className="flex items-center justify-between">
+                            <span>신청받은 피드백</span>
+                            <span
+                                className={`${
+                                    selectedMenu === "receivedFeedbacks"
+                                        ? "text-blue-700"
+                                        : "text-gray-500"
+                                }`}
+                            >
+                                {stats.receivedFeedbacks || 0}개
+                            </span>
+                        </div>
+                    </button>
+
+                    <button
                         onClick={() => onMenuSelect("likedMentors")}
                         className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
                             selectedMenu === "likedMentors"
@@ -336,27 +358,6 @@ export default function MyPageSidebar({
                         멘토 활동 현황
                     </h3>
                     <div className="space-y-2">
-                        <button
-                            onClick={() => onMenuSelect("receivedFeedbacks")}
-                            className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
-                                selectedMenu === "receivedFeedbacks"
-                                    ? "bg-blue-50 text-blue-700 font-medium"
-                                    : "text-gray-700 hover:bg-gray-50"
-                            }`}
-                        >
-                            <div className="flex items-center justify-between">
-                                <span>받은 피드백</span>
-                                <span
-                                    className={`${
-                                        selectedMenu === "receivedFeedbacks"
-                                            ? "text-blue-700"
-                                            : "text-gray-500"
-                                    }`}
-                                >
-                                    {stats.receivedFeedbacks || 0}개
-                                </span>
-                            </div>
-                        </button>
                         <Link
                             href="/mentor/profile"
                             className="block w-full text-left px-3 py-2 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors"

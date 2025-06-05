@@ -40,11 +40,35 @@ export default function ValorantCommunityEditPage() {
                         return;
                     }
 
-                    // 작성자인지 확인 (authorUid 기준)
-                    const currentUserId = currentUser.uid || currentUser.id;
-                    const postAuthorUid = data.post.authorUid;
+                    // 작성자인지 확인 (포괄적인 ID 매칭)
+                    // All possible user identifiers from currentUser
+                    const userIdentifiers = new Set();
+                    if (currentUser.id) userIdentifiers.add(currentUser.id);
+                    if (currentUser.uid) userIdentifiers.add(currentUser.uid);
+                    if (currentUser.email) {
+                        userIdentifiers.add(currentUser.email);
+                        userIdentifiers.add(currentUser.email.replace(/[^a-zA-Z0-9]/g, '_'));
+                        userIdentifiers.add(currentUser.email.split('@')[0]);
+                    }
+                    if (currentUser.sub) userIdentifiers.add(currentUser.sub);
                     
-                    const isAuthor = postAuthorUid === currentUserId;
+                    // All possible author identifiers from post
+                    const authorIdentifiers = new Set();
+                    if (data.post.authorId) authorIdentifiers.add(data.post.authorId);
+                    if (data.post.authorUid) authorIdentifiers.add(data.post.authorUid);
+                    if (data.post.authorEmail) authorIdentifiers.add(data.post.authorEmail);
+                    
+                    console.log('🔍 VALORANT 수정 권한 확인:', {
+                        currentUser: currentUser,
+                        userIdentifiers: Array.from(userIdentifiers),
+                        authorIdentifiers: Array.from(authorIdentifiers),
+                        post: data.post
+                    });
+                    
+                    // Check for any match
+                    const isAuthor = Array.from(userIdentifiers).some(userId => 
+                        authorIdentifiers.has(userId)
+                    );
                     
                     if (!isAuthor) {
                         setAuthError('수정 권한이 없습니다. 본인이 작성한 글만 수정할 수 있습니다.');

@@ -701,10 +701,32 @@ export default function MyPage() {
                                 <div className="space-y-4">
                                     <h2 className="text-lg font-semibold text-gray-900 mb-4">
                                         {selectedMenu === "receivedFeedbacks"
-                                            ? "받은 피드백 요청"
+                                            ? "신청받은 피드백"
                                             : "신청한 피드백"}
                                     </h2>
-                                    {(selectedMenu === "receivedFeedbacks"
+                                    {selectedMenu === "receivedFeedbacks" && !userInfo?.isMentor ? (
+                                        <div className="text-center py-12">
+                                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+                                                <div className="text-blue-600 mb-2">
+                                                    <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                    </svg>
+                                                </div>
+                                                <h3 className="text-lg font-medium text-blue-900 mb-2">
+                                                    멘토 등록을 하지 않았습니다
+                                                </h3>
+                                                <p className="text-blue-700 mb-4">
+                                                    피드백 요청을 받으려면 먼저 멘토로 등록해주세요.
+                                                </p>
+                                                <Link 
+                                                    href="/mentor/register"
+                                                    className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                                                >
+                                                    멘토 등록하기
+                                                </Link>
+                                            </div>
+                                        </div>
+                                    ) : (selectedMenu === "receivedFeedbacks"
                                         ? receivedFeedbacks
                                         : requestedFeedbacks
                                     ).length > 0 ? (selectedMenu === "receivedFeedbacks"
@@ -833,14 +855,19 @@ export default function MyPage() {
                                                 )}
                                             </div>
                                         </div>
-                                    )) : (
+                                    )) : selectedMenu === "receivedFeedbacks" && userInfo?.isMentor ? (
                                         <div className="text-center py-12">
                                             <p className="text-gray-500">
-                                                {selectedMenu === "requestedFeedbacks" && "아직 신청한 피드백이 없습니다."}
-                                                {selectedMenu === "receivedFeedbacks" && "아직 받은 피드백 요청이 없습니다."}
+                                                아직 받은 피드백 요청이 없습니다.
                                             </p>
                                         </div>
-                                    )}
+                                    ) : selectedMenu === "requestedFeedbacks" ? (
+                                        <div className="text-center py-12">
+                                            <p className="text-gray-500">
+                                                아직 신청한 피드백이 없습니다.
+                                            </p>
+                                        </div>
+                                    ) : null}
                                 </div>
                             )}
 

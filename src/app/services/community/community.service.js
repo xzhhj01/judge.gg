@@ -281,22 +281,37 @@ export const communityService = {
         throw new Error('게시글을 찾을 수 없습니다.');
       }
       
-      // 사용자 ID 확인 (NextAuth uid 또는 Firebase uid)
-      const userId = this.generateConsistentUserId(currentUser);
-      const postAuthorId = docSnap.data().authorId;
+      // 포괄적인 사용자 ID 매칭
+      const postData = docSnap.data();
       
-      console.log('사용자 ID 비교:', {
-        currentUserId: userId,
-        postAuthorId: postAuthorId,
-        currentUser: currentUser
+      // All possible user identifiers from currentUser
+      const userIdentifiers = new Set();
+      if (currentUser.id) userIdentifiers.add(currentUser.id);
+      if (currentUser.uid) userIdentifiers.add(currentUser.uid);
+      if (currentUser.email) {
+          userIdentifiers.add(currentUser.email);
+          userIdentifiers.add(currentUser.email.replace(/[^a-zA-Z0-9]/g, '_'));
+          userIdentifiers.add(currentUser.email.split('@')[0]);
+      }
+      if (currentUser.sub) userIdentifiers.add(currentUser.sub);
+      
+      // All possible author identifiers from post
+      const authorIdentifiers = new Set();
+      if (postData.authorId) authorIdentifiers.add(postData.authorId);
+      if (postData.authorUid) authorIdentifiers.add(postData.authorUid);
+      if (postData.authorEmail) authorIdentifiers.add(postData.authorEmail);
+      
+      console.log('🔍 updatePost 권한 확인:', {
+        currentUser: currentUser,
+        userIdentifiers: Array.from(userIdentifiers),
+        authorIdentifiers: Array.from(authorIdentifiers),
+        postData: postData
       });
       
-      // 엄격한 사용자 ID 매칭
-      const isAuthor = postAuthorId === userId || 
-                      postAuthorId === currentUser.email?.replace(/[^a-zA-Z0-9]/g, '_') ||
-                      postAuthorId === currentUser.email ||
-                      postAuthorId === currentUser.uid ||
-                      postAuthorId === currentUser.id;
+      // Check for any match
+      const isAuthor = Array.from(userIdentifiers).some(userId => 
+          authorIdentifiers.has(userId)
+      );
       
       if (!isAuthor) {
         throw new Error(`수정 권한이 없습니다. 본인이 작성한 글만 수정할 수 있습니다.`);
@@ -350,16 +365,37 @@ export const communityService = {
         throw new Error('게시글을 찾을 수 없습니다.');
       }
       
-      // 사용자 ID 확인 (NextAuth uid 또는 Firebase uid)
-      const userId = this.generateConsistentUserId(currentUser);
-      const postAuthorId = docSnap.data().authorId;
+      // 포괄적인 사용자 ID 매칭
+      const postData = docSnap.data();
       
-      // 엄격한 사용자 ID 매칭
-      const isAuthor = postAuthorId === userId || 
-                      postAuthorId === currentUser.email?.replace(/[^a-zA-Z0-9]/g, '_') ||
-                      postAuthorId === currentUser.email ||
-                      postAuthorId === currentUser.uid ||
-                      postAuthorId === currentUser.id;
+      // All possible user identifiers from currentUser
+      const userIdentifiers = new Set();
+      if (currentUser.id) userIdentifiers.add(currentUser.id);
+      if (currentUser.uid) userIdentifiers.add(currentUser.uid);
+      if (currentUser.email) {
+          userIdentifiers.add(currentUser.email);
+          userIdentifiers.add(currentUser.email.replace(/[^a-zA-Z0-9]/g, '_'));
+          userIdentifiers.add(currentUser.email.split('@')[0]);
+      }
+      if (currentUser.sub) userIdentifiers.add(currentUser.sub);
+      
+      // All possible author identifiers from post
+      const authorIdentifiers = new Set();
+      if (postData.authorId) authorIdentifiers.add(postData.authorId);
+      if (postData.authorUid) authorIdentifiers.add(postData.authorUid);
+      if (postData.authorEmail) authorIdentifiers.add(postData.authorEmail);
+      
+      console.log('🔍 deletePost 권한 확인:', {
+        currentUser: currentUser,
+        userIdentifiers: Array.from(userIdentifiers),
+        authorIdentifiers: Array.from(authorIdentifiers),
+        postData: postData
+      });
+      
+      // Check for any match
+      const isAuthor = Array.from(userIdentifiers).some(userId => 
+          authorIdentifiers.has(userId)
+      );
       
       if (!isAuthor) {
         throw new Error(`삭제 권한이 없습니다. 본인이 작성한 글만 삭제할 수 있습니다.`);
