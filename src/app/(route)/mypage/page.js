@@ -86,6 +86,21 @@ export default function MyPage() {
                             console.error('LoL 프로필 로드 실패:', error);
                         }
                     }
+
+                    // 발로란트 프로필 정보 로드 (연동된 경우)
+                    let valorantProfile = null;
+                    let valorantTier = null;
+                    if (info?.valorantRiotId && info?.valorantVerified) {
+                        try {
+                            const valorantProfileData = await userService.getValorantProfile();
+                            if (valorantProfileData.verified) {
+                                valorantProfile = valorantProfileData.profile;
+                                valorantTier = `${valorantProfileData.profile.winRate}% 승률`;
+                            }
+                        } catch (error) {
+                            console.error('발로란트 프로필 로드 실패:', error);
+                        }
+                    }
                     
                     setUserInfo({
                         nickname: info?.displayName || currentUser.displayName || currentUser.name || currentUser.email,
@@ -95,9 +110,10 @@ export default function MyPage() {
                         },
                         tiers: {
                             lol: lolTier,
-                            valorant: null,
+                            valorant: valorantTier,
                         },
                         lolProfile: lolProfile,
+                        valorantProfile: valorantProfile,
                         isMentor: info?.isMentor || false,
                         mentorStats: info?.mentorInfo || {
                             totalFeedbacks: 0,
@@ -157,28 +173,14 @@ export default function MyPage() {
                     const requestedData = await userService.getUserRequestedFeedbacks(currentUserId);
                     setRequestedFeedbacks(requestedData);
                     
-                    // 받은 피드백 로드 (멘토인 경우)
-                    // 사용자의 멘토 ID를 찾기 위해 mentors 컬렉션에서 검색
+                    // 받은 피드백 로드 (userId로 직접 조회)
                     try {
-                        const mentorQuery = query(
-                            collection(db, 'mentors'),
-                            where('userId', '==', currentUserId)
-                        );
-                        const mentorSnapshot = await getDocs(mentorQuery);
-                        
-                        if (!mentorSnapshot.empty) {
-                            const mentorDoc = mentorSnapshot.docs[0];
-                            const mentorId = mentorDoc.id;
-                            console.log('🔍 멘토 ID 찾음:', mentorId);
-                            
-                            const receivedData = await userService.getMentorReceivedFeedbacks(mentorId);
-                            setReceivedFeedbacks(receivedData);
-                        } else {
-                            console.log('🔍 멘토 정보 없음');
-                            setReceivedFeedbacks([]);
-                        }
+                        console.log('🔍 받은 피드백 로드 시작 - currentUserId:', currentUserId);
+                        const receivedData = await userService.getMentorReceivedFeedbacks(currentUserId);
+                        console.log('🔍 받은 피드백 데이터:', receivedData);
+                        setReceivedFeedbacks(receivedData);
                     } catch (error) {
-                        console.error('멘토 정보 조회 실패:', error);
+                        console.error('받은 피드백 조회 실패:', error);
                         setReceivedFeedbacks([]);
                     }
                 } catch (error) {
@@ -462,8 +464,44 @@ export default function MyPage() {
                 }
                 
                 showSnackbar("LoL 계정이 성공적으로 연동되었습니다!", "success");
+            } else if (game === 'valorant') {
+                // 발로란트의 경우 Riot API 검증을 통한 연동
+                const result = await userService.verifyAndConnectValorantAccount(riotId);
+                console.log("발로란트 계정 검증 및 연동 성공:", result);
+                
+                // 성공 후 사용자 정보 다시 로드
+                if (user || session) {
+                    const currentUser = user || session.user;
+                    const currentUserId = communityService.generateConsistentUserId(currentUser);
+                    const info = await userService.getUserInfo(currentUserId);
+                    
+                    // 발로란트 프로필 정보 업데이트
+                    const updatedUserInfo = {
+                        nickname: info?.displayName || currentUser.displayName || currentUser.name || currentUser.email,
+                        riotIds: {
+                            lol: info?.lolRiotId || null,
+                            valorant: info?.valorantRiotId || null,
+                        },
+                        tiers: {
+                            lol: userInfo?.tiers?.lol || null,
+                            valorant: `${result.profile?.winRate}% 승률` || null,
+                        },
+                        lolProfile: userInfo?.lolProfile || null,
+                        valorantProfile: result.profile || null,
+                        isMentor: info?.isMentor || false,
+                        mentorStats: info?.mentorInfo || {
+                            totalFeedbacks: 0,
+                            totalReviews: 0,
+                            rating: 0,
+                        },
+                    };
+                    
+                    setUserInfo(updatedUserInfo);
+                }
+                
+                showSnackbar("발로란트 계정이 성공적으로 연동되었습니다!", "success");
             } else {
-                // 발로란트의 경우 기존 방식 사용
+                // 기타 게임의 경우 기존 방식 사용
                 await userService.connectRiotId(riotId, game);
                 console.log("Riot ID 연동 성공:", riotId, game);
                 
@@ -480,9 +518,10 @@ export default function MyPage() {
                         },
                         tiers: {
                             lol: userInfo?.tiers?.lol || null,
-                            valorant: null,
+                            valorant: userInfo?.tiers?.valorant || null,
                         },
                         lolProfile: userInfo?.lolProfile || null,
+                        valorantProfile: userInfo?.valorantProfile || null,
                         isMentor: info?.isMentor || false,
                         mentorStats: info?.mentorInfo || {
                             totalFeedbacks: 0,

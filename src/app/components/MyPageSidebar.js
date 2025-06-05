@@ -156,14 +156,31 @@ export default function MyPageSidebar({
                                     VALORANT
                                 </span>
                                 {user?.riotIds?.valorant ? (
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-sm text-red-600 font-medium">
-                                            {user.riotIds.valorant}
-                                        </span>
-                                        <TierBadge
-                                            tier={user?.tiers?.valorant}
-                                            game="valorant"
-                                        />
+                                    <div className="flex flex-col gap-1">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-sm text-red-600 font-medium">
+                                                {user.riotIds.valorant}
+                                            </span>
+                                            <TierBadge
+                                                tier={user?.tiers?.valorant}
+                                                game="valorant"
+                                            />
+                                        </div>
+                                        {user?.valorantProfile && (
+                                            <div className="text-xs text-gray-500">
+                                                {user.valorantProfile.recentGames}경기 
+                                                {user.valorantProfile.avgKDA && user.valorantProfile.avgKDA !== 'N/A' && (
+                                                    <span className="ml-2">
+                                                        평균 KDA: {user.valorantProfile.avgKDA}
+                                                    </span>
+                                                )}
+                                                {user.valorantProfile.mostPlayedAgent && user.valorantProfile.mostPlayedAgent !== 'N/A' && (
+                                                    <span className="ml-2">
+                                                        주요: {user.valorantProfile.mostPlayedAgent}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
                                 ) : (
                                     <span className="text-sm text-gray-400">

@@ -11,6 +11,7 @@ import {
   updateDoc,
   serverTimestamp 
 } from "firebase/firestore";
+import { communityService } from '@/app/services/community/community.service';
 
 export const mentorService = {
   // 멘토 등록
@@ -33,8 +34,8 @@ export const mentorService = {
 
       console.log('현재 사용자 정보:', currentUser);
 
-      // Create a unique user ID from email if uid is not available
-      const userId = currentUser.uid || currentUser.email?.replace(/[^a-zA-Z0-9]/g, '_');
+      // Use consistent user ID generation from community service
+      const userId = communityService.generateConsistentUserId(currentUser);
       console.log('생성된 userId:', userId);
       
       if (!userId) {
@@ -336,8 +337,8 @@ export const mentorService = {
 
       console.log('🔍 requestFeedback 사용자 정보:', currentUser);
 
-      // Create a unique user ID from various sources
-      const userId = currentUser.uid || currentUser.id || currentUser.email?.replace(/[^a-zA-Z0-9]/g, '_');
+      // Use consistent user ID generation from community service
+      const userId = communityService.generateConsistentUserId(currentUser);
       if (!userId) {
         throw new Error('사용자 정보가 올바르지 않습니다.');
       }

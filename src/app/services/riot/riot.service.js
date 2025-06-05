@@ -5,6 +5,7 @@
 
 const RIOT_API_BASE_URL = 'https://kr.api.riotgames.com';
 const RIOT_API_ASIA_URL = 'https://asia.api.riotgames.com';
+const RIOT_API_AMERICAS_URL = 'https://americas.api.riotgames.com';
 
 export const riotService = {
   /**
@@ -392,5 +393,321 @@ export const riotService = {
     }
     
     return `${tierKorean} ${rankKorean} ${rankData.leaguePoints}LP`;
+  },
+
+  // ========== VALORANT API 메서드들 ==========
+
+  /**
+   * 발로란트 콘텐츠 정보 조회 (현재 액트, 맵, 캐릭터 등)
+   * @param {string} locale - 언어 코드 (예: "ko-KR")
+   * @returns {Promise<Object>} 콘텐츠 정보
+   */
+  async getValorantContent(locale = 'ko-KR') {
+    try {
+      const apiKey = process.env.RIOT_API_KEY;
+      if (!apiKey) {
+        throw new Error('Riot API 키가 설정되지 않았습니다.');
+      }
+
+      const response = await fetch(
+        `${RIOT_API_ASIA_URL}/val/content/v1/contents?locale=${locale}&api_key=${apiKey}`,
+        {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`발로란트 콘텐츠 조회 실패: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('발로란트 콘텐츠 조회 실패:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * PUUID로 발로란트 매치 리스트 조회
+   * @param {string} puuid - 플레이어 PUUID
+   * @returns {Promise<Object>} 매치 리스트
+   */
+  async getValorantMatchesByPuuid(puuid) {
+    try {
+      const apiKey = process.env.RIOT_API_KEY;
+      if (!apiKey) {
+        throw new Error('Riot API 키가 설정되지 않았습니다.');
+      }
+
+      const response = await fetch(
+        `${RIOT_API_ASIA_URL}/val/match/v1/matchlists/by-puuid/${puuid}?api_key=${apiKey}`,
+        {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+          },
+        }
+      );
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          return { puuid, history: [] };
+        }
+        throw new Error(`발로란트 매치 리스트 조회 실패: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('발로란트 매치 리스트 조회 실패:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * 매치 ID로 발로란트 매치 상세 정보 조회
+   * @param {string} matchId - 매치 ID
+   * @returns {Promise<Object>} 매치 상세 정보
+   */
+  async getValorantMatchById(matchId) {
+    try {
+      const apiKey = process.env.RIOT_API_KEY;
+      if (!apiKey) {
+        throw new Error('Riot API 키가 설정되지 않았습니다.');
+      }
+
+      const response = await fetch(
+        `${RIOT_API_ASIA_URL}/val/match/v1/matches/${matchId}?api_key=${apiKey}`,
+        {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+          },
+        }
+      );
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          throw new Error('매치 정보를 찾을 수 없습니다.');
+        }
+        throw new Error(`발로란트 매치 정보 조회 실패: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('발로란트 매치 정보 조회 실패:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * actId로 발로란트 경쟁전 리더보드 조회
+   * @param {string} actId - 액트 ID
+   * @returns {Promise<Object>} 리더보드 정보
+   */
+  async getValorantLeaderboard(actId) {
+    try {
+      const apiKey = process.env.RIOT_API_KEY;
+      if (!apiKey) {
+        throw new Error('Riot API 키가 설정되지 않았습니다.');
+      }
+
+      const response = await fetch(
+        `${RIOT_API_ASIA_URL}/val/ranked/v1/leaderboards/by-act/${actId}?api_key=${apiKey}`,
+        {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+          },
+        }
+      );
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          throw new Error('리더보드 정보를 찾을 수 없습니다.');
+        }
+        throw new Error(`발로란트 리더보드 조회 실패: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('발로란트 리더보드 조회 실패:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * 발로란트 서버 상태 조회
+   * @returns {Promise<Object>} 서버 상태 정보
+   */
+  async getValorantPlatformStatus() {
+    try {
+      const apiKey = process.env.RIOT_API_KEY;
+      if (!apiKey) {
+        throw new Error('Riot API 키가 설정되지 않았습니다.');
+      }
+
+      const response = await fetch(
+        `${RIOT_API_BASE_URL}/val/status/v1/platform-data?api_key=${apiKey}`,
+        {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`발로란트 서버 상태 조회 실패: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('발로란트 서버 상태 조회 실패:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * 특정 큐의 최근 발로란트 매치 조회
+   * @param {string} queue - 큐 타입 (competitive, unrated, spikerush 등)
+   * @returns {Promise<Object>} 최근 매치 ID 리스트
+   */
+  async getValorantRecentMatchesByQueue(queue) {
+    try {
+      const apiKey = process.env.RIOT_API_KEY;
+      if (!apiKey) {
+        throw new Error('Riot API 키가 설정되지 않았습니다.');
+      }
+
+      const response = await fetch(
+        `${RIOT_API_ASIA_URL}/val/match/v1/recent-matches/by-queue/${queue}?api_key=${apiKey}`,
+        {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+          },
+        }
+      );
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          return { queue, matchIds: [] };
+        }
+        throw new Error(`발로란트 최근 매치 조회 실패: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('발로란트 최근 매치 조회 실패:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * 사용자 발로란트 프로필 종합 정보 조회
+   * @param {string} riotId - Riot ID (형식: "gameName#tagLine")
+   * @returns {Promise<Object>} 종합 프로필 정보
+   */
+  async getValorantPlayerProfile(riotId) {
+    try {
+      // Riot ID 파싱
+      const parsedId = this.parseRiotId(riotId);
+      if (!parsedId) {
+        throw new Error('올바르지 않은 Riot ID 형식입니다. (예: PlayerName#KR1)');
+      }
+
+      const { gameName, tagLine } = parsedId;
+
+      // 1. 계정 정보 조회 (PUUID 획득)
+      const accountInfo = await this.getAccountByRiotId(gameName, tagLine);
+      
+      // 2. 매치 리스트 조회 (최근 5경기)
+      const matchList = await this.getValorantMatchesByPuuid(accountInfo.puuid);
+      const recentMatches = matchList.history.slice(0, 5);
+      
+      // 3. 최근 매치 상세 정보 조회
+      const matchDetails = [];
+      for (const matchId of recentMatches) {
+        try {
+          const matchDetail = await this.getValorantMatchById(matchId);
+          matchDetails.push(matchDetail);
+        } catch (error) {
+          console.error(`매치 ${matchId} 조회 실패:`, error);
+        }
+      }
+
+      // 4. 콘텐츠 정보 조회 (현재 액트 등)
+      const contentInfo = await this.getValorantContent();
+      const currentAct = contentInfo.acts?.find(act => act.isActive);
+
+      return {
+        account: accountInfo,
+        recentMatches: matchDetails,
+        currentAct: currentAct,
+        contentVersion: contentInfo.version,
+        lastUpdated: new Date().toISOString()
+      };
+    } catch (error) {
+      console.error('발로란트 플레이어 프로필 조회 실패:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * 발로란트 티어명을 한글로 변환
+   * @param {string} tier - 영문 티어명
+   * @returns {string} 한글 티어명
+   */
+  getValorantTierNameKorean(tier) {
+    const tierMap = {
+      'IRON': '아이언',
+      'BRONZE': '브론즈', 
+      'SILVER': '실버',
+      'GOLD': '골드',
+      'PLATINUM': '플래티넘',
+      'DIAMOND': '다이아몬드',
+      'ASCENDANT': '초월자',
+      'IMMORTAL': '불멸',
+      'RADIANT': '레디언트'
+    };
+    return tierMap[tier] || tier;
+  },
+
+  /**
+   * 발로란트 캐릭터 ID를 이름으로 변환
+   * @param {string} characterId - 캐릭터 ID
+   * @returns {string} 캐릭터 이름
+   */
+  getValorantCharacterName(characterId) {
+    const characterMap = {
+      'brimstone': '브림스톤',
+      'viper': '바이퍼',
+      'omen': '오멘',
+      'killjoy': '킬조이',
+      'cypher': '사이퍼',
+      'sova': '소바',
+      'sage': '세이지',
+      'phoenix': '피닉스',
+      'jett': '제트',
+      'reyna': '레이나',
+      'raze': '레이즈',
+      'breach': '브리치',
+      'skye': '스카이',
+      'yoru': '요루',
+      'astra': '아스트라',
+      'kayo': '케이오',
+      'chamber': '챔버',
+      'neon': '네온',
+      'fade': '페이드',
+      'harbor': '하버',
+      'gekko': '게코',
+      'deadlock': '데드락',
+      'iso': '이소',
+      'clove': '클로브'
+    };
+    return characterMap[characterId] || characterId;
   }
 };

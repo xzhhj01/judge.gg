@@ -206,6 +206,57 @@ export const userService = {
     }
   },
 
+  // 발로란트 Riot API를 통한 검증된 계정 연동
+  async verifyAndConnectValorantAccount(riotId, sessionUser = null) {
+    try {
+      // API 엔드포인트를 통해 검증 및 연동
+      const response = await fetch('/api/riot/valorant/verify', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ riotId })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || '발로란트 계정 연동에 실패했습니다.');
+      }
+
+      return result;
+    } catch (error) {
+      console.error('발로란트 계정 검증 및 연동 실패:', error);
+      throw error;
+    }
+  },
+
+  // 사용자의 발로란트 프로필 정보 조회
+  async getValorantProfile(sessionUser = null) {
+    try {
+      const response = await fetch('/api/riot/valorant/verify', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('로그인이 필요합니다.');
+        }
+        throw new Error(result.error || '발로란트 프로필 조회에 실패했습니다.');
+      }
+
+      return result;
+    } catch (error) {
+      console.error('발로란트 프로필 조회 실패:', error);
+      throw error;
+    }
+  },
+
   // 사용자의 게시글 조회
   async getUserPosts(userId, userObject = null) {
     try {
@@ -408,23 +459,13 @@ export const userService = {
       // 피드백 통계 계산
       const requestedFeedbacks = await this.getUserRequestedFeedbacks(userId);
       
-      // 받은 피드백 계산을 위해 멘토 ID 찾기
+      // 받은 피드백 계산 (userId로 직접 조회)
       let receivedFeedbacks = [];
       try {
-        const mentorQuery = query(
-          collection(db, 'mentors'),
-          where('userId', '==', userId)
-        );
-        const mentorSnapshot = await getDocs(mentorQuery);
-        
-        if (!mentorSnapshot.empty) {
-          const mentorDoc = mentorSnapshot.docs[0];
-          const mentorId = mentorDoc.id;
-          receivedFeedbacks = await this.getMentorReceivedFeedbacks(mentorId);
-          console.log(`🔍 멘토 ${mentorId}의 받은 피드백: ${receivedFeedbacks.length}개`);
-        }
+        receivedFeedbacks = await this.getMentorReceivedFeedbacks(userId);
+        console.log(`🔍 사용자 ${userId}의 받은 피드백: ${receivedFeedbacks.length}개`);
       } catch (error) {
-        console.error('멘토 정보 조회 실패:', error);
+        console.error('받은 피드백 조회 실패:', error);
       }
       
       // 게임별로 피드백 분류
@@ -817,23 +858,51 @@ export const userService = {
     }
   },
 
-  // 멘토가 받은 피드백 요청 목록 조회
-  async getMentorReceivedFeedbacks(mentorId) {
+  // 멘토가 받은 피드백 요청 목록 조회 (userId로 조회)
+  async getMentorReceivedFeedbacks(userId) {
     try {
-      const q = query(
+      console.log('🔍 getMentorReceivedFeedbacks 시작 - userId:', userId);
+      
+      // 1. userId로 해당 사용자의 멘토 정보 조회
+      const mentorQuery = query(
+        collection(db, 'mentors'),
+        where('userId', '==', userId)
+      );
+      const mentorSnapshot = await getDocs(mentorQuery);
+      
+      if (mentorSnapshot.empty) {
+        console.log('🔍 해당 userId의 멘토 정보 없음:', userId);
+        return [];
+      }
+      
+      const mentorDoc = mentorSnapshot.docs[0];
+      const mentorId = mentorDoc.id;
+      console.log('🔍 찾은 멘토 ID:', mentorId);
+      
+      // 2. 해당 멘토ID로 피드백 요청 조회
+      const feedbackQuery = query(
         collection(db, 'feedback_requests'),
         where('mentorId', '==', mentorId)
       );
       
-      const snapshot = await getDocs(q);
+      const snapshot = await getDocs(feedbackQuery);
       const feedbacks = [];
       
       snapshot.forEach((doc) => {
+        const data = doc.data();
         feedbacks.push({
           id: doc.id,
-          ...doc.data()
+          ...data,
+          // 멘토 정보도 포함
+          mentorInfo: {
+            id: mentorId,
+            nickname: mentorDoc.data().nickname,
+            selectedGame: mentorDoc.data().selectedGame
+          }
         });
       });
+      
+      console.log(`🔍 찾은 피드백 요청: ${feedbacks.length}개`);
       
       // 클라이언트에서 날짜순 정렬 (최신순)
       feedbacks.sort((a, b) => {
