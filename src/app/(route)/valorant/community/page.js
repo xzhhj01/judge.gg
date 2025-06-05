@@ -151,7 +151,7 @@ export default function ValorantCommunityPage() {
                     author: {
                         nickname: post.authorName || '알 수 없음',
                         profileImage: post.authorPhoto,
-                        tier: 'Unranked'
+                        tier: post.authorTier || 'Unranked'
                     },
                     commentCount: post.commentCount || 0,
                     createdAt: post.createdAt?.toDate ? post.createdAt.toDate() : new Date(post.createdAt),

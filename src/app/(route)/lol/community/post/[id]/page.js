@@ -497,8 +497,8 @@ export default function LoLCommunityPostPage() {
                                 <span className="font-medium text-gray-700">
                                     {post.authorName || '알 수 없음'}
                                 </span>
-                                <span className="text-gray-500 font-medium">
-                                    Unranked
+                                <span className={`font-medium ${getTierColor(post.authorTier?.split(' ')[0] || 'Unranked')}`}>
+                                    {post.authorTier || 'Unranked'}
                                 </span>
                             </div>
 
@@ -912,6 +912,9 @@ export default function LoLCommunityPostPage() {
                                     <div className="flex items-center space-x-2">
                                         <span className="font-medium text-gray-900">
                                             {comment.authorName || '알 수 없음'}
+                                        </span>
+                                        <span className={`text-sm font-medium ${getTierColor(comment.authorTier?.split(' ')[0] || 'Unranked')}`}>
+                                            {comment.authorTier || 'Unranked'}
                                         </span>
                                         <span className="text-sm text-gray-500">
                                             {formatDate(comment.createdAt?.toDate ? comment.createdAt.toDate() : comment.createdAt)}

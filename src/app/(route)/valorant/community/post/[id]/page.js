@@ -309,6 +309,21 @@ export default function ValorantCommunityPostPage() {
         );
     };
 
+    const getTierColor = (tier) => {
+        const tierColors = {
+            Iron: "text-gray-600",
+            Bronze: "text-amber-600",
+            Silver: "text-gray-500",
+            Gold: "text-yellow-500",
+            Platinum: "text-cyan-500",
+            Diamond: "text-blue-500",
+            Ascendant: "text-green-500",
+            Immortal: "text-purple-500",
+            Radiant: "text-red-500",
+        };
+        return tierColors[tier] || "text-gray-600";
+    };
+
     if (loading) {
         return (
             <div className="min-h-screen bg-gray-50">
@@ -444,8 +459,8 @@ export default function ValorantCommunityPostPage() {
                                 <span className="font-medium text-gray-700">
                                     {post.authorName || '알 수 없음'}
                                 </span>
-                                <span className="text-gray-500 font-medium">
-                                    Unranked
+                                <span className={`font-medium ${getTierColor(post.authorTier?.split(' ')[0] || 'Unranked')}`}>
+                                    {post.authorTier || 'Unranked'}
                                 </span>
                             </div>
                             <span>{formatDate(post.createdAt?.toDate ? post.createdAt.toDate() : post.createdAt)}</span>
@@ -795,6 +810,9 @@ export default function ValorantCommunityPostPage() {
                                     <div className="flex items-center space-x-2">
                                         <span className="font-medium text-gray-900">
                                             {comment.authorName || '알 수 없음'}
+                                        </span>
+                                        <span className={`text-sm font-medium ${getTierColor(comment.authorTier?.split(' ')[0] || 'Unranked')}`}>
+                                            {comment.authorTier || 'Unranked'}
                                         </span>
                                         <span className="text-sm text-gray-500">
                                             {formatDate(comment.createdAt?.toDate ? comment.createdAt.toDate() : comment.createdAt)}

@@ -181,11 +181,49 @@ export const communityService = {
       const userName = currentUser.name || currentUser.displayName || currentUser.email;
       const userPhoto = currentUser.image || currentUser.photoURL || null;
       
+      // 사용자의 실제 랭크 정보 조회 (게임별)
+      let userTier = "Unranked";
+      if (gameType === 'lol') {
+        try {
+          console.log('🔍 게시글 작성 - LoL 랭크 정보 조회 시작');
+          const { userService } = await import('@/app/services/user/user.service');
+          const tierData = await userService.getLolTierInfo();
+          
+          if (tierData && tierData.verified && tierData.ranks?.solo) {
+            const soloRank = tierData.ranks.solo;
+            userTier = `${soloRank.tier} ${soloRank.rank}`;
+            console.log('🔍 게시글 작성 - 사용자 랭크:', userTier);
+          } else {
+            console.log('🔍 게시글 작성 - 랭크 정보 없음, Unranked 사용');
+          }
+        } catch (error) {
+          console.error('🔍 게시글 작성 - 랭크 정보 조회 실패:', error);
+          // 에러가 발생해도 게시글 작성은 계속 진행 (Unranked로)
+        }
+      } else if (gameType === 'valorant') {
+        try {
+          console.log('🔍 게시글 작성 - Valorant 랭크 정보 조회 시작');
+          const { userService } = await import('@/app/services/user/user.service');
+          const tierData = await userService.getValorantTierInfo();
+          
+          if (tierData && tierData.verified && tierData.currentTier) {
+            userTier = tierData.currentTier;
+            console.log('🔍 게시글 작성 - 사용자 랭크:', userTier);
+          } else {
+            console.log('🔍 게시글 작성 - 랭크 정보 없음, Unranked 사용');
+          }
+        } catch (error) {
+          console.error('🔍 게시글 작성 - 랭크 정보 조회 실패:', error);
+          // 에러가 발생해도 게시글 작성은 계속 진행 (Unranked로)
+        }
+      }
+      
       console.log('🔍 게시글 작성 - 사용자 정보:', {
         currentUser,
         userId,
         userName,
         userPhoto,
+        userTier,
         authMethod: currentUser.id ? 'NextAuth' : 'Firebase'
       });
 
@@ -197,6 +235,7 @@ export const communityService = {
         authorUid: userId, // 동일한 값으로 두 필드 모두 저장
         authorName: userName,
         authorPhoto: userPhoto,
+        authorTier: userTier, // 사용자 랭크 정보 추가
         videoUrl,
         // 투표 관련 필드 추가
         voteOptions: this.validateVoteOptions(postData.voteOptions) ? postData.voteOptions : null,
@@ -444,6 +483,43 @@ export const communityService = {
       const userId = this.generateConsistentUserId(currentUser);
       const userName = currentUser.name || currentUser.displayName || currentUser.email;
       const userPhoto = currentUser.image || currentUser.photoURL || null;
+      
+      // 사용자의 실제 랭크 정보 조회 (게임별)
+      let userTier = "Unranked";
+      if (gameType === 'lol') {
+        try {
+          console.log('🔍 댓글 작성 - LoL 랭크 정보 조회 시작');
+          const { userService } = await import('@/app/services/user/user.service');
+          const tierData = await userService.getLolTierInfo();
+          
+          if (tierData && tierData.verified && tierData.ranks?.solo) {
+            const soloRank = tierData.ranks.solo;
+            userTier = `${soloRank.tier} ${soloRank.rank}`;
+            console.log('🔍 댓글 작성 - 사용자 랭크:', userTier);
+          } else {
+            console.log('🔍 댓글 작성 - 랭크 정보 없음, Unranked 사용');
+          }
+        } catch (error) {
+          console.error('🔍 댓글 작성 - 랭크 정보 조회 실패:', error);
+          // 에러가 발생해도 댓글 작성은 계속 진행 (Unranked로)
+        }
+      } else if (gameType === 'valorant') {
+        try {
+          console.log('🔍 댓글 작성 - Valorant 랭크 정보 조회 시작');
+          const { userService } = await import('@/app/services/user/user.service');
+          const tierData = await userService.getValorantTierInfo();
+          
+          if (tierData && tierData.verified && tierData.currentTier) {
+            userTier = tierData.currentTier;
+            console.log('🔍 댓글 작성 - 사용자 랭크:', userTier);
+          } else {
+            console.log('🔍 댓글 작성 - 랭크 정보 없음, Unranked 사용');
+          }
+        } catch (error) {
+          console.error('🔍 댓글 작성 - 랭크 정보 조회 실패:', error);
+          // 에러가 발생해도 댓글 작성은 계속 진행 (Unranked로)
+        }
+      }
 
       const commentData = {
         postId,
@@ -452,6 +528,8 @@ export const communityService = {
         authorUid: userId, // 동일한 값으로 두 필드 모두 저장
         authorName: userName,
         authorPhoto: userPhoto,
+        authorTier: userTier, // 사용자 랭크 정보 추가
+        likes: 0, // 댓글 좋아요 초기값
         createdAt: serverTimestamp()
       };
 
