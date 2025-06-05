@@ -13,15 +13,17 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-// 환경 변수 확인을 위한 디버그 로그
-console.log("Firebase Config:", {
-  apiKey: firebaseConfig.apiKey ? "✓" : "✗",
-  authDomain: firebaseConfig.authDomain,
-  projectId: firebaseConfig.projectId,
-  storageBucket: firebaseConfig.storageBucket,
-  messagingSenderId: firebaseConfig.messagingSenderId,
-  appId: firebaseConfig.appId ? "✓" : "✗"
-});
+// 환경 변수 확인 (개발 환경에서만)
+if (process.env.NODE_ENV === 'development') {
+  console.log("Firebase Config:", {
+    apiKey: firebaseConfig.apiKey ? "✓" : "✗",
+    authDomain: firebaseConfig.authDomain,
+    projectId: firebaseConfig.projectId,
+    storageBucket: firebaseConfig.storageBucket,
+    messagingSenderId: firebaseConfig.messagingSenderId,
+    appId: firebaseConfig.appId ? "✓" : "✗"
+  });
+}
 
 // Firebase가 이미 초기화되었는지 확인
 let firebase_app;

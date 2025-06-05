@@ -2,8 +2,27 @@
 
 import { timeAgo } from '@/app/utils/timeAgo';
 import Link from 'next/link';
+import { useState } from 'react';
+import Snackbar from './Snackbar';
 
 export default function ModernPostCard({ post, gameType = 'lol', currentUser, onEdit, onDelete, onShare }) {
+    const [snackbar, setSnackbar] = useState({
+        message: "",
+        type: "success", 
+        isVisible: false
+    });
+
+    const showSnackbar = (message, type = "success") => {
+        setSnackbar({
+            message,
+            type,
+            isVisible: true
+        });
+    };
+
+    const closeSnackbar = () => {
+        setSnackbar(prev => ({ ...prev, isVisible: false }));
+    };
     const formatDate = (date) => {
         if (!date) return '날짜 정보 없음';
         return timeAgo(date);
@@ -106,10 +125,10 @@ export default function ModernPostCard({ post, gameType = 'lol', currentUser, on
     // Copy URL to clipboard
     const copyToClipboard = (text) => {
         navigator.clipboard.writeText(text).then(() => {
-            alert('링크가 클립보드에 복사되었습니다!');
+            showSnackbar('링크가 클립보드에 복사되었습니다!', 'success');
         }).catch(err => {
             console.error('Could not copy text: ', err);
-            alert('링크 복사에 실패했습니다.');
+            showSnackbar('링크 복사에 실패했습니다.', 'error');
         });
     };
 
@@ -239,11 +258,22 @@ export default function ModernPostCard({ post, gameType = 'lol', currentUser, on
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                             </svg>
-                            <span className={colors.primary}>{post.votes || 0}</span>
+                            <span className={colors.primary}>
+                                {post.voteOptions && Array.isArray(post.voteOptions) && post.voteOptions.length >= 2 
+                                    ? (post.totalVotes || 0)
+                                    : (post.votes || post.likes || 0)
+                                }
+                            </span>
                         </div>
                     </div>
                 </div>
             </article>
+            <Snackbar
+                message={snackbar.message}
+                type={snackbar.type}
+                isVisible={snackbar.isVisible}
+                onClose={closeSnackbar}
+            />
         </Link>
     );
 }

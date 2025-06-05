@@ -12,7 +12,11 @@
       "Bash(rm:*)",
       "Bash(wc:*)",
       "Bash(rg:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(npm run build:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npm run lint)",
+      "Bash(node:*)"
     ],
     "deny": []
   }

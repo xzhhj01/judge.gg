@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState, useMemo, useCallback } from 'react';
 import { SessionProvider, useSession } from 'next-auth/react';
 import { onAuthStateChanged, signOut as firebaseSignOut } from 'firebase/auth';
 import { auth } from '@/lib/firebase/firebase.config';
@@ -26,12 +26,24 @@ function AuthProvider({ children }) {
     const { data: session, status } = useSession();
 
     useEffect(() => {
+        let mounted = true;
+        
         const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-            setUser(currentUser);
-            setLoading(false);
+            if (mounted) {
+                setUser(currentUser);
+                setLoading(false);
+            }
+        }, (error) => {
+            if (mounted) {
+                console.error('Firebase auth state change error:', error);
+                setLoading(false);
+            }
         });
 
-        return () => unsubscribe();
+        return () => {
+            mounted = false;
+            unsubscribe();
+        };
     }, []);
 
     // NextAuth 세션 상태 변화 감지
@@ -41,7 +53,7 @@ function AuthProvider({ children }) {
         }
     }, [status]);
 
-    const logout = async () => {
+    const logout = useCallback(async () => {
         try {
             // Firebase 로그아웃
             await firebaseSignOut(auth);
@@ -49,13 +61,13 @@ function AuthProvider({ children }) {
         } catch (error) {
             console.error('Firebase 로그아웃 실패:', error);
         }
-    };
+    }, []);
 
-    const value = {
+    const value = useMemo(() => ({
         user,
         loading: loading || status === 'loading',
         logout
-    };
+    }), [user, loading, status, logout]);
 
     return (
         <AuthContext.Provider value={value}>

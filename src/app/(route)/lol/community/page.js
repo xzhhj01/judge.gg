@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import ModernPostCard from "../../../components/ModernPostCard";
 import PostFilter from "../../../components/PostFilter";
 import CommunityHeader from "../../../components/CommunityHeader";
+import Snackbar from "../../../components/Snackbar";
 import communityTags from "@/data/communityTags.json";
 import { communityService } from '@/app/services/community/community.service';
 import { useAuth } from '@/app/utils/providers';
@@ -25,6 +26,23 @@ export default function LoLCommunityPage() {
     const [loading, setLoading] = useState(true);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [postToDelete, setPostToDelete] = useState(null);
+    const [snackbar, setSnackbar] = useState({
+        message: "",
+        type: "success",
+        isVisible: false
+    });
+
+    const showSnackbar = (message, type = "success") => {
+        setSnackbar({
+            message,
+            type,
+            isVisible: true
+        });
+    };
+
+    const closeSnackbar = () => {
+        setSnackbar(prev => ({ ...prev, isVisible: false }));
+    };
 
     // 태그 데이터
     const tagData = communityTags.lol;
@@ -79,6 +97,12 @@ export default function LoLCommunityPage() {
                     title: post.title,
                     content: post.content,
                     votes: post.likes || 0,
+                    likes: post.likes || 0,
+                    totalVotes: post.totalVotes || 0,
+                    voteOptions: post.voteOptions,
+                    voteResults: post.voteResults,
+                    allowNeutral: post.allowNeutral,
+                    voteDeadline: post.voteDeadline,
                     views: post.views || 0,
                     tags: post.tags || [],
                     author: {
@@ -207,10 +231,10 @@ export default function LoLCommunityPage() {
     // Copy URL to clipboard
     const copyToClipboard = (text) => {
         navigator.clipboard.writeText(text).then(() => {
-            alert('링크가 클립보드에 복사되었습니다!');
+            showSnackbar('링크가 클립보드에 복사되었습니다!', 'success');
         }).catch(err => {
             console.error('Could not copy text: ', err);
-            alert('링크 복사에 실패했습니다.');
+            showSnackbar('링크 복사에 실패했습니다.', 'error');
         });
     };
 
@@ -543,6 +567,13 @@ export default function LoLCommunityPage() {
                     </div>
                 </div>
             )}
+            
+            <Snackbar
+                message={snackbar.message}
+                type={snackbar.type}
+                isVisible={snackbar.isVisible}
+                onClose={closeSnackbar}
+            />
         </div>
     );
 }

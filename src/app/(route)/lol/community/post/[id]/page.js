@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import CommunityHeader from "@/app/components/CommunityHeader";
+import Snackbar from "@/app/components/Snackbar";
 import { communityService } from '@/app/services/community/community.service';
 import { useAuth } from '@/app/utils/providers';
 import { useSession } from 'next-auth/react';
@@ -19,14 +20,16 @@ export default function LoLCommunityPostPage() {
     const { data: session } = useSession();
     const postId = params.id;
     
-    console.log('🔍 인증 상태 디버깅:', {
-        user: user,
-        session: session,
-        sessionUser: session?.user,
-        hasUser: !!user,
-        hasSession: !!session,
-        isLoggedIn: !!(user || session)
-    });
+    if (process.env.NODE_ENV === 'development') {
+        console.log('🔍 인증 상태 디버깅:', {
+            user: user,
+            session: session,
+            sessionUser: session?.user,
+            hasUser: !!user,
+            hasSession: !!session,
+            isLoggedIn: !!(user || session)
+        });
+    }
 
     const [post, setPost] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -40,6 +43,25 @@ export default function LoLCommunityPostPage() {
     const [isVoting, setIsVoting] = useState(false);
     const [commentVoting, setCommentVoting] = useState({}); // 댓글별 투표 상태
     const [commentVotes, setCommentVotes] = useState({}); // 댓글별 사용자 투표 상태
+    const [selectedRecommendation, setSelectedRecommendation] = useState(null); // 추천/비추천 상태 (투표와 별개)
+    const [isRecommending, setIsRecommending] = useState(false); // 추천 중인지 상태
+    const [snackbar, setSnackbar] = useState({
+        message: "",
+        type: "success",
+        isVisible: false
+    });
+
+    const showSnackbar = (message, type = "success") => {
+        setSnackbar({
+            message,
+            type,
+            isVisible: true
+        });
+    };
+
+    const closeSnackbar = () => {
+        setSnackbar(prev => ({ ...prev, isVisible: false }));
+    };
 
     // 게시글 데이터 로드
     useEffect(() => {
@@ -47,25 +69,35 @@ export default function LoLCommunityPostPage() {
             try {
                 setLoading(true);
                 const postData = await communityService.getPostById('lol', postId);
-                console.log('🔍 로드된 게시글 데이터:', postData);
-                console.log('🔍 투표 옵션:', postData.voteOptions);
-                console.log('🔍 투표 결과:', postData.voteResults);
-                console.log('🔍 총 투표 수:', postData.totalVotes);
-                console.log('🔍 중립 허용:', postData.allowNeutral);
+                if (process.env.NODE_ENV === 'development') {
+                    console.log('🔍 로드된 게시글 데이터:', postData);
+                    console.log('🔍 투표 옵션:', postData.voteOptions);
+                    console.log('🔍 투표 결과:', postData.voteResults);
+                    console.log('🔍 총 투표 수:', postData.totalVotes);
+                    console.log('🔍 중립 허용:', postData.allowNeutral);
+                }
                 setPost(postData);
                 
                 // 사용자의 투표 여부 확인
                 const currentUser = user || session?.user;
                 if (currentUser) {
                     const userId = communityService.generateConsistentUserId(currentUser);
-                    console.log("🔍 페이지 로드 - 사용자 투표 확인:", {
-                        currentUser: currentUser,
-                        userId: userId,
-                        postId: postId
-                    });
+                    if (process.env.NODE_ENV === 'development') {
+                        console.log("🔍 페이지 로드 - 사용자 투표 확인:", {
+                            currentUser: currentUser,
+                            userId: userId,
+                            postId: postId
+                        });
+                    }
                     const userVote = await communityService.checkUserVote('lol', postId, currentUser);
-                    console.log("🔍 페이지 로드 - 기존 투표:", userVote);
+                    if (process.env.NODE_ENV === 'development') {
+                        console.log("🔍 페이지 로드 - 기존 투표:", userVote);
+                    }
                     setSelectedVote(userVote);
+                    
+                    // 사용자의 추천 여부 확인 (투표와 별개)
+                    const userRecommendation = await communityService.checkUserRecommendation('lol', postId, currentUser);
+                    setSelectedRecommendation(userRecommendation);
                 }
                 
                 // 댓글도 함께 로드
@@ -108,7 +140,9 @@ export default function LoLCommunityPostPage() {
             
             // 투표 전에 한 번 더 기존 투표 확인 (이중 투표 방지)
             const existingVote = await communityService.checkUserVote('lol', postId, currentUser);
-            console.log("🔍 투표 전 기존 투표 확인:", existingVote);
+            if (process.env.NODE_ENV === 'development') {
+                console.log("🔍 투표 전 기존 투표 확인:", existingVote);
+            }
             
             const result = await communityService.votePost('lol', postId, voteType, currentUser);
             
@@ -119,16 +153,51 @@ export default function LoLCommunityPostPage() {
             // 투표 상태 업데이트
             if (result.action === 'removed') {
                 setSelectedVote(null);
-                console.log("투표 취소:", voteType);
+                if (process.env.NODE_ENV === 'development') {
+                    console.log("투표 취소:", voteType);
+                }
             } else {
                 setSelectedVote(voteType);
-                console.log("투표 완료:", voteType);
+                if (process.env.NODE_ENV === 'development') {
+                    console.log("투표 완료:", voteType);
+                }
             }
         } catch (error) {
             console.error('투표 실패:', error);
             alert('투표에 실패했습니다: ' + error.message);
         } finally {
             setIsVoting(false);
+        }
+    };
+
+    // 추천 처리 (투표와 별개)
+    const handleRecommendation = async (recommendationType) => {
+        if (isRecommending || (!user && !session)) return;
+        
+        try {
+            setIsRecommending(true);
+            const currentUser = user || session?.user;
+            
+            const result = await communityService.recommendPost('lol', postId, recommendationType, currentUser);
+            
+            // 게시글 데이터 새로고침
+            const updatedPost = await communityService.getPostById('lol', postId);
+            setPost(updatedPost);
+            
+            // 추천 상태 업데이트
+            if (result.action === 'removed') {
+                setSelectedRecommendation(null);
+                showSnackbar('추천이 취소되었습니다.', 'info');
+            } else {
+                setSelectedRecommendation(recommendationType);
+                const message = recommendationType === 'recommend' ? '추천했습니다!' : '비추천했습니다.';
+                showSnackbar(message, 'success');
+            }
+        } catch (error) {
+            console.error('추천 실패:', error);
+            showSnackbar('추천에 실패했습니다.', 'error');
+        } finally {
+            setIsRecommending(false);
         }
     };
 
@@ -141,10 +210,15 @@ export default function LoLCommunityPostPage() {
     // 댓글 추가
     const handleAddComment = async (e) => {
         e.preventDefault();
-        if (!newComment.trim() || (!user && !session)) return;
+        if (!newComment.trim()) return;
+        
+        const currentUser = user || session?.user;
+        if (!currentUser) {
+            showSnackbar('로그인이 필요합니다.', 'error');
+            return;
+        }
 
         try {
-            const currentUser = user || session?.user;
             const comment = await communityService.addComment('lol', postId, newComment.trim(), currentUser);
             setComments([...comments, comment]);
             setNewComment("");
@@ -156,9 +230,11 @@ export default function LoLCommunityPostPage() {
                     commentCount: (post.commentCount || 0) + 1
                 });
             }
+            
+            showSnackbar('댓글이 작성되었습니다!', 'success');
         } catch (error) {
             console.error('댓글 추가 실패:', error);
-            alert('댓글 추가에 실패했습니다.');
+            showSnackbar('댓글 작성에 실패했습니다.', 'error');
         }
     };
 
@@ -386,8 +462,12 @@ export default function LoLCommunityPostPage() {
                                 onClick={() => {
                                     navigator.clipboard.writeText(
                                         window.location.href
-                                    );
-                                    // TODO: 스낵바나 토스트로 복사 완료 알림 추가
+                                    ).then(() => {
+                                        showSnackbar('링크가 클립보드에 복사되었습니다!', 'success');
+                                    }).catch(err => {
+                                        console.error('Could not copy text: ', err);
+                                        showSnackbar('링크 복사에 실패했습니다.', 'error');
+                                    });
                                 }}
                                 className="px-4 py-2 text-sm text-gray-600 hover:text-gray-700 border border-gray-600 rounded-lg hover:bg-gray-50 transition-colors flex items-center"
                             >
@@ -487,6 +567,42 @@ export default function LoLCommunityPostPage() {
                                     {post.likes || 0}
                                 </span>
                             </div>
+
+                            {/* 추천 버튼 */}
+                            <button
+                                onClick={() => handleRecommendation('recommend')}
+                                disabled={isRecommending || (!user && !session)}
+                                className={`flex items-center space-x-1 px-2 py-1 rounded-lg transition-colors ${
+                                    selectedRecommendation === 'recommend'
+                                        ? 'bg-green-100 text-green-700'
+                                        : 'bg-green-50 text-green-600 hover:bg-green-100'
+                                } ${isRecommending || (!user && !session) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            >
+                                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M3.293 9.707a1 1 0 010-1.414l6-6a1 1 0 011.414 0l6 6a1 1 0 01-1.414 1.414L11 5.414V17a1 1 0 11-2 0V5.414L4.707 9.707a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                                </svg>
+                                <span className="text-sm font-medium">
+                                    {post.recommendations || 0}
+                                </span>
+                            </button>
+
+                            {/* 비추천 버튼 */}
+                            <button
+                                onClick={() => handleRecommendation('unrecommend')}
+                                disabled={isRecommending || (!user && !session)}
+                                className={`flex items-center space-x-1 px-2 py-1 rounded-lg transition-colors ${
+                                    selectedRecommendation === 'unrecommend'
+                                        ? 'bg-red-100 text-red-700'
+                                        : 'bg-red-50 text-red-600 hover:bg-red-100'
+                                } ${isRecommending || (!user && !session) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            >
+                                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M16.707 10.293a1 1 0 010 1.414l-6 6a1 1 0 01-1.414 0l-6-6a1 1 0 111.414-1.414L9 14.586V3a1 1 0 012 0v11.586l4.293-4.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                </svg>
+                                <span className="text-sm font-medium">
+                                    {post.unrecommendations || 0}
+                                </span>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -679,33 +795,46 @@ export default function LoLCommunityPostPage() {
                         댓글 ({comments.length})
                     </h2>
 
-                    {/* 댓글 작성 */}
-                    <form onSubmit={handleAddComment} className="mb-6">
-                        <div className="flex space-x-4">
-                            <div className="flex-1">
-                                <textarea
-                                    value={newComment}
-                                    onChange={handleCommentChange}
-                                    placeholder="댓글을 작성해주세요..."
-                                    rows={3}
-                                    maxLength={VALIDATION_LIMITS.COMMENT}
-                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                                />
-                                <p className="text-sm text-gray-500 mt-2">
-                                    {newComment.length}/
-                                    {VALIDATION_LIMITS.COMMENT}자
-                                </p>
+                    {/* 댓글 작성 폼 */}
+                    {user || session ? (
+                        <form onSubmit={handleAddComment} className="mb-6">
+                            <div className="flex space-x-4">
+                                <div className="flex-1">
+                                    <textarea
+                                        value={newComment}
+                                        onChange={handleCommentChange}
+                                        placeholder="댓글을 작성해주세요..."
+                                        rows={3}
+                                        maxLength={VALIDATION_LIMITS.COMMENT}
+                                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                                    />
+                                    <p className="text-sm text-gray-500 mt-2">
+                                        {newComment.length}/
+                                        {VALIDATION_LIMITS.COMMENT}자
+                                    </p>
+                                </div>
+                                <div className="flex-shrink-0">
+                                    <button
+                                        type="submit"
+                                        disabled={!newComment.trim()}
+                                        className="px-6 py-3 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors h-full"
+                                    >
+                                        댓글 작성
+                                    </button>
+                                </div>
                             </div>
-                            <div className="flex-shrink-0">
-                                <button
-                                    type="submit"
-                                    className="px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-colors h-full"
-                                >
-                                    댓글 작성
-                                </button>
-                            </div>
+                        </form>
+                    ) : (
+                        <div className="mb-6 p-4 bg-gray-50 rounded-lg text-center">
+                            <p className="text-gray-600 mb-3">댓글을 작성하려면 로그인이 필요합니다.</p>
+                            <Link
+                                href="/login"
+                                className="inline-flex items-center px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                            >
+                                로그인하기
+                            </Link>
                         </div>
-                    </form>
+                    )}
 
                     {/* 댓글 목록 */}
                     <div className="space-y-4">
@@ -768,6 +897,13 @@ export default function LoLCommunityPostPage() {
                     </Link>
                 </div>
             </div>
+            
+            <Snackbar
+                message={snackbar.message}
+                type={snackbar.type}
+                isVisible={snackbar.isVisible}
+                onClose={closeSnackbar}
+            />
         </div>
     );
 }

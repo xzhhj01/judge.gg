@@ -1,8 +1,27 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
+import Snackbar from "./Snackbar";
 
 export default function PostCard({ post, gameType, currentUser, onEdit, onDelete, onShare }) {
+    const [snackbar, setSnackbar] = useState({
+        message: "",
+        type: "success",
+        isVisible: false
+    });
+
+    const showSnackbar = (message, type = "success") => {
+        setSnackbar({
+            message,
+            type,
+            isVisible: true
+        });
+    };
+
+    const closeSnackbar = () => {
+        setSnackbar(prev => ({ ...prev, isVisible: false }));
+    };
     const formatTimeAgo = (timestamp) => {
         const now = new Date();
         const postTime = new Date(timestamp);
@@ -135,10 +154,10 @@ export default function PostCard({ post, gameType, currentUser, onEdit, onDelete
     // Copy URL to clipboard
     const copyToClipboard = (text) => {
         navigator.clipboard.writeText(text).then(() => {
-            alert('링크가 클립보드에 복사되었습니다!');
+            showSnackbar('링크가 클립보드에 복사되었습니다!', 'success');
         }).catch(err => {
             console.error('Could not copy text: ', err);
-            alert('링크 복사에 실패했습니다.');
+            showSnackbar('링크 복사에 실패했습니다.', 'error');
         });
     };
 
@@ -279,12 +298,21 @@ export default function PostCard({ post, gameType, currentUser, onEdit, onDelete
                                 />
                             </svg>
                             <span className="text-base font-medium text-blue-700">
-                                {post.votes}
+                                {post.voteOptions && Array.isArray(post.voteOptions) && post.voteOptions.length >= 2 
+                                    ? (post.totalVotes || 0)
+                                    : (post.votes || post.likes || 0)
+                                }
                             </span>
                         </div>
                     </div>
                 </div>
             </div>
+            <Snackbar
+                message={snackbar.message}
+                type={snackbar.type}
+                isVisible={snackbar.isVisible}
+                onClose={closeSnackbar}
+            />
         </Link>
     );
 }

@@ -41,7 +41,9 @@ export const communityService = {
   // 일관된 사용자 ID 생성
   generateConsistentUserId(user) {
     if (!user) {
-      console.log('🔍 generateConsistentUserId: user 없음');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🔍 generateConsistentUserId: user 없음');
+      }
       return null;
     }
     
@@ -50,25 +52,33 @@ export const communityService = {
     // NextAuth 사용자 (Google OAuth)
     if (user.id) {
       userId = user.id;
-      console.log(`🔍 generateConsistentUserId: NextAuth ID 사용 - ${userId}`);
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`🔍 generateConsistentUserId: NextAuth ID 사용 - ${userId}`);
+      }
       return userId;
     }
     
     // Firebase 사용자
     if (user.uid) {
       userId = user.uid;
-      console.log(`🔍 generateConsistentUserId: Firebase UID 사용 - ${userId}`);
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`🔍 generateConsistentUserId: Firebase UID 사용 - ${userId}`);
+      }
       return userId;
     }
     
     // 이메일만 있는 경우 (fallback)
     if (user.email) {
       userId = user.email;
-      console.log(`🔍 generateConsistentUserId: 이메일 사용 - ${userId}`);
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`🔍 generateConsistentUserId: 이메일 사용 - ${userId}`);
+      }
       return userId;
     }
     
-    console.log('🔍 generateConsistentUserId: ID 생성 실패, user 객체:', user);
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🔍 generateConsistentUserId: ID 생성 실패, user 객체:', user);
+    }
     return null;
   },
   // 게시글 목록 조회
@@ -199,8 +209,12 @@ export const communityService = {
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
         likes: 0,
+        dislikes: 0,
         views: 0,
-        commentCount: 0
+        commentCount: 0,
+        // 추천 관련 필드 추가 (투표와 별개)
+        recommendations: 0,
+        unrecommendations: 0
       };
 
       const docRef = await addDoc(collection(db, `${gameType}_posts`), docData);
@@ -301,12 +315,14 @@ export const communityService = {
       if (postData.authorUid) authorIdentifiers.add(postData.authorUid);
       if (postData.authorEmail) authorIdentifiers.add(postData.authorEmail);
       
-      console.log('🔍 updatePost 권한 확인:', {
-        currentUser: currentUser,
-        userIdentifiers: Array.from(userIdentifiers),
-        authorIdentifiers: Array.from(authorIdentifiers),
-        postData: postData
-      });
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🔍 updatePost 권한 확인:', {
+          currentUser: currentUser,
+          userIdentifiers: Array.from(userIdentifiers),
+          authorIdentifiers: Array.from(authorIdentifiers),
+          postData: postData
+        });
+      }
       
       // Check for any match
       const isAuthor = Array.from(userIdentifiers).some(userId => 
@@ -317,7 +333,9 @@ export const communityService = {
         throw new Error(`수정 권한이 없습니다. 본인이 작성한 글만 수정할 수 있습니다.`);
       }
       
-      console.log('권한 확인 완료:', { isAuthor, email: currentUser.email });
+      if (process.env.NODE_ENV === 'development') {
+        console.log('권한 확인 완료:', { isAuthor, email: currentUser.email });
+      }
 
       const updateData = {
         title: postData.title,
@@ -385,12 +403,14 @@ export const communityService = {
       if (postData.authorUid) authorIdentifiers.add(postData.authorUid);
       if (postData.authorEmail) authorIdentifiers.add(postData.authorEmail);
       
-      console.log('🔍 deletePost 권한 확인:', {
-        currentUser: currentUser,
-        userIdentifiers: Array.from(userIdentifiers),
-        authorIdentifiers: Array.from(authorIdentifiers),
-        postData: postData
-      });
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🔍 deletePost 권한 확인:', {
+          currentUser: currentUser,
+          userIdentifiers: Array.from(userIdentifiers),
+          authorIdentifiers: Array.from(authorIdentifiers),
+          postData: postData
+        });
+      }
       
       // Check for any match
       const isAuthor = Array.from(userIdentifiers).some(userId => 
@@ -508,6 +528,129 @@ export const communityService = {
       return false;
     } catch (error) {
       console.error('좋아요 실패:', error);
+      throw error;
+    }
+  },
+
+  // 사용자의 추천 여부 확인 (투표와 별개)
+  async checkUserRecommendation(gameType, postId, sessionUser = null) {
+    try {
+      let currentUser = sessionUser;
+      if (!currentUser) {
+        currentUser = auth.currentUser;
+        if (!currentUser) {
+          return null;
+        }
+      }
+
+      const userId = this.generateConsistentUserId(currentUser);
+      if (!userId) return null;
+
+      const recRef = doc(db, `${gameType}_post_recommendations`, `${postId}_${userId}`);
+      const recSnap = await getDoc(recRef);
+      
+      if (recSnap.exists()) {
+        return recSnap.data().recommendationType;
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('추천 확인 실패:', error);
+      return null;
+    }
+  },
+
+  // 게시글 추천 (투표와 별개의 좋아요/싫어요)
+  async recommendPost(gameType, postId, recommendationType, sessionUser = null) {
+    try {
+      // NextAuth 세션 사용자 우선
+      let currentUser = sessionUser;
+      if (!currentUser) {
+        currentUser = auth.currentUser;
+        if (!currentUser) {
+          throw new Error('로그인이 필요합니다.');
+        }
+      }
+
+      const userId = this.generateConsistentUserId(currentUser);
+      if (!userId) {
+        throw new Error('사용자 정보를 확인할 수 없습니다.');
+      }
+
+      // 기존 추천 확인
+      const existingRecommendation = await this.checkUserRecommendation(gameType, postId, sessionUser);
+      
+      const postRef = doc(db, `${gameType}_posts`, postId);
+      const postSnap = await getDoc(postRef);
+      
+      if (!postSnap.exists()) {
+        throw new Error('게시글을 찾을 수 없습니다.');
+      }
+
+      const currentData = postSnap.data();
+      const recDocRef = doc(db, `${gameType}_post_recommendations`, `${postId}_${userId}`);
+      
+      // 같은 추천을 다시 누른 경우 추천 취소
+      if (existingRecommendation === recommendationType) {
+        // 추천 취소
+        await deleteDoc(recDocRef);
+        
+        // 추천 수 감소
+        if (recommendationType === 'recommend') {
+          await updateDoc(postRef, {
+            recommendations: Math.max(0, (currentData.recommendations || 0) - 1)
+          });
+        } else if (recommendationType === 'unrecommend') {
+          await updateDoc(postRef, {
+            unrecommendations: Math.max(0, (currentData.unrecommendations || 0) - 1)
+          });
+        }
+        
+        return { action: 'removed', recommendationType };
+      }
+      
+      // 다른 추천이 있는 경우 기존 추천 제거 후 새 추천 추가
+      if (existingRecommendation && existingRecommendation !== recommendationType) {
+        const updateData = {};
+        
+        if (existingRecommendation === 'recommend') {
+          updateData.recommendations = Math.max(0, (currentData.recommendations || 0) - 1);
+        } else if (existingRecommendation === 'unrecommend') {
+          updateData.unrecommendations = Math.max(0, (currentData.unrecommendations || 0) - 1);
+        }
+        
+        if (recommendationType === 'recommend') {
+          updateData.recommendations = (updateData.recommendations !== undefined ? updateData.recommendations : (currentData.recommendations || 0)) + 1;
+        } else if (recommendationType === 'unrecommend') {
+          updateData.unrecommendations = (updateData.unrecommendations !== undefined ? updateData.unrecommendations : (currentData.unrecommendations || 0)) + 1;
+        }
+        
+        await updateDoc(postRef, updateData);
+      } else if (!existingRecommendation) {
+        // 새로운 추천 추가
+        if (recommendationType === 'recommend') {
+          await updateDoc(postRef, {
+            recommendations: (currentData.recommendations || 0) + 1
+          });
+        } else if (recommendationType === 'unrecommend') {
+          await updateDoc(postRef, {
+            unrecommendations: (currentData.unrecommendations || 0) + 1
+          });
+        }
+      }
+
+      // 추천 기록 저장/업데이트
+      await setDoc(recDocRef, {
+        userId: userId,
+        postId: postId,
+        recommendationType: recommendationType,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+
+      return { action: 'added', recommendationType };
+    } catch (error) {
+      console.error('추천 실패:', error);
       throw error;
     }
   },

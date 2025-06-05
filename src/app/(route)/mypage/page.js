@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import MyPageSidebar from "@/app/components/MyPageSidebar";
 import PostCard from "@/app/components/PostCard";
+import Snackbar from "@/app/components/Snackbar";
 import Link from "next/link";
 import { userService } from '@/app/services/user/user.service';
 import { communityService } from '@/app/services/community/community.service';
@@ -33,6 +34,23 @@ export default function MyPage() {
     });
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [postToDelete, setPostToDelete] = useState(null);
+    const [snackbar, setSnackbar] = useState({
+        message: "",
+        type: "success",
+        isVisible: false
+    });
+
+    const showSnackbar = (message, type = "success") => {
+        setSnackbar({
+            message,
+            type,
+            isVisible: true
+        });
+    };
+
+    const closeSnackbar = () => {
+        setSnackbar(prev => ({ ...prev, isVisible: false }));
+    };
 
     // Redirect if not authenticated (check both NextAuth and Firebase)
     useEffect(() => {
@@ -357,6 +375,12 @@ export default function MyPage() {
                         title: post.title,
                         content: post.content,
                         votes: post.likes || 0,
+                        likes: post.likes || 0,
+                        totalVotes: post.totalVotes || 0,
+                        voteOptions: post.voteOptions,
+                        voteResults: post.voteResults,
+                        allowNeutral: post.allowNeutral,
+                        voteDeadline: post.voteDeadline,
                         views: post.views || 0,
                         tags: post.tags || [],
                         author: {
@@ -501,6 +525,12 @@ export default function MyPage() {
                         title: post.title,
                         content: post.content,
                         votes: post.likes || 0,
+                        likes: post.likes || 0,
+                        totalVotes: post.totalVotes || 0,
+                        voteOptions: post.voteOptions,
+                        voteResults: post.voteResults,
+                        allowNeutral: post.allowNeutral,
+                        voteDeadline: post.voteDeadline,
                         views: post.views || 0,
                         tags: post.tags || [],
                         author: {
@@ -558,10 +588,10 @@ export default function MyPage() {
     // Copy URL to clipboard
     const copyToClipboard = (text) => {
         navigator.clipboard.writeText(text).then(() => {
-            alert('링크가 클립보드에 복사되었습니다!');
+            showSnackbar('링크가 클립보드에 복사되었습니다!', 'success');
         }).catch(err => {
             console.error('Could not copy text: ', err);
-            alert('링크 복사에 실패했습니다.');
+            showSnackbar('링크 복사에 실패했습니다.', 'error');
         });
     };
 
@@ -896,7 +926,7 @@ export default function MyPage() {
                                                             {/* 프로필 이미지 */}
                                                             <div className="relative">
                                                                 <div className="w-16 h-16 bg-gradient-to-br from-primary-400 to-primary-600 rounded-full flex items-center justify-center text-white font-bold text-xl">
-                                                                    {(mentor.userName || mentor.nickname || mentor.name || mentor.displayName || '익명').charAt(
+                                                                    {(mentor.nickname || mentor.userName || mentor.name || mentor.displayName || '익명').charAt(
                                                                         0
                                                                     )}
                                                                 </div>
@@ -915,7 +945,7 @@ export default function MyPage() {
                                                                 <div className="flex items-center mb-1">
                                                                     <h3 className="font-medium text-gray-900 mr-2">
                                                                         {
-                                                                            mentor.userName || mentor.nickname || mentor.name || mentor.displayName || '익명'
+                                                                            mentor.nickname || mentor.userName || mentor.name || mentor.displayName || '익명'
                                                                         }
                                                                     </h3>
                                                                     {mentor.isVerified && (
@@ -1178,6 +1208,13 @@ export default function MyPage() {
                         </div>
                     </div>
                 )}
+                
+                <Snackbar
+                    message={snackbar.message}
+                    type={snackbar.type}
+                    isVisible={snackbar.isVisible}
+                    onClose={closeSnackbar}
+                />
             </div>
         </div>
     );
