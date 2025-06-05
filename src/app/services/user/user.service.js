@@ -538,15 +538,21 @@ export const userService = {
       
       console.log(`🔍 총 ${queries.length}개 쿼리 실행 중 - collection: ${gameType}_posts`);
       
-      // 모든 쿼리를 동시에 실행
-      const snapshots = await Promise.all(queries.map(async (q) => {
+      // 쿼리를 순차적으로 실행 (연결 안정성 향상)
+      const snapshots = [];
+      for (const q of queries) {
         try {
-          return await getDocs(q);
+          const snapshot = await getDocs(q);
+          snapshots.push(snapshot);
+          // 첫 번째 결과가 있으면 더 이상 실행하지 않음
+          if (!snapshot.empty) {
+            break;
+          }
         } catch (error) {
           console.error('🔍 개별 쿼리 실행 오류:', error);
-          return { docs: [] }; // 빈 결과 반환
+          snapshots.push({ docs: [] });
         }
-      }));
+      }
       
       let totalResults = 0;
       snapshots.forEach((snapshot, index) => {
@@ -773,15 +779,21 @@ export const userService = {
       
       console.log(`🔍 총 ${queries.length}개 댓글 쿼리 실행 중 - collection: ${gameType}_comments`);
       
-      // 모든 쿼리를 동시에 실행
-      const snapshots = await Promise.all(queries.map(async (q) => {
+      // 쿼리를 순차적으로 실행 (연결 안정성 향상)
+      const snapshots = [];
+      for (const q of queries) {
         try {
-          return await getDocs(q);
+          const snapshot = await getDocs(q);
+          snapshots.push(snapshot);
+          // 첫 번째 결과가 있으면 더 이상 실행하지 않음
+          if (!snapshot.empty) {
+            break;
+          }
         } catch (error) {
           console.error('🔍 개별 댓글 쿼리 실행 오류:', error);
-          return { docs: [] }; // 빈 결과 반환
+          snapshots.push({ docs: [] });
         }
-      }));
+      }
       
       let totalResults = 0;
       snapshots.forEach((snapshot, index) => {
@@ -1127,15 +1139,21 @@ export const userService = {
         ));
       });
       
-      // 모든 쿼리를 동시에 실행
-      const snapshots = await Promise.all(queries.map(async (q) => {
+      // 쿼리를 순차적으로 실행 (연결 안정성 향상)
+      const snapshots = [];
+      for (const q of queries) {
         try {
-          return await getDocs(q);
+          const snapshot = await getDocs(q);
+          snapshots.push(snapshot);
+          // 첫 번째 결과가 있으면 더 이상 실행하지 않음
+          if (!snapshot.empty) {
+            break;
+          }
         } catch (error) {
           console.error('🔍 개별 멘토 쿼리 실행 오류:', error);
-          return { docs: [] };
+          snapshots.push({ docs: [] });
         }
-      }));
+      }
       
       // 첫 번째로 찾은 멘토 사용
       let mentorDoc = null;
@@ -1305,14 +1323,21 @@ export const userService = {
         ));
       });
 
-      const snapshots = await Promise.all(queries.map(async (q) => {
+      // 쿼리를 순차적으로 실행 (연결 안정성 향상)
+      const snapshots = [];
+      for (const q of queries) {
         try {
-          return await getDocs(q);
+          const snapshot = await getDocs(q);
+          snapshots.push(snapshot);
+          // 첫 번째 결과가 있으면 더 이상 실행하지 않음
+          if (!snapshot.empty) {
+            break;
+          }
         } catch (error) {
           console.error('개별 댓글 쿼리 실행 오류:', error);
-          return { docs: [] };
+          snapshots.push({ docs: [] });
         }
-      }));
+      }
 
       const comments = [];
       const commentIds = new Set();

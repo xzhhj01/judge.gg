@@ -185,7 +185,7 @@ export default function MyPage() {
         let lolTier = cachedData?.tiers?.lol || null;
         if (lolRiotId && lolVerified) {
             try {
-                const lolTierData = await userService.getLolTierInfo();
+                const lolTierData = await userService.getLolTierInfo(currentUser);
                 if (lolTierData.verified) {
                     lolProfile = {
                         summoner: lolTierData.summoner,
@@ -210,7 +210,7 @@ export default function MyPage() {
         let valorantTier = cachedData?.tiers?.valorant || null;
         if (valorantRiotId && valorantVerified) {
             try {
-                const valorantProfileData = await userService.getValorantProfile();
+                const valorantProfileData = await userService.getValorantProfile(currentUser);
                 if (valorantProfileData.verified) {
                     valorantProfile = valorantProfileData.profile;
                     valorantTier = `${valorantProfileData.profile.winRate}% 승률`;
@@ -522,7 +522,8 @@ export default function MyPage() {
                 if (isRefresh) {
                     console.log("LoL 정보 새로고침 시작:", riotId);
                     // 새로고침의 경우 기존 PUUID로 최신 티어 정보 조회
-                    const result = await userService.getLolTierInfo();
+                    const currentUser = user || session?.user;
+                    const result = await userService.getLolTierInfo(currentUser);
                     console.log("LoL 티어 정보 새로고침 성공:", result);
                 } else {
                     // 새로운 연동의 경우 Riot API 검증을 통한 연동

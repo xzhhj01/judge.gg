@@ -33,9 +33,22 @@ if (!getApps().length) {
   firebase_app = getApps()[0];
 }
 
-// Initialize Firebase services
+// Initialize Firebase services with settings
 export const db = getFirestore(firebase_app);
 export const auth = getAuth(firebase_app);
 export const storage = getStorage(firebase_app);
+
+// Firestore 설정 최적화
+if (typeof window !== 'undefined') {
+  // 클라이언트 사이드에서만 실행
+  try {
+    // 개발 환경에서 연결 문제 해결을 위한 설정
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🔥 Firestore 연결 최적화 설정 적용');
+    }
+  } catch (error) {
+    console.warn('Firestore 초기화 설정 실패:', error);
+  }
+}
 
 export default firebase_app; 

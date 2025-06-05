@@ -120,7 +120,19 @@ export const communityService = {
       } else if (gameType === 'valorant') {
         // Valorant 랭크 정보 조회
         if (userData.valorantVerified && userData.valorantPuuid) {
-          tier = userData.valorantCurrentTier || 'Unranked';
+          try {
+            const valorantResponse = await fetch(`/api/riot/valorant/verify?userId=${userId}`);
+            if (valorantResponse.ok) {
+              const valorantData = await valorantResponse.json();
+              if (valorantData.verified && valorantData.profile?.currentTier) {
+                tier = valorantData.profile.currentTier;
+              }
+            }
+          } catch (error) {
+            console.error('Valorant 랭크 API 호출 실패:', error);
+            // 저장된 데이터 사용
+            tier = userData.valorantCurrentTier || 'Unranked';
+          }
         }
       }
       
@@ -600,7 +612,7 @@ export const communityService = {
         try {
           console.log('🔍 댓글 작성 - LoL 랭크 정보 조회 시작');
           const { userService } = await import('@/app/services/user/user.service');
-          const tierData = await userService.getLolTierInfo();
+          const tierData = await userService.getLolTierInfo(currentUser);
           
           if (tierData && tierData.verified && tierData.ranks?.solo) {
             const soloRank = tierData.ranks.solo;
@@ -617,10 +629,10 @@ export const communityService = {
         try {
           console.log('🔍 댓글 작성 - Valorant 랭크 정보 조회 시작');
           const { userService } = await import('@/app/services/user/user.service');
-          const tierData = await userService.getValorantTierInfo();
+          const profileData = await userService.getValorantProfile(currentUser);
           
-          if (tierData && tierData.verified && tierData.currentTier) {
-            userTier = tierData.currentTier;
+          if (profileData && profileData.verified && profileData.profile?.currentTier) {
+            userTier = profileData.profile.currentTier;
             console.log('🔍 댓글 작성 - 사용자 랭크:', userTier);
           } else {
             console.log('🔍 댓글 작성 - 랭크 정보 없음, Unranked 사용');

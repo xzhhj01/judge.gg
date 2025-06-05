@@ -620,15 +620,21 @@ export const mentorService = {
         ));
       });
       
-      // 모든 쿼리를 동시에 실행
-      const snapshots = await Promise.all(queries.map(async (q) => {
+      // 쿼리를 순차적으로 실행 (연결 안정성 향상)
+      const snapshots = [];
+      for (const q of queries) {
         try {
-          return await getDocs(q);
+          const snapshot = await getDocs(q);
+          snapshots.push(snapshot);
+          // 첫 번째 결과가 있으면 더 이상 실행하지 않음
+          if (!snapshot.empty) {
+            break;
+          }
         } catch (error) {
           console.error('🔍 개별 멘토 쿼리 실행 오류:', error);
-          return { docs: [] };
+          snapshots.push({ docs: [] });
         }
-      }));
+      }
       
       // 승인된 멘토 정보만 반환 (승인된 멘토만이 피드백을 받을 수 있음)
       let mentorDoc = null;
