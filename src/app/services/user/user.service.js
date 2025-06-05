@@ -158,22 +158,56 @@ export const userService = {
   // LoL Riot API를 통한 검증된 계정 연동
   async verifyAndConnectLolAccount(riotId, sessionUser = null) {
     try {
-      // API 엔드포인트를 통해 검증 및 연동
-      const response = await fetch('/api/riot/verify', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ riotId })
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || 'LoL 계정 연동에 실패했습니다.');
+      console.log('🔍 LoL 계정 검증 시작:', riotId);
+      
+      // 1. Riot ID를 gameName#tagLine으로 파싱
+      const [gameName, tagLine] = riotId.split('#');
+      if (!gameName || !tagLine) {
+        throw new Error('Riot ID 형식이 올바르지 않습니다. (예: Hide on bush#KR1)');
       }
 
-      return result;
+      // 2. Riot API를 통해 PUUID 조회
+      const accountResponse = await fetch(`/api/riot?gameName=${encodeURIComponent(gameName)}&tagLine=${encodeURIComponent(tagLine)}`);
+      const accountData = await accountResponse.json();
+      
+      if (!accountResponse.ok) {
+        throw new Error(accountData.message || '계정을 찾을 수 없습니다.');
+      }
+
+      console.log('🔍 계정 정보 조회 성공:', accountData);
+
+      // 3. PUUID로 LoL 프로필 조회
+      const lolResponse = await fetch(`/api/riot/lol?puuid=${accountData.puuid}`);
+      const lolData = await lolResponse.json();
+      
+      if (!lolResponse.ok) {
+        throw new Error(lolData.message || 'LoL 프로필을 찾을 수 없습니다.');
+      }
+
+      console.log('🔍 LoL 프로필 조회 성공:', lolData);
+
+      // 4. 사용자 정보에 저장
+      const user = auth.currentUser;
+      if (!user) {
+        throw new Error('로그인이 필요합니다.');
+      }
+
+      const userRef = doc(db, 'users', user.uid);
+      await updateDoc(userRef, {
+        lolRiotId: riotId,
+        lolPuuid: accountData.puuid,
+        lolSummonerId: lolData.summoner.id,
+        lolVerified: true,
+        lolProfileData: lolData,
+        updatedAt: serverTimestamp()
+      });
+
+      return {
+        verified: true,
+        riotId: riotId,
+        puuid: accountData.puuid,
+        profile: lolData
+      };
     } catch (error) {
       console.error('LoL 계정 검증 및 연동 실패:', error);
       throw error;
@@ -183,23 +217,55 @@ export const userService = {
   // 사용자의 LoL 프로필 정보 조회
   async getLolProfile(sessionUser = null) {
     try {
-      const response = await fetch('/api/riot/verify', {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        }
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          throw new Error('로그인이 필요합니다.');
-        }
-        throw new Error(result.error || 'LoL 프로필 조회에 실패했습니다.');
+      const user = auth.currentUser;
+      if (!user) {
+        throw new Error('로그인이 필요합니다.');
       }
 
-      return result;
+      // 사용자 정보에서 LoL 프로필 데이터 조회
+      const userRef = doc(db, 'users', user.uid);
+      const userSnap = await getDoc(userRef);
+      
+      if (!userSnap.exists()) {
+        throw new Error('사용자 정보를 찾을 수 없습니다.');
+      }
+
+      const userData = userSnap.data();
+      
+      if (!userData.lolVerified || !userData.lolPuuid) {
+        throw new Error('LoL 계정이 연동되지 않았습니다.');
+      }
+
+      // 최신 프로필 정보 갱신 (선택적)
+      try {
+        const lolResponse = await fetch(`/api/riot/lol?puuid=${userData.lolPuuid}`);
+        if (lolResponse.ok) {
+          const lolData = await lolResponse.json();
+          
+          // 최신 정보로 업데이트
+          await updateDoc(userRef, {
+            lolProfileData: lolData,
+            updatedAt: serverTimestamp()
+          });
+
+          return {
+            verified: true,
+            riotId: userData.lolRiotId,
+            puuid: userData.lolPuuid,
+            profile: lolData
+          };
+        }
+      } catch (error) {
+        console.error('최신 프로필 갱신 실패:', error);
+      }
+
+      // 저장된 데이터 반환
+      return {
+        verified: userData.lolVerified,
+        riotId: userData.lolRiotId,
+        puuid: userData.lolPuuid,
+        profile: userData.lolProfileData
+      };
     } catch (error) {
       console.error('LoL 프로필 조회 실패:', error);
       throw error;

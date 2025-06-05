@@ -8,15 +8,40 @@ export async function GET(req) {
   const { searchParams } = new URL(req.url);
   const gameName = searchParams.get('gameName');
   const tagLine  = searchParams.get('tagLine');
+  const puuid    = searchParams.get('puuid');
 
+  // 1. PUUID로 Riot ID 조회
+  if (puuid) {
+    const url = `${RIOT_BASE}/riot/account/v1/accounts/by-puuid/${encodeURIComponent(puuid)}`;
+    
+    try {
+      const res = await fetch(url, {
+        headers: {
+          'Accept'       : 'application/json',
+          'X-Riot-Token' : API_KEY
+        },
+        cache: 'no-store'
+      });
+
+      const data = await res.json();
+      return NextResponse.json(data, { status: res.status });
+
+    } catch (err) {
+      return NextResponse.json(
+        { message: 'Riot API 호출 실패 (PUUID)', detail: err.message },
+        { status: 502 }
+      );
+    }
+  }
+
+  // 2. Riot ID (gameName + tagLine)로 계정 조회
   if (!gameName || !tagLine) {
     return NextResponse.json(
-      { message: 'query ?gameName=...&tagLine=... 가 필요합니다' },
+      { message: 'query ?gameName=...&tagLine=... 또는 ?puuid=... 가 필요합니다' },
       { status: 400 }
     );
   }
 
-  // Riot API URL
   const url =
     `${RIOT_BASE}/riot/account/v1/accounts/by-riot-id/` +
     `${encodeURIComponent(gameName)}/${encodeURIComponent(tagLine)}`;

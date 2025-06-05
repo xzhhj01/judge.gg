@@ -118,7 +118,13 @@ export default function MyPage() {
                             const lolProfileData = await userService.getLolProfile();
                             if (lolProfileData.verified) {
                                 lolProfile = lolProfileData.profile;
-                                lolTier = lolProfileData.profile.soloRank;
+                                // 솔로랭크 티어 정보 구성
+                                if (lolProfile?.ranks?.solo) {
+                                    const soloRank = lolProfile.ranks.solo;
+                                    lolTier = `${soloRank.tier} ${soloRank.rank} (${soloRank.leaguePoints}LP)`;
+                                } else {
+                                    lolTier = "Unranked";
+                                }
                             }
                         } catch (error) {
                             console.error('LoL 프로필 로드 실패:', error);
