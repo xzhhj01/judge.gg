@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { mentorService } from "@/app/services/mentor/mentor.service";
+import { useAuth } from '@/app/utils/providers';
 
 const ServiceCard = ({ service, game }) => {
     const gameColor = game === "lol" ? "blue" : "red";
@@ -34,6 +36,7 @@ const ServiceCard = ({ service, game }) => {
 export default function MentorDetailPage() {
     const params = useParams();
     const mentorId = params.id;
+    const { user } = useAuth();
     const [activeTab, setActiveTab] = useState("reviews");
     const [showContactModal, setShowContactModal] = useState(false);
     const [showApplyModal, setShowApplyModal] = useState(false);
@@ -42,6 +45,9 @@ export default function MentorDetailPage() {
     const [showReviewModal, setShowReviewModal] = useState(false);
     const [rating, setRating] = useState(0);
     const [hoveredRating, setHoveredRating] = useState(0);
+    const [reviewText, setReviewText] = useState("");
+    const [reviews, setReviews] = useState([]);
+    const [submittingReview, setSubmittingReview] = useState(false);
 
     // 스낵바 자동 숨김
     useEffect(() => {
@@ -52,6 +58,39 @@ export default function MentorDetailPage() {
             return () => clearTimeout(timer);
         }
     }, [snackbar.show]);
+
+    // 멘토 리뷰 데이터 로드
+    useEffect(() => {
+        const loadReviews = async () => {
+            try {
+                // 실제로는 mentorService.getMentorReviews(mentorId) 호출
+                // 현재는 임시 데이터로 초기화
+                const mockReviews = [
+                    {
+                        id: 1,
+                        userName: "실버탈출가능?",
+                        rating: 5,
+                        comment: "정글링 루트부터 갱킹 타이밍까지 자세히 설명해주셔서 많이 배웠습니다. 특히 오브젝트 우선순위 설정하는 법을 알려주셔서 좋았어요!",
+                        createdAt: "2024-03-15",
+                    },
+                    {
+                        id: 2,
+                        userName: "브론즈마스터",
+                        rating: 4,
+                        comment: "친절하게 알려주시고 실력도 많이 늘었어요. 다만 조금 더 구체적인 예시가 있었으면 좋겠어요.",
+                        createdAt: "2024-03-10",
+                    },
+                ];
+                setReviews(mockReviews);
+            } catch (error) {
+                console.error('리뷰 로드 실패:', error);
+            }
+        };
+
+        if (mentorId) {
+            loadReviews();
+        }
+    }, [mentorId]);
 
     const showSnackbar = (message) => {
         setSnackbar({ show: true, message });
@@ -67,6 +106,53 @@ export default function MentorDetailPage() {
     const handleShare = () => {
         navigator.clipboard.writeText(window.location.href);
         showSnackbar("링크가 복사되었어요.");
+    };
+
+    // 리뷰 제출 함수
+    const handleSubmitReview = async () => {
+        if (!user) {
+            showSnackbar("로그인이 필요합니다.");
+            return;
+        }
+
+        if (!rating || !reviewText.trim()) {
+            showSnackbar("별점과 리뷰 내용을 모두 입력해주세요.");
+            return;
+        }
+
+        setSubmittingReview(true);
+        try {
+            const reviewData = {
+                mentorId: mentorId,
+                rating: rating,
+                comment: reviewText.trim(),
+                reviewerId: user.uid,
+                reviewerName: user.displayName || user.email || "익명",
+            };
+
+            await mentorService.addMentorReview(reviewData);
+            
+            // 새로운 리뷰를 로컬 상태에 추가
+            const newReview = {
+                ...reviewData,
+                id: Date.now().toString(),
+                createdAt: new Date().toISOString(),
+            };
+            setReviews(prev => [newReview, ...prev]);
+
+            // 모달 닫기 및 상태 초기화
+            setShowReviewModal(false);
+            setRating(0);
+            setHoveredRating(0);
+            setReviewText("");
+            
+            showSnackbar("리뷰가 성공적으로 등록되었습니다!");
+        } catch (error) {
+            console.error('리뷰 제출 실패:', error);
+            showSnackbar("리뷰 등록에 실패했습니다. 다시 시도해주세요.");
+        } finally {
+            setSubmittingReview(false);
+        }
     };
 
     // 더미 멘토 데이터 (실제로는 API에서 ID로 조회)
@@ -474,7 +560,7 @@ export default function MentorDetailPage() {
                         </section>
 
                         {/* 3. Experience 영역 */}
-                        <section className="bg-white rounded-xl border border-gray-200 p-6">
+                        <section id="experience" className="bg-white rounded-xl border border-gray-200 p-6">
                             <h2 className="text-lg font-semibold text-gray-900 mb-4">
                                 경력
                             </h2>
@@ -581,7 +667,7 @@ export default function MentorDetailPage() {
                         </section>
 
                         {/* 6. 상세 소개 영역 */}
-                        <section className="bg-white rounded-xl border border-gray-200 p-6">
+                        <section id="introduction" className="bg-white rounded-xl border border-gray-200 p-6">
                             <h2 className="text-lg font-semibold text-gray-900 mb-4">
                                 상세 소개
                             </h2>
@@ -592,7 +678,7 @@ export default function MentorDetailPage() {
                         </section>
 
                         {/* 5. 탭 영역 */}
-                        <section className="bg-white rounded-xl border border-gray-200">
+                        <section id="reviews" className="bg-white rounded-xl border border-gray-200">
                             {/* 탭 헤더 */}
                             <div className="border-b border-gray-200">
                                 <nav className="grid grid-cols-2">
@@ -670,7 +756,7 @@ export default function MentorDetailPage() {
 
                                         {/* 리뷰 목록 */}
                                         <div className="space-y-4">
-                                            {mockReviews.map((review) => (
+                                            {reviews.map((review) => (
                                                 <div
                                                     key={review.id}
                                                     className="border border-gray-200 rounded-lg p-4"
@@ -680,7 +766,7 @@ export default function MentorDetailPage() {
                                                             <div className="flex items-center gap-2">
                                                                 <span className="font-medium text-gray-900">
                                                                     {
-                                                                        review.userName
+                                                                        review.reviewerName || review.userName
                                                                     }
                                                                 </span>
                                                                 <span className="text-sm text-gray-500">
@@ -719,7 +805,7 @@ export default function MentorDetailPage() {
                                                         </span>
                                                     </div>
                                                     <p className="text-gray-700">
-                                                        {review.content}
+                                                        {review.comment || review.content}
                                                     </p>
                                                 </div>
                                             ))}
@@ -1065,6 +1151,8 @@ export default function MentorDetailPage() {
                                     상세한 리뷰를 작성해주세요
                                 </label>
                                 <textarea
+                                    value={reviewText}
+                                    onChange={(e) => setReviewText(e.target.value)}
                                     className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 min-h-[120px]"
                                     placeholder="멘토님의 피드백이 어떤 점에서 도움이 되었나요?"
                                 />
@@ -1077,22 +1165,19 @@ export default function MentorDetailPage() {
                                     setShowReviewModal(false);
                                     setRating(0);
                                     setHoveredRating(0);
+                                    setReviewText("");
                                 }}
                                 className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium"
+                                disabled={submittingReview}
                             >
                                 취소
                             </button>
                             <button
-                                onClick={() => {
-                                    // TODO: 리뷰 제출 로직 구현
-                                    setShowReviewModal(false);
-                                    setRating(0);
-                                    setHoveredRating(0);
-                                }}
-                                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium"
-                                disabled={!rating}
+                                onClick={handleSubmitReview}
+                                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                                disabled={!rating || !reviewText.trim() || submittingReview}
                             >
-                                리뷰 등록
+                                {submittingReview ? "등록 중..." : "리뷰 등록"}
                             </button>
                         </div>
                     </div>

@@ -11,7 +11,6 @@ import FixedWidthPostCard from "@/app/components/FixedWidthPostCard";
 import PopularPostCard from "@/app/components/PopularPostCard";
 import { useAuth } from "@/app/utils/providers";
 import { communityService } from "@/app/services/community/community.service";
-import dummyPosts from "@/data/dummyPosts.json";
 
 // 인기 게시물 카드 컴포넌트
 const PostCard = ({ post }) => {
@@ -113,6 +112,7 @@ export default function ValorantMainPage() {
     const [deadlinePosts, setDeadlinePosts] = useState([]);
     const [recentPosts, setRecentPosts] = useState([]);
     const [userPosts, setUserPosts] = useState([]);
+    const [allUserPosts, setAllUserPosts] = useState([]);
     const { user } = useAuth();
 
     useEffect(() => {
@@ -122,67 +122,30 @@ export default function ValorantMainPage() {
                 const popularResult = await communityService.getPosts('valorant', [], '', 1, 10, 'popular');
                 const recentResult = await communityService.getPosts('valorant', [], '', 1, 10, 'recent');
                 
-                // 더미 데이터에서 Valorant 게시물 필터링
-                const valorantPosts = dummyPosts.posts.filter(
-                    (post) => post.gameType === "valorant"
-                );
-
-                // Firebase 데이터와 더미 데이터 합치기
-                const allPopularPosts = [...popularResult.posts, ...valorantPosts];
-                const allRecentPosts = [...recentResult.posts, ...valorantPosts];
-
                 // 인기 게시물 (가중치 기반 정렬)
-                const popular = communityService.sortPosts(allPopularPosts, 'popular').slice(0, 3);
+                const popular = communityService.sortPosts(popularResult.posts, 'popular').slice(0, 3);
                 setPopularPosts(popular);
 
                 // 최신 게시물 (최신순 정렬)
-                const recent = communityService.sortPosts(allRecentPosts, 'recent').slice(0, 3);
+                const recent = communityService.sortPosts(recentResult.posts, 'recent').slice(0, 3);
                 setRecentPosts(recent);
 
-                // 분쟁 활발 게시물 (투표 비율이 비슷한 순)
-                const controversial = [...valorantPosts]
-                    .filter((post) => post.voteCounts)
-                    .sort((a, b) => {
-                        const ratioA = Math.abs(
-                            a.voteCounts.option1 /
-                                (a.voteCounts.option1 + a.voteCounts.option2) -
-                                0.5
-                        );
-                        const ratioB = Math.abs(
-                            b.voteCounts.option1 /
-                                (b.voteCounts.option1 + b.voteCounts.option2) -
-                                0.5
-                        );
-                        return ratioA - ratioB;
-                    })
-                    .slice(0, 1);
+                // 분쟁 활발 게시물 조회
+                const controversial = await communityService.getControversialPosts('valorant', 1);
                 setControversialPosts(controversial);
 
-                // 마감 임박 게시물
-                const deadline = [...valorantPosts]
-                    .filter((post) => post.voteEndTime)
-                    .sort((a, b) => new Date(a.voteEndTime) - new Date(b.voteEndTime))
-                    .slice(0, 1);
-                setDeadlinePosts(deadline);
+                // 마감 임박 게시물은 빈 상태로 설정 (투표 기능 구현 후 추가 예정)
+                setDeadlinePosts([]);
 
                 console.log("인기 게시물:", popular);
                 console.log("최신 게시물:", recent);
             } catch (error) {
                 console.error('게시물 로드 실패:', error);
-                // 에러 발생 시 더미 데이터만 사용
-                const valorantPosts = dummyPosts.posts.filter(
-                    (post) => post.gameType === "valorant"
-                );
-                
-                const popular = [...valorantPosts]
-                    .sort((a, b) => (b.votes || 0) - (a.votes || 0))
-                    .slice(0, 3);
-                setPopularPosts(popular);
-
-                const recent = [...valorantPosts]
-                    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-                    .slice(0, 3);
-                setRecentPosts(recent);
+                // 에러 발생 시 빈 배열로 설정
+                setPopularPosts([]);
+                setRecentPosts([]);
+                setControversialPosts([]);
+                setDeadlinePosts([]);
             }
         };
 
@@ -196,15 +159,23 @@ export default function ValorantMainPage() {
                 try {
                     const result = await communityService.getUserPosts('valorant', user.uid, 3);
                     setUserPosts(result.posts);
+                    
+                    // 모든 게임의 사용자 게시물도 로드
+                    const allResult = await communityService.getAllUserPosts(user.uid, 5);
+                    setAllUserPosts(allResult.posts);
+                    
                     console.log("사용자 게시물:", result.posts);
+                    console.log("전체 사용자 게시물:", allResult.posts);
                 } catch (error) {
                     console.error("사용자 게시물 로드 실패:", error);
                     // 에러 발생 시 빈 배열로 설정하여 UI 오류 방지
                     setUserPosts([]);
+                    setAllUserPosts([]);
                 }
             } else {
                 // 사용자가 로그인하지 않은 경우 빈 배열로 설정
                 setUserPosts([]);
+                setAllUserPosts([]);
             }
         };
 
@@ -402,12 +373,40 @@ export default function ValorantMainPage() {
                     </div>
                 </section>
 
-                {/* 내가 작성한 글 섹션 */}
+                {/* 내가 작성한 모든 게시글 섹션 */}
+                {user && allUserPosts.length > 0 && (
+                    <section className="mb-12">
+                        <div className="flex justify-between items-center mb-6">
+                            <h2 className="text-2xl font-bold text-gray-900">
+                                ✍️ 내가 작성한 모든 게시글
+                            </h2>
+                            <Link
+                                href="/mypage"
+                                className="text-red-600 hover:text-red-700"
+                            >
+                                더 보기 →
+                            </Link>
+                        </div>
+                        <div className="overflow-x-auto">
+                            <div className="flex gap-4 pb-4">
+                                {allUserPosts.map((post) => (
+                                    <PopularPostCard
+                                        key={`${post.gameType}-${post.id}`}
+                                        post={post}
+                                        gameType={post.gameType}
+                                    />
+                                ))}
+                            </div>
+                        </div>
+                    </section>
+                )}
+
+                {/* 내가 작성한 Valorant 글 섹션 */}
                 {user && userPosts.length > 0 && (
                     <section className="mb-12">
                         <div className="flex justify-between items-center mb-6">
                             <h2 className="text-2xl font-bold text-gray-900">
-                                ✍️ 내가 작성한 글
+                                🎯 내가 작성한 Valorant 게시글
                             </h2>
                             <Link
                                 href="/valorant/community?filter=my"

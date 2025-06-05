@@ -15,7 +15,6 @@ import {
   deleteDoc 
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import dummyData from '@/data/dummyPosts.json';
 
 export const communityService = {
   // 게시글 목록 조회
@@ -170,41 +169,21 @@ export const communityService = {
   // 개별 게시글 조회
   async getPostById(gameType, postId) {
     try {
-      // 더미 데이터에서 해당 게시글 찾기
-      const post = dummyData.posts.find(p => 
-        p.id === parseInt(postId) && p.gameType === gameType
-      );
+      const docRef = doc(db, `${gameType}_posts`, postId);
+      const docSnap = await getDoc(docRef);
       
-      if (post) {
-        // 조회수 증가 (메모리에서만)
-        const updatedPost = {
-          ...post,
-          views: (post.views || 0) + 1,
-          createdAt: new Date(post.createdAt),
-          authorName: post.author.nickname,
-          likes: post.votes || 0,
-          commentCount: post.commentsList ? post.commentsList.length : 0
+      if (docSnap.exists()) {
+        await updateDoc(docRef, {
+          views: (docSnap.data().views || 0) + 1
+        });
+        
+        return {
+          id: docSnap.id,
+          ...docSnap.data(),
+          views: (docSnap.data().views || 0) + 1
         };
-        
-        return updatedPost;
       } else {
-        // Firestore에서 조회 시도 (fallback)
-        const docRef = doc(db, `${gameType}_posts`, postId);
-        const docSnap = await getDoc(docRef);
-        
-        if (docSnap.exists()) {
-          await updateDoc(docRef, {
-            views: (docSnap.data().views || 0) + 1
-          });
-          
-          return {
-            id: docSnap.id,
-            ...docSnap.data(),
-            views: (docSnap.data().views || 0) + 1
-          };
-        } else {
-          throw new Error('게시글을 찾을 수 없습니다.');
-        }
+        throw new Error('게시글을 찾을 수 없습니다.');
       }
     } catch (error) {
       console.error(`${gameType} 게시글 조회 실패:`, error);
@@ -374,49 +353,29 @@ export const communityService = {
   // 댓글 조회
   async getComments(gameType, postId) {
     try {
-      // 더미 데이터에서 해당 게시글의 댓글 찾기
-      const post = dummyData.posts.find(p => 
-        p.id === parseInt(postId) && p.gameType === gameType
+      const q = query(
+        collection(db, `${gameType}_comments`),
+        where('postId', '==', postId)
       );
       
-      if (post && post.commentsList) {
-        // 더미 댓글 데이터를 Firebase 형식으로 변환
-        const comments = post.commentsList.map(comment => ({
-          id: comment.id,
-          content: comment.content,
-          authorName: comment.authorName,
-          createdAt: new Date(comment.createdAt),
-          likes: comment.likes || 0,
-          postId: postId
-        }));
-        
-        return comments;
-      } else {
-        // Firestore에서 조회 시도 (fallback)
-        const q = query(
-          collection(db, `${gameType}_comments`),
-          where('postId', '==', postId)
-        );
-        
-        const querySnapshot = await getDocs(q);
-        const comments = [];
-        
-        querySnapshot.forEach((doc) => {
-          comments.push({
-            id: doc.id,
-            ...doc.data()
-          });
+      const querySnapshot = await getDocs(q);
+      const comments = [];
+      
+      querySnapshot.forEach((doc) => {
+        comments.push({
+          id: doc.id,
+          ...doc.data()
         });
-        
-        // 클라이언트에서 정렬 (오래된 순)
-        comments.sort((a, b) => {
-          const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt);
-          const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt);
-          return dateA - dateB;
-        });
-        
-        return comments;
-      }
+      });
+      
+      // 클라이언트에서 정렬 (오래된 순)
+      comments.sort((a, b) => {
+        const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt);
+        const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt);
+        return dateA - dateB;
+      });
+      
+      return comments;
     } catch (error) {
       console.error('댓글 조회 실패:', error);
       throw error;
@@ -481,26 +440,6 @@ export const communityService = {
       // 제한된 수만큼 반환
       const limitedPosts = posts.slice(0, limit);
 
-      // 실제 게시물이 없으면 더미 데이터로 시뮬레이션
-      if (limitedPosts.length === 0) {
-        console.log(`${gameType} 실제 사용자 게시물이 없어서 더미 데이터 사용`);
-        const userPosts = dummyData.posts
-          .filter(post => post.gameType === gameType)
-          .slice(0, limit)
-          .map(post => ({
-            ...post,
-            authorId: userId, // 시뮬레이션을 위해 설정
-            authorName: post.author?.nickname || 'Unknown',
-            createdAt: new Date(post.createdAt),
-            likes: post.votes || 0,
-            commentCount: post.commentsList ? post.commentsList.length : 0
-          }));
-
-        return {
-          posts: userPosts,
-          total: userPosts.length
-        };
-      }
 
       return {
         posts: limitedPosts,
@@ -508,23 +447,7 @@ export const communityService = {
       };
     } catch (error) {
       console.error(`${gameType} 사용자 게시글 조회 실패:`, error);
-      // Firestore에서 실패하면 더미 데이터에서 시뮬레이션
-      const userPosts = dummyData.posts
-        .filter(post => post.gameType === gameType)
-        .slice(0, limit)
-        .map(post => ({
-          ...post,
-          authorId: userId, // 시뮬레이션을 위해 설정
-          authorName: post.author?.nickname || 'Unknown',
-          createdAt: new Date(post.createdAt),
-          likes: post.votes || 0,
-          commentCount: post.commentsList ? post.commentsList.length : 0
-        }));
-
-      return {
-        posts: userPosts,
-        total: userPosts.length
-      };
+      return { posts: [], total: 0 };
     }
   },
 
@@ -570,24 +493,6 @@ export const communityService = {
       // 제한된 수만큼 반환
       const limitedPosts = allPosts.slice(0, limit);
 
-      // Firestore에서 데이터가 없으면 더미 데이터로 시뮬레이션
-      if (limitedPosts.length === 0) {
-        const dummyUserPosts = dummyData.posts
-          .slice(0, limit)
-          .map(post => ({
-            ...post,
-            authorId: userId,
-            authorName: post.author?.nickname || 'Unknown',
-            createdAt: new Date(post.createdAt),
-            likes: post.votes || 0,
-            commentCount: post.commentsList ? post.commentsList.length : 0
-          }));
-
-        return {
-          posts: dummyUserPosts,
-          total: dummyUserPosts.length
-        };
-      }
 
       return {
         posts: limitedPosts,
@@ -596,6 +501,114 @@ export const communityService = {
     } catch (error) {
       console.error('전체 사용자 게시글 조회 실패:', error);
       return { posts: [], total: 0 };
+    }
+  },
+
+  // 분쟁 활발 게시물 조회 (댓글 수 + 투표 수 기반)
+  async getControversialPosts(gameType, limit = 3) {
+    try {
+      const q = query(
+        collection(db, `${gameType}_posts`),
+        firestoreLimit(limit * 3) // 여유분을 두고 가져옴
+      );
+      
+      const querySnapshot = await getDocs(q);
+      const posts = [];
+      
+      querySnapshot.forEach((doc) => {
+        posts.push({
+          id: doc.id,
+          ...doc.data()
+        });
+      });
+
+      // 분쟁 점수 계산 (댓글 수 40% + 투표 수 30% + 조회수 30%)
+      const scoredPosts = posts.map(post => {
+        const commentScore = (post.commentCount || 0) * 0.4;
+        const voteScore = (post.likes || 0) * 0.3;
+        const viewScore = (post.views || 0) * 0.3;
+        const controversyScore = commentScore + voteScore + viewScore;
+        
+        return {
+          ...post,
+          controversyScore
+        };
+      });
+
+      // 분쟁 점수순으로 정렬
+      scoredPosts.sort((a, b) => b.controversyScore - a.controversyScore);
+      
+      return scoredPosts.slice(0, limit);
+    } catch (error) {
+      console.error(`${gameType} 분쟁 활발 게시물 조회 실패:`, error);
+      return [];
+    }
+  },
+
+  // 게시글 투표 (좋아요/싫어요)
+  async votePost(gameType, postId, voteType) {
+    try {
+      const user = auth.currentUser;
+      if (!user) {
+        throw new Error('로그인이 필요합니다.');
+      }
+
+      const postRef = doc(db, `${gameType}_posts`, postId);
+      const postSnap = await getDoc(postRef);
+      
+      if (!postSnap.exists()) {
+        throw new Error('게시글을 찾을 수 없습니다.');
+      }
+
+      const currentData = postSnap.data();
+      const currentLikes = currentData.likes || 0;
+      const currentDislikes = currentData.dislikes || 0;
+
+      if (voteType === 'like') {
+        await updateDoc(postRef, {
+          likes: currentLikes + 1
+        });
+      } else if (voteType === 'dislike') {
+        await updateDoc(postRef, {
+          dislikes: currentDislikes + 1
+        });
+      }
+
+      return true;
+    } catch (error) {
+      console.error('투표 실패:', error);
+      throw error;
+    }
+  },
+
+  // 댓글에 투표
+  async voteComment(gameType, commentId, voteType) {
+    try {
+      const user = auth.currentUser;
+      if (!user) {
+        throw new Error('로그인이 필요합니다.');
+      }
+
+      const commentRef = doc(db, `${gameType}_comments`, commentId);
+      const commentSnap = await getDoc(commentRef);
+      
+      if (!commentSnap.exists()) {
+        throw new Error('댓글을 찾을 수 없습니다.');
+      }
+
+      const currentData = commentSnap.data();
+      const currentLikes = currentData.likes || 0;
+
+      if (voteType === 'like') {
+        await updateDoc(commentRef, {
+          likes: currentLikes + 1
+        });
+      }
+
+      return true;
+    } catch (error) {
+      console.error('댓글 투표 실패:', error);
+      throw error;
     }
   }
 };

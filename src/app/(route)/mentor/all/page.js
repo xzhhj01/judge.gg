@@ -143,7 +143,7 @@ export default function AllMentorsPage() {
     // 필터링된 멘토 목록
     const filteredMentors = mentors.filter((mentor) => {
         const matchesGame =
-            selectedGame === "all" || mentor.selectedGame === selectedGame;
+            selectedGame === "all" || mentor.game === selectedGame || mentor.selectedGame === selectedGame;
         const matchesSearch =
             (mentor.nickname || mentor.userName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
             (mentor.tags && mentor.tags.some((tag) =>

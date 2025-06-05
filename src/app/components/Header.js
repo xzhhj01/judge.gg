@@ -149,16 +149,6 @@ export default function Header() {
                         >
                             변호사
                         </Link>
-                        <Link
-                            href="/admin/mentors"
-                            className={`text-sm font-medium transition-colors ${
-                                pathname.includes("/admin")
-                                    ? "text-accent-600 dark:text-accent-400"
-                                    : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
-                            }`}
-                        >
-                            관리자
-                        </Link>
                     </nav>
 
                     {/* 오른쪽: 다크모드 토글 + 사용자 메뉴 */}

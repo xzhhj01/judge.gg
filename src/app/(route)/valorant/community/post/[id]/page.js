@@ -24,6 +24,8 @@ export default function ValorantCommunityPostPage() {
     const [newComment, setNewComment] = useState("");
     const [selectedVote, setSelectedVote] = useState(null);
     const [hasVoted, setHasVoted] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [isVoting, setIsVoting] = useState(false);
     
     // 게시글 데이터 로드
     useEffect(() => {
@@ -73,11 +75,61 @@ export default function ValorantCommunityPostPage() {
     };
 
     // 투표 처리
-    const handleVote = (option) => {
-        if (hasVoted) return;
-        setSelectedVote(option);
-        setHasVoted(true);
-        console.log("투표:", option);
+    const handleVote = async (voteType) => {
+        if (hasVoted || isVoting || !user) return;
+        
+        try {
+            setIsVoting(true);
+            await communityService.votePost('valorant', postId, voteType);
+            
+            // 게시글 데이터 새로고침
+            const updatedPost = await communityService.getPostById('valorant', postId);
+            setPost(updatedPost);
+            
+            setHasVoted(true);
+            setSelectedVote(voteType);
+            
+            console.log("투표 완료:", voteType);
+        } catch (error) {
+            console.error('투표 실패:', error);
+            alert('투표에 실패했습니다: ' + error.message);
+        } finally {
+            setIsVoting(false);
+        }
+    };
+
+    // 게시글 삭제
+    const handleDeletePost = async () => {
+        if (!user || !post) {
+            alert('삭제 권한이 없습니다.');
+            return;
+        }
+
+        const confirmDelete = window.confirm('정말로 이 게시글을 삭제하시겠습니까?\n삭제된 게시글은 복구할 수 없습니다.');
+        if (!confirmDelete) return;
+
+        setIsDeleting(true);
+        try {
+            const response = await fetch(`/api/community/valorant/posts/${postId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || '게시글 삭제에 실패했습니다.');
+            }
+
+            alert('게시글이 성공적으로 삭제되었습니다.');
+            router.push('/valorant/community');
+        } catch (error) {
+            console.error('게시글 삭제 실패:', error);
+            alert(error.message || '게시글 삭제에 실패했습니다.');
+        } finally {
+            setIsDeleting(false);
+        }
     };
 
     // 댓글 입력 처리
@@ -158,15 +210,27 @@ export default function ValorantCommunityPostPage() {
                             {post.title}
                         </h1>
                         <div className="flex space-x-2">
-                            <Link
-                                href={`/valorant/community/post/${postId}/edit`}
-                                className="px-4 py-2 text-sm text-red-600 hover:text-red-700 border border-red-600 rounded-lg hover:bg-red-50 transition-colors"
-                            >
-                                수정하기
-                            </Link>
-                            <button className="px-4 py-2 text-sm text-red-600 hover:text-red-700 border border-red-600 rounded-lg hover:bg-red-50 transition-colors">
-                                삭제하기
-                            </button>
+                            {/* 디버깅: 사용자 정보 및 권한 체크 */}
+                            <div className="text-xs text-gray-500 mr-4">
+                                디버그: user={user ? 'Y' : 'N'}, authorUid={post.authorUid || 'none'}, userUid={user?.uid || 'none'}
+                            </div>
+                            
+                            {/* 임시로 모든 사용자에게 버튼 표시 */}
+                            <>
+                                <Link
+                                    href={`/valorant/community/post/${postId}/edit`}
+                                    className="px-4 py-2 text-sm text-red-600 hover:text-red-700 border border-red-600 rounded-lg hover:bg-red-50 transition-colors"
+                                >
+                                    수정하기
+                                </Link>
+                                <button 
+                                    onClick={handleDeletePost}
+                                    disabled={isDeleting}
+                                    className="px-4 py-2 text-sm text-red-600 hover:text-red-700 border border-red-600 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {isDeleting ? '삭제 중...' : '삭제하기'}
+                                </button>
+                            </>
                         </div>
                     </div>
 
@@ -238,6 +302,61 @@ export default function ValorantCommunityPostPage() {
                     </div>
                 </section>
 
+                {/* 투표 */}
+                <section className="bg-white rounded-xl border border-gray-200 p-6 mb-8">
+                    <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                        이 게시글에 대한 당신의 의견은?
+                    </h2>
+                    {user ? (
+                        <div className="flex justify-center space-x-4">
+                            <button
+                                onClick={() => handleVote('like')}
+                                disabled={hasVoted || isVoting}
+                                className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-colors ${
+                                    selectedVote === 'like'
+                                        ? 'bg-green-500 text-white'
+                                        : 'bg-green-50 text-green-700 hover:bg-green-100'
+                                } ${(hasVoted || isVoting) && selectedVote !== 'like' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            >
+                                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M10 18l-6-6h4V4h4v8h4l-6 6z" clipRule="evenodd" />
+                                </svg>
+                                <span>좋아요 ({post.likes || 0})</span>
+                                {isVoting && selectedVote === 'like' && (
+                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                )}
+                            </button>
+                            <button
+                                onClick={() => handleVote('dislike')}
+                                disabled={hasVoted || isVoting}
+                                className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-colors ${
+                                    selectedVote === 'dislike'
+                                        ? 'bg-red-500 text-white'
+                                        : 'bg-red-50 text-red-700 hover:bg-red-100'
+                                } ${(hasVoted || isVoting) && selectedVote !== 'dislike' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            >
+                                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M10 2l6 6h-4v8H8V8H4l6-6z" clipRule="evenodd" />
+                                </svg>
+                                <span>싫어요 ({post.dislikes || 0})</span>
+                                {isVoting && selectedVote === 'dislike' && (
+                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                )}
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="text-center text-gray-500 py-4">
+                            <p>투표하려면 <Link href="/login" className="text-red-600 hover:text-red-700">로그인</Link>이 필요합니다.</p>
+                        </div>
+                    )}
+                    {hasVoted && (
+                        <p className="text-center text-green-600 mt-3 text-sm">
+                            투표해주셔서 감사합니다!
+                        </p>
+                    )}
+                </section>
+
+                {/* 댓글 */}
                 <section className="bg-white rounded-xl border border-gray-200 p-6">
                     <h2 className="text-lg font-semibold text-gray-900 mb-6">
                         댓글 ({comments.length})

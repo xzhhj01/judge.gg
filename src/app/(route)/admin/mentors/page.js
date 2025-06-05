@@ -8,10 +8,34 @@ export default function AdminMentorsPage() {
     const [approvedMentors, setApprovedMentors] = useState([]);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('pending');
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [password, setPassword] = useState('');
+    const [authError, setAuthError] = useState('');
 
     useEffect(() => {
-        loadMentors();
+        // 세션에서 인증 상태 확인
+        const adminAuth = sessionStorage.getItem('adminAuthenticated');
+        if (adminAuth === 'true') {
+            setIsAuthenticated(true);
+            loadMentors();
+        } else {
+            setLoading(false);
+        }
     }, []);
+
+    const handlePasswordSubmit = (e) => {
+        e.preventDefault();
+        
+        // 비밀번호 확인 (실제 서비스에서는 더 안전한 방법 사용)
+        if (password === '1234') {
+            setIsAuthenticated(true);
+            setAuthError('');
+            sessionStorage.setItem('adminAuthenticated', 'true');
+            loadMentors();
+        } else {
+            setAuthError('잘못된 비밀번호입니다.');
+        }
+    };
 
     const loadMentors = async () => {
         try {
@@ -173,6 +197,52 @@ export default function AdminMentorsPage() {
         </div>
     );
 
+    // 인증되지 않은 경우 비밀번호 입력 화면
+    if (!isAuthenticated) {
+        return (
+            <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+                <div className="max-w-md w-full bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8">
+                    <div className="text-center mb-8">
+                        <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+                            관리자 인증
+                        </h1>
+                        <p className="text-gray-600 dark:text-gray-300">
+                            관리자 페이지에 접근하려면 비밀번호를 입력하세요.
+                        </p>
+                    </div>
+                    
+                    <form onSubmit={handlePasswordSubmit}>
+                        <div className="mb-6">
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                비밀번호
+                            </label>
+                            <input
+                                type="password"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                                placeholder="관리자 비밀번호를 입력하세요"
+                                required
+                            />
+                            {authError && (
+                                <p className="mt-2 text-sm text-red-600 dark:text-red-400">
+                                    {authError}
+                                </p>
+                            )}
+                        </div>
+                        
+                        <button
+                            type="submit"
+                            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition-colors"
+                        >
+                            인증하기
+                        </button>
+                    </form>
+                </div>
+            </div>
+        );
+    }
+
     if (loading) {
         return (
             <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
@@ -187,13 +257,24 @@ export default function AdminMentorsPage() {
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                <div className="mb-8">
-                    <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-                        멘토 관리
-                    </h1>
-                    <p className="text-gray-600 dark:text-gray-300">
-                        멘토 신청을 검토하고 승인/거절할 수 있습니다.
-                    </p>
+                <div className="mb-8 flex justify-between items-start">
+                    <div>
+                        <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+                            멘토 관리
+                        </h1>
+                        <p className="text-gray-600 dark:text-gray-300">
+                            멘토 신청을 검토하고 승인/거절할 수 있습니다.
+                        </p>
+                    </div>
+                    <button
+                        onClick={() => {
+                            sessionStorage.removeItem('adminAuthenticated');
+                            setIsAuthenticated(false);
+                        }}
+                        className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors"
+                    >
+                        로그아웃
+                    </button>
                 </div>
 
                 {/* 탭 네비게이션 */}

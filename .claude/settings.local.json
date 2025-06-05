@@ -9,7 +9,8 @@
       "Bash(open:*)",
       "Bash(node test-storage.js)",
       "Bash(pkill:*)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "Bash(wc:*)"
     ],
     "deny": []
   }

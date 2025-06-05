@@ -65,6 +65,16 @@ export default function MentorPage() {
         },
     ];
 
+    // 필터링된 멘토 목록
+    const filteredMentors = mockMentors.filter((mentor) => {
+        const matchesGame = selectedGame === "all" || mentor.game === selectedGame;
+        const matchesSearch = 
+            mentor.nickname.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            mentor.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
+        
+        return matchesGame && matchesSearch;
+    });
+
     return (
         <div className="min-h-screen bg-gray-50">
             {/* 1. Search Bar + Game Filter */}
@@ -144,9 +154,21 @@ export default function MentorPage() {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                        {mockMentors.map((mentor) => (
-                            <MentorCard key={mentor.id} mentor={mentor} />
-                        ))}
+                        {filteredMentors.length > 0 ? (
+                            filteredMentors.map((mentor) => (
+                                <MentorCard key={mentor.id} mentor={mentor} />
+                            ))
+                        ) : (
+                            <div className="col-span-full text-center py-12">
+                                <div className="text-gray-400 text-6xl mb-4">🔍</div>
+                                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                                    검색 결과가 없습니다
+                                </h3>
+                                <p className="text-gray-600">
+                                    다른 검색어나 필터를 시도해보세요
+                                </p>
+                            </div>
+                        )}
                     </div>
                 </section>
             </div>

@@ -29,6 +29,12 @@ export default function PostForm({
         maps: initialData?.tags?.maps || [],
         roles: initialData?.tags?.roles || [],
     });
+
+    // selectedTags 상태 변화 디버깅
+    useEffect(() => {
+        console.log("PostForm - selectedTags 상태 변화:", selectedTags);
+        console.log("PostForm - champions 태그 개수:", selectedTags.champions?.length || 0);
+    }, [selectedTags]);
     const [content, setContent] = useState(initialData?.content || "");
 
     // 투표 설정
@@ -84,6 +90,9 @@ export default function PostForm({
     useEffect(() => {
         if (mode === "edit" && initialData) {
             console.log("PostForm 초기 데이터 설정:", initialData);
+            console.log("PostForm mode:", mode);
+            console.log("PostForm gameType:", gameType);
+            
             setTitle(initialData.title || "");
             setContent(initialData.content || "");
             
@@ -95,7 +104,8 @@ export default function PostForm({
                 agents: [],
                 roles: [],
             };
-            console.log("설정할 태그들:", tagsToSet);
+            console.log("PostForm - 설정할 태그들:", tagsToSet);
+            console.log("PostForm - champions 태그:", tagsToSet.champions);
             setSelectedTags(tagsToSet);
             
             setVoteOptions(initialData.voteOptions || ["", ""]);
@@ -383,9 +393,11 @@ export default function PostForm({
                                     </h3>
 
                                     {/* 선택된 챔피언 태그 표시 */}
-                                    {(selectedTags.champions || []).length > 0 && (
-                                        <div className="mb-4">
-                                            <h4 className="text-sm font-medium text-gray-700 mb-2">선택된 챔피언</h4>
+                                    <div className="mb-4">
+                                        <h4 className="text-sm font-medium text-gray-700 mb-2">
+                                            선택된 챔피언 (디버그: {(selectedTags.champions || []).length}개)
+                                        </h4>
+                                        {(selectedTags.champions || []).length > 0 ? (
                                             <div className="flex flex-wrap gap-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
                                                 {(selectedTags.champions || []).map(
                                                     (tag) => (
@@ -414,8 +426,12 @@ export default function PostForm({
                                                     )
                                                 )}
                                             </div>
-                                        </div>
-                                    )}
+                                        ) : (
+                                            <div className="p-3 bg-gray-50 rounded-lg border border-gray-200 text-gray-500 text-sm">
+                                                선택된 챔피언이 없습니다. (디버그: {JSON.stringify(selectedTags.champions)})
+                                            </div>
+                                        )}
+                                    </div>
 
                                     <div className="mb-3">
                                         <h4 className="text-sm font-medium text-gray-700 mb-2">챔피언 추가</h4>

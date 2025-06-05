@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import CommunityHeader from "@/app/components/CommunityHeader";
 import PostForm from "@/app/components/PostForm";
+import communityTags from "@/data/communityTags.json";
 
 export default function LoLCommunityEditPage() {
     const params = useParams();
@@ -38,18 +39,24 @@ export default function LoLCommunityEditPage() {
 
                     // 더미 데이터의 경우 tags가 배열로 되어 있음
                     if (Array.isArray(data.post.tags)) {
-                        // 더미 데이터 태그를 적절한 카테고리로 분류
+                        // communityTags.json 데이터를 활용한 동적 태그 분류
+                        const lolTags = communityTags.lol;
+                        
                         data.post.tags.forEach(tag => {
                             // LoL 챔피언 태그
-                            if (['야스오', '제드', '아지르', '르블랑', '페이커'].includes(tag)) {
+                            if (lolTags.champions.includes(tag)) {
                                 tagsData.champions.push(tag);
                             }
                             // 라인 태그
-                            else if (['미드', '탑', '정글', '원딜', '서폿'].includes(tag)) {
+                            else if (lolTags.lanes.includes(tag)) {
                                 tagsData.lanes.push(tag);
                             }
                             // 상황 태그
-                            else if (['라인전', '갱킹', '한타', '오브젝트'].includes(tag)) {
+                            else if (lolTags.situations.includes(tag)) {
+                                tagsData.situations.push(tag);
+                            }
+                            // 오브젝트 태그가 있다면 상황에 추가
+                            else if (lolTags.objects && lolTags.objects.includes(tag)) {
                                 tagsData.situations.push(tag);
                             }
                             // 기타는 상황에 추가
@@ -72,6 +79,10 @@ export default function LoLCommunityEditPage() {
                         allowNeutral: data.post.allowNeutral || false,
                         voteDeadline: data.post.voteDeadline || "",
                     };
+                    
+                    console.log("수정 페이지 - 원본 데이터:", data.post);
+                    console.log("수정 페이지 - 변환된 태그 데이터:", tagsData);
+                    console.log("수정 페이지 - PostForm에 전달할 데이터:", formattedData);
                     
                     setInitialData(formattedData);
                 } else {

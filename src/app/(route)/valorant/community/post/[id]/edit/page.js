@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import CommunityHeader from "@/app/components/CommunityHeader";
 import PostForm from "@/app/components/PostForm";
+import communityTags from "@/data/communityTags.json";
 
 export default function ValorantCommunityEditPage() {
     const params = useParams();
@@ -38,19 +39,32 @@ export default function ValorantCommunityEditPage() {
 
                     // 더미 데이터의 경우 tags가 배열로 되어 있음
                     if (Array.isArray(data.post.tags)) {
-                        // 더미 데이터 태그를 적절한 카테고리로 분류
+                        // communityTags.json 데이터를 활용한 동적 태그 분류
+                        const valorantTags = communityTags.valorant;
+                        
                         data.post.tags.forEach(tag => {
-                            // Valorant 에이전트 태그
-                            if (['제트', '레이즈', '세이지', '소바', '피닉스', '브림스톤'].includes(tag)) {
+                            // Valorant 에이전트 태그 (이름으로 매칭)
+                            const agentFound = valorantTags.agents.find(agent => agent.name === tag);
+                            if (agentFound) {
                                 tagsData.agents.push(tag);
+                                // 에이전트와 함께 역할군도 자동 추가
+                                if (!tagsData.roles.includes(agentFound.role)) {
+                                    tagsData.roles.push(agentFound.role);
+                                }
                             }
                             // 맵 태그
-                            else if (['바인드', '헤이븐', '스플릿', '어센트', '아이스박스'].includes(tag)) {
+                            else if (valorantTags.maps.includes(tag)) {
                                 tagsData.maps.push(tag);
                             }
                             // 상황 태그
-                            else if (['듀얼', '사이트 실행', '리테이크', '클러치'].includes(tag)) {
+                            else if (valorantTags.situations.includes(tag)) {
                                 tagsData.situations.push(tag);
+                            }
+                            // 역할군 태그 (직접 역할군이 태그로 사용된 경우)
+                            else if (['타격대', '감시자', '척후대', '전략가'].includes(tag)) {
+                                if (!tagsData.roles.includes(tag)) {
+                                    tagsData.roles.push(tag);
+                                }
                             }
                             // 기타는 상황에 추가
                             else {
