@@ -323,24 +323,41 @@ export const mentorService = {
   },
 
   // 피드백 요청
-  async requestFeedback(mentorId, requestData) {
+  async requestFeedback(mentorId, requestData, user = null) {
     try {
-      const user = auth.currentUser;
-      if (!user) {
-        throw new Error('로그인이 필요합니다.');
+      // If user is not provided, try to get from auth
+      let currentUser = user;
+      if (!currentUser) {
+        currentUser = auth.currentUser;
+        if (!currentUser) {
+          throw new Error('로그인이 필요합니다.');
+        }
+      }
+
+      console.log('🔍 requestFeedback 사용자 정보:', currentUser);
+
+      // Create a unique user ID from various sources
+      const userId = currentUser.uid || currentUser.id || currentUser.email?.replace(/[^a-zA-Z0-9]/g, '_');
+      if (!userId) {
+        throw new Error('사용자 정보가 올바르지 않습니다.');
       }
 
       const feedbackData = {
         mentorId,
-        userId: user.uid,
-        userName: user.displayName || user.email,
-        userPhoto: user.photoURL || null,
+        userId: userId,
+        userName: currentUser.displayName || currentUser.name || currentUser.email,
+        userPhoto: currentUser.photoURL || currentUser.image || null,
+        userEmail: currentUser.email || '',
         ...requestData,
         status: 'pending', // pending, accepted, rejected, completed
         createdAt: serverTimestamp()
       };
 
+      console.log('🔍 저장할 피드백 데이터:', feedbackData);
+
       const docRef = await addDoc(collection(db, 'feedback_requests'), feedbackData);
+      
+      console.log('🔍 피드백 요청 저장 완료:', docRef.id);
       
       return {
         id: docRef.id,
@@ -519,6 +536,38 @@ export const mentorService = {
     } catch (error) {
       console.error('멘토 평점 업데이트 실패:', error);
       throw error;
+    }
+  },
+
+  // 멘토 리뷰 목록 조회
+  async getMentorReviews(mentorId) {
+    try {
+      const q = query(
+        collection(db, 'mentor_reviews'),
+        where('mentorId', '==', mentorId)
+      );
+      
+      const querySnapshot = await getDocs(q);
+      const reviews = [];
+      
+      querySnapshot.forEach((doc) => {
+        reviews.push({
+          id: doc.id,
+          ...doc.data()
+        });
+      });
+      
+      // 클라이언트에서 날짜순 정렬 (최신순)
+      reviews.sort((a, b) => {
+        const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0);
+        const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0);
+        return dateB - dateA;
+      });
+      
+      return reviews;
+    } catch (error) {
+      console.error('멘토 리뷰 목록 조회 실패:', error);
+      return [];
     }
   }
 };

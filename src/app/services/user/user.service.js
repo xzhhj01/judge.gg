@@ -1,5 +1,5 @@
 import { db, auth } from "@/lib/firebase/firebase.config";
-import { doc, updateDoc, getDoc, serverTimestamp, query, collection, where, orderBy, getDocs } from "firebase/firestore";
+import { doc, updateDoc, getDoc, serverTimestamp, query, collection, where, orderBy, getDocs, deleteDoc, setDoc } from "firebase/firestore";
 import { updatePassword } from "firebase/auth";
 
 export const userService = {
@@ -348,8 +348,11 @@ export const userService = {
       stats.valorant.votedPosts = valorantVotedPosts.length;
       stats.all.votedPosts = lolVotedPosts.length + valorantVotedPosts.length;
 
-      // 찜한 멘토는 추후 구현 (현재는 0으로 설정)
-      // TODO: 멘토 찜 기능 구현 후 추가
+      // 찜한 멘토 수 계산
+      const likedMentorsCount = await this.getUserLikedMentorsCount(userId);
+      stats.lol.likedMentors = likedMentorsCount;
+      stats.valorant.likedMentors = likedMentorsCount;
+      stats.all.likedMentors = likedMentorsCount;
       
       console.log(`🔍 최종 통계:`, stats);
       return stats;
@@ -558,6 +561,185 @@ export const userService = {
       return posts;
     } catch (error) {
       console.error(`${gameType} 투표한 게시글 데이터 조회 실패:`, error);
+      return [];
+    }
+  },
+
+  // 찜한 멘토 추가
+  async addLikedMentor(userId, mentorId) {
+    try {
+      const likedMentorRef = doc(db, `liked_mentors`, `${userId}_${mentorId}`);
+      await setDoc(likedMentorRef, {
+        userId: userId,
+        mentorId: mentorId,
+        createdAt: serverTimestamp()
+      });
+      return true;
+    } catch (error) {
+      console.error('찜한 멘토 추가 실패:', error);
+      throw error;
+    }
+  },
+
+  // 찜한 멘토 제거
+  async removeLikedMentor(userId, mentorId) {
+    try {
+      const likedMentorRef = doc(db, `liked_mentors`, `${userId}_${mentorId}`);
+      await deleteDoc(likedMentorRef);
+      return true;
+    } catch (error) {
+      console.error('찜한 멘토 제거 실패:', error);
+      throw error;
+    }
+  },
+
+  // 찜한 멘토 확인
+  async isLikedMentor(userId, mentorId) {
+    try {
+      const likedMentorRef = doc(db, `liked_mentors`, `${userId}_${mentorId}`);
+      const docSnap = await getDoc(likedMentorRef);
+      return docSnap.exists();
+    } catch (error) {
+      console.error('찜한 멘토 확인 실패:', error);
+      return false;
+    }
+  },
+
+  // 찜한 멘토 목록 조회
+  async getUserLikedMentors(userId) {
+    try {
+      const q = query(
+        collection(db, 'liked_mentors'),
+        where('userId', '==', userId)
+      );
+      
+      const snapshot = await getDocs(q);
+      const mentorData = [];
+      
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        if (data.mentorId) {
+          mentorData.push({
+            mentorId: data.mentorId,
+            createdAt: data.createdAt
+          });
+        }
+      });
+      
+      // 클라이언트에서 정렬 (최신순)
+      mentorData.sort((a, b) => {
+        const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0);
+        const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0);
+        return dateB - dateA;
+      });
+      
+      return mentorData.map(item => item.mentorId);
+    } catch (error) {
+      console.error('찜한 멘토 목록 조회 실패:', error);
+      return [];
+    }
+  },
+
+  // 찜한 멘토 수 조회
+  async getUserLikedMentorsCount(userId) {
+    try {
+      const mentorIds = await this.getUserLikedMentors(userId);
+      return mentorIds.length;
+    } catch (error) {
+      console.error('찜한 멘토 수 조회 실패:', error);
+      return 0;
+    }
+  },
+
+  // 찜한 멘토의 상세 정보 조회
+  async getUserLikedMentorsData(userId) {
+    try {
+      const mentorIds = await this.getUserLikedMentors(userId);
+      const mentors = [];
+      
+      for (const mentorId of mentorIds) {
+        try {
+          const mentorRef = doc(db, 'mentors', mentorId);
+          const mentorSnap = await getDoc(mentorRef);
+          
+          if (mentorSnap.exists()) {
+            mentors.push({
+              id: mentorSnap.id,
+              ...mentorSnap.data()
+            });
+          }
+        } catch (error) {
+          console.error(`멘토 ${mentorId} 정보 조회 실패:`, error);
+        }
+      }
+      
+      return mentors;
+    } catch (error) {
+      console.error('찜한 멘토 상세 정보 조회 실패:', error);
+      return [];
+    }
+  },
+
+  // 사용자가 신청한 피드백 목록 조회
+  async getUserRequestedFeedbacks(userId) {
+    try {
+      const q = query(
+        collection(db, 'feedback_requests'),
+        where('userId', '==', userId)
+      );
+      
+      const snapshot = await getDocs(q);
+      const feedbacks = [];
+      
+      snapshot.forEach((doc) => {
+        feedbacks.push({
+          id: doc.id,
+          ...doc.data()
+        });
+      });
+      
+      // 클라이언트에서 날짜순 정렬 (최신순)
+      feedbacks.sort((a, b) => {
+        const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0);
+        const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0);
+        return dateB - dateA;
+      });
+      
+      return feedbacks;
+    } catch (error) {
+      console.error('신청한 피드백 목록 조회 실패:', error);
+      return [];
+    }
+  },
+
+  // 멘토가 받은 피드백 요청 목록 조회
+  async getMentorReceivedFeedbacks(mentorId) {
+    try {
+      const q = query(
+        collection(db, 'feedback_requests'),
+        where('mentorId', '==', mentorId)
+      );
+      
+      const snapshot = await getDocs(q);
+      const feedbacks = [];
+      
+      snapshot.forEach((doc) => {
+        feedbacks.push({
+          id: doc.id,
+          ...doc.data()
+        });
+      });
+      
+      // 클라이언트에서 날짜순 정렬 (최신순)
+      feedbacks.sort((a, b) => {
+        const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0);
+        const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0);
+        return dateB - dateA;
+      });
+      
+      return feedbacks;
+    } catch (error) {
+      console.error('받은 피드백 요청 목록 조회 실패:', error);
       return [];
     }
   }

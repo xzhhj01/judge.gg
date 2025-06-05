@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 
-export default function PostCard({ post, gameType }) {
+export default function PostCard({ post, gameType, currentUser, onEdit, onDelete, onShare }) {
     const formatTimeAgo = (timestamp) => {
         const now = new Date();
         const postTime = new Date(timestamp);
@@ -35,14 +35,157 @@ export default function PostCard({ post, gameType }) {
 
     const themeColor = getGameThemeColor(gameType);
 
+    // Check if current user is the post author
+    const isPostOwner = currentUser && (() => {
+        // All possible user identifiers from currentUser
+        const userIdentifiers = new Set();
+        
+        if (currentUser.id) userIdentifiers.add(currentUser.id);
+        if (currentUser.uid) userIdentifiers.add(currentUser.uid);
+        if (currentUser.email) {
+            userIdentifiers.add(currentUser.email);
+            userIdentifiers.add(currentUser.email.replace(/[^a-zA-Z0-9]/g, '_'));
+            userIdentifiers.add(currentUser.email.split('@')[0]);
+        }
+        if (currentUser.sub) userIdentifiers.add(currentUser.sub); // OAuth sub field
+        
+        // All possible author identifiers from post
+        const authorIdentifiers = new Set();
+        if (post.authorId) authorIdentifiers.add(post.authorId);
+        if (post.authorUid) authorIdentifiers.add(post.authorUid);
+        if (post.authorEmail) authorIdentifiers.add(post.authorEmail);
+        
+        console.log('🔍 PostCard 상세 비교:', {
+            title: post.title,
+            currentUser: {
+                id: currentUser.id,
+                uid: currentUser.uid,
+                email: currentUser.email,
+                sub: currentUser.sub,
+                name: currentUser.name || currentUser.displayName
+            },
+            post: {
+                authorId: post.authorId,
+                authorUid: post.authorUid,
+                authorName: post.authorName,
+                authorEmail: post.authorEmail
+            },
+            userIdentifiers: Array.from(userIdentifiers),
+            authorIdentifiers: Array.from(authorIdentifiers)
+        });
+
+        // Check for any match between user and author identifiers
+        const hasMatch = Array.from(userIdentifiers).some(userId => 
+            authorIdentifiers.has(userId)
+        );
+
+        console.log('🔍 PostCard 매치 결과:', hasMatch);
+        return hasMatch;
+    })();
+
+    const handleEdit = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (onEdit) {
+            onEdit(post);
+        } else {
+            // 기본 수정 기능
+            window.open(`/${gameType}/community/post/${post.id}/edit`, '_blank');
+        }
+    };
+
+    const handleDelete = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (onDelete) {
+            onDelete(post);
+        } else {
+            // 기본 삭제 기능
+            if (confirm('정말로 이 게시글을 삭제하시겠습니까?')) {
+                alert('삭제 기능은 해당 페이지에서 사용해주세요.');
+            }
+        }
+    };
+
+    const handleShare = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        if (onShare) {
+            onShare(post);
+        } else {
+            // 기본 공유 기능 - 게시글 상세 페이지 URL
+            const url = `${window.location.origin}/${gameType}/community/post/${post.id}`;
+            
+            if (navigator.share) {
+                navigator.share({
+                    title: post.title,
+                    text: `${post.title} - Judge.gg`,
+                    url: url
+                }).catch(err => {
+                    console.log('Error sharing:', err);
+                    copyToClipboard(url);
+                });
+            } else {
+                copyToClipboard(url);
+            }
+        }
+    };
+
+    // Copy URL to clipboard
+    const copyToClipboard = (text) => {
+        navigator.clipboard.writeText(text).then(() => {
+            alert('링크가 클립보드에 복사되었습니다!');
+        }).catch(err => {
+            console.error('Could not copy text: ', err);
+            alert('링크 복사에 실패했습니다.');
+        });
+    };
+
     return (
         <Link href={`/${gameType}/community/post/${post.id}`}>
             <div className="bg-white rounded-lg border border-gray-200 p-4 hover:shadow-md transition-shadow cursor-pointer">
-                {/* 상단: 제목과 투표수 */}
+                {/* 상단: 제목과 액션 버튼들 */}
                 <div className="flex justify-between items-start mb-3">
                     <h3 className="text-lg font-semibold text-gray-900 flex-1 mr-4 line-clamp-2">
                         {post.title}
                     </h3>
+                    <div className="flex items-center space-x-2">
+                        {/* 공유 버튼 - 항상 표시 */}
+                        <button
+                            onClick={handleShare}
+                            className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+                            title="공유하기"
+                        >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z" />
+                            </svg>
+                        </button>
+                        
+                        {/* 수정/삭제 버튼 (작성자만 표시) */}
+                        {isPostOwner && (
+                            <>
+                                <button
+                                    onClick={handleEdit}
+                                    className="p-1 text-blue-400 hover:text-blue-600 transition-colors"
+                                    title="수정하기"
+                                >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                    </svg>
+                                </button>
+                                <button
+                                    onClick={handleDelete}
+                                    className="p-1 text-red-400 hover:text-red-600 transition-colors"
+                                    title="삭제하기"
+                                >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                </button>
+                            </>
+                        )}
+                    </div>
                 </div>
 
                 {/* 중간: 태그들 */}

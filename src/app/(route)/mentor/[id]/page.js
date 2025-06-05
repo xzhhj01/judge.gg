@@ -4,7 +4,10 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { mentorService } from "@/app/services/mentor/mentor.service";
+import { userService } from "@/app/services/user/user.service";
 import { useAuth } from '@/app/utils/providers';
+import { useSession } from 'next-auth/react';
+import { communityService } from '@/app/services/community/community.service';
 
 const ServiceCard = ({ service, game }) => {
     const gameColor = game === "lol" ? "blue" : "red";
@@ -37,6 +40,7 @@ export default function MentorDetailPage() {
     const params = useParams();
     const mentorId = params.id;
     const { user } = useAuth();
+    const { data: session } = useSession();
     const [mentor, setMentor] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -51,8 +55,11 @@ export default function MentorDetailPage() {
     const [reviewText, setReviewText] = useState("");
     const [reviews, setReviews] = useState([]);
     const [submittingReview, setSubmittingReview] = useState(false);
+    const [selectedService, setSelectedService] = useState("");
+    const [feedbackMessage, setFeedbackMessage] = useState("");
+    const [submittingFeedback, setSubmittingFeedback] = useState(false);
 
-    // 멘토 데이터 로드
+    // 멘토 데이터 로드 및 찜하기 상태 확인
     useEffect(() => {
         const loadMentor = async () => {
             try {
@@ -60,6 +67,15 @@ export default function MentorDetailPage() {
                 const mentorData = await mentorService.getMentorById(mentorId);
                 setMentor(mentorData);
                 setError(null);
+                
+                // 로그인한 사용자의 찜하기 상태 확인
+                if (user || session) {
+                    const currentUser = user || session?.user;
+                    const currentUserId = communityService.generateConsistentUserId(currentUser);
+                    console.log('🔍 찜하기 상태 확인:', { currentUser, currentUserId });
+                    const liked = await userService.isLikedMentor(currentUserId, mentorId);
+                    setIsLiked(liked);
+                }
             } catch (err) {
                 console.error('멘토 정보 로드 실패:', err);
                 setError('멘토 정보를 불러오는데 실패했습니다.');
@@ -71,7 +87,7 @@ export default function MentorDetailPage() {
         if (mentorId) {
             loadMentor();
         }
-    }, [mentorId]);
+    }, [mentorId, user, session]);
 
     // 스낵바 자동 숨김
     useEffect(() => {
@@ -104,11 +120,81 @@ export default function MentorDetailPage() {
         setSnackbar({ show: true, message });
     };
 
-    const handleLike = () => {
-        setIsLiked(!isLiked);
-        showSnackbar(
-            isLiked ? "찜 목록에서 제거되었어요." : "찜 목록에 추가되었어요."
-        );
+    // 피드백 신청 함수
+    const handleFeedbackRequest = async () => {
+        if (!user && !session) {
+            showSnackbar("로그인이 필요합니다.");
+            return;
+        }
+
+        if (!selectedService) {
+            showSnackbar("서비스를 선택해주세요.");
+            return;
+        }
+
+        if (!feedbackMessage.trim()) {
+            showSnackbar("메시지를 입력해주세요.");
+            return;
+        }
+
+        try {
+            setSubmittingFeedback(true);
+            
+            const currentUser = user || session?.user;
+            const serviceInfo = mentor.curriculum?.mentoring_types?.[selectedService];
+            
+            const requestData = {
+                service: selectedService,
+                serviceTitle: {
+                    video_feedback: "영상 피드백",
+                    realtime_onepoint: "실시간 원포인트 피드백",
+                    realtime_private: "실시간 1:1 피드백",
+                }[selectedService] || selectedService,
+                message: feedbackMessage,
+                price: serviceInfo?.price || 0,
+                game: mentor.selectedGame
+            };
+
+            console.log('🔍 피드백 신청:', { mentorId, requestData, currentUser });
+            
+            await mentorService.requestFeedback(mentorId, requestData, currentUser);
+            
+            setShowApplyModal(false);
+            setSelectedService("");
+            setFeedbackMessage("");
+            showSnackbar("피드백 신청이 완료되었습니다!");
+        } catch (error) {
+            console.error('피드백 신청 실패:', error);
+            showSnackbar("피드백 신청에 실패했습니다. 다시 시도해주세요.");
+        } finally {
+            setSubmittingFeedback(false);
+        }
+    };
+
+    const handleLike = async () => {
+        if (!user && !session) {
+            showSnackbar("로그인이 필요합니다.");
+            return;
+        }
+        
+        try {
+            const currentUser = user || session?.user;
+            const currentUserId = communityService.generateConsistentUserId(currentUser);
+            console.log('🔍 찜하기 요청:', { currentUser, currentUserId, isLiked });
+            
+            if (isLiked) {
+                await userService.removeLikedMentor(currentUserId, mentorId);
+                setIsLiked(false);
+                showSnackbar("찜 목록에서 제거되었어요.");
+            } else {
+                await userService.addLikedMentor(currentUserId, mentorId);
+                setIsLiked(true);
+                showSnackbar("찜 목록에 추가되었어요.");
+            }
+        } catch (error) {
+            console.error('찜하기 요청 실패:', error);
+            showSnackbar("오류가 발생했습니다. 다시 시도해주세요.");
+        }
     };
 
     const handleShare = () => {
@@ -118,7 +204,7 @@ export default function MentorDetailPage() {
 
     // 리뷰 제출 함수
     const handleSubmitReview = async () => {
-        if (!user) {
+        if (!user && !session) {
             showSnackbar("로그인이 필요합니다.");
             return;
         }
@@ -859,7 +945,11 @@ export default function MentorDetailPage() {
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
                                     신청할 서비스
                                 </label>
-                                <select className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500">
+                                <select 
+                                    value={selectedService}
+                                    onChange={(e) => setSelectedService(e.target.value)}
+                                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                >
                                     <option value="">
                                         서비스를 선택해주세요
                                     </option>
@@ -888,6 +978,8 @@ export default function MentorDetailPage() {
                                     메시지
                                 </label>
                                 <textarea
+                                    value={feedbackMessage}
+                                    onChange={(e) => setFeedbackMessage(e.target.value)}
                                     className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 min-h-[100px]"
                                     placeholder="멘토에게 전달할 메시지를 입력해주세요"
                                 />
@@ -895,18 +987,15 @@ export default function MentorDetailPage() {
                         </div>
                         <div className="flex space-x-3 mt-6">
                             <button
-                                onClick={() => {
-                                    /* TODO: 신청 로직 구현 */
-                                    setShowApplyModal(false);
-                                    showSnackbar("신청이 완료되었습니다");
-                                }}
+                                onClick={handleFeedbackRequest}
+                                disabled={submittingFeedback}
                                 className={`flex-1 ${
                                     mentor.selectedGame === "lol"
                                         ? "bg-blue-500 hover:bg-blue-600"
                                         : "bg-red-500 hover:bg-red-600"
-                                } text-white py-2 rounded-lg font-medium transition-colors`}
+                                } text-white py-2 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
                             >
-                                신청하기
+                                {submittingFeedback ? "신청 중..." : "신청하기"}
                             </button>
                             <button
                                 onClick={() => setShowApplyModal(false)}

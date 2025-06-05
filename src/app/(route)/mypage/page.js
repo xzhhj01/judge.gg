@@ -6,6 +6,7 @@ import PostCard from "@/app/components/PostCard";
 import Link from "next/link";
 import { userService } from '@/app/services/user/user.service';
 import { communityService } from '@/app/services/community/community.service';
+import { mentorService } from '@/app/services/mentor/mentor.service';
 import { useAuth } from '@/app/utils/providers';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
@@ -28,6 +29,8 @@ export default function MyPage() {
         lol: { posts: 0, commentedPosts: 0, votedPosts: 0, likedMentors: 0 },
         valorant: { posts: 0, commentedPosts: 0, votedPosts: 0, likedMentors: 0 }
     });
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [postToDelete, setPostToDelete] = useState(null);
 
     // Redirect if not authenticated (check both NextAuth and Firebase)
     useEffect(() => {
@@ -84,6 +87,53 @@ export default function MyPage() {
 
         loadUserData();
     }, [user, session]);
+
+    // Load liked mentors
+    useEffect(() => {
+        const loadLikedMentors = async () => {
+            if (user || session) {
+                const currentUser = user || session?.user;
+                const currentUserId = communityService.generateConsistentUserId(currentUser);
+                try {
+                    const mentorsData = await userService.getUserLikedMentorsData(currentUserId);
+                    setLikedMentors(mentorsData);
+                } catch (error) {
+                    console.error("Error loading liked mentors:", error);
+                    setLikedMentors([]);
+                }
+            }
+        };
+
+        loadLikedMentors();
+    }, [user, session]);
+
+    // Load feedback data
+    useEffect(() => {
+        const loadFeedbacks = async () => {
+            if (user || session) {
+                const currentUser = user || session?.user;
+                const currentUserId = communityService.generateConsistentUserId(currentUser);
+                try {
+                    // 신청한 피드백 로드
+                    const requestedData = await userService.getUserRequestedFeedbacks(currentUserId);
+                    setRequestedFeedbacks(requestedData);
+                    
+                    // 받은 피드백 로드 (멘토인 경우)
+                    if (userInfo?.isMentor) {
+                        // 사용자의 멘토 ID를 찾아야 함 - 일단 currentUserId로 시도
+                        const receivedData = await userService.getMentorReceivedFeedbacks(currentUserId);
+                        setReceivedFeedbacks(receivedData);
+                    }
+                } catch (error) {
+                    console.error("Error loading feedbacks:", error);
+                    setRequestedFeedbacks([]);
+                    setReceivedFeedbacks([]);
+                }
+            }
+        };
+
+        loadFeedbacks();
+    }, [user, session, userInfo?.isMentor]);
 
     // 임시 게시글 데이터
     const mockPosts = {
@@ -198,48 +248,10 @@ export default function MyPage() {
         ],
     };
 
-    // 임시 찜한 멘토 데이터
-    const mockLikedMentors = [
-        {
-            id: 1,
-            nickname: "프로게이머김철수",
-            game: "lol",
-            profileImage: null,
-            rating: 4.8,
-            reviewCount: 127,
-            tags: ["정글", "갱킹", "캐리"],
-            responseRate: 95,
-            totalAnswers: 234,
-            isOnline: true,
-            isVerified: true,
-        },
-        {
-            id: 2,
-            nickname: "발로마스터",
-            game: "valorant",
-            profileImage: null,
-            rating: 4.6,
-            reviewCount: 89,
-            tags: ["에임", "포지셔닝", "전략"],
-            responseRate: 88,
-            totalAnswers: 156,
-            isOnline: false,
-            isVerified: true,
-        },
-        {
-            id: 3,
-            nickname: "서포터장인",
-            game: "lol",
-            profileImage: null,
-            rating: 4.9,
-            reviewCount: 203,
-            tags: ["서포터", "와드", "로밍"],
-            responseRate: 97,
-            totalAnswers: 445,
-            isOnline: true,
-            isVerified: false,
-        },
-    ];
+    // 찜한 멘토 데이터
+    const [likedMentors, setLikedMentors] = useState([]);
+    const [requestedFeedbacks, setRequestedFeedbacks] = useState([]);
+    const [receivedFeedbacks, setReceivedFeedbacks] = useState([]);
 
     // 게시글 로드
     useEffect(() => {
@@ -431,6 +443,95 @@ export default function MyPage() {
         setSelectedFeedback(null);
     };
 
+    // Handle post edit
+    const handlePostEdit = (post) => {
+        router.push(`/${post.gameType}/community/post/${post.id}/edit`);
+    };
+
+    // Handle post delete
+    const handlePostDelete = (post) => {
+        setPostToDelete(post);
+        setShowDeleteModal(true);
+    };
+
+    // Confirm post deletion
+    const confirmDelete = async () => {
+        if (!postToDelete) return;
+        
+        try {
+            const response = await fetch(`/api/community/${postToDelete.gameType}/posts/${postToDelete.id}`, {
+                method: 'DELETE',
+            });
+            
+            if (response.ok) {
+                // Reload posts after deletion
+                const currentUser = user || session?.user;
+                const currentUserId = communityService.generateConsistentUserId(currentUser);
+                
+                if (selectedMenu === 'posts') {
+                    const userPosts = await userService.getUserPosts(currentUserId, currentUser);
+                    let filteredPosts = userPosts;
+                    if (selectedGame !== 'all') {
+                        filteredPosts = userPosts.filter(post => post.gameType === selectedGame);
+                    }
+                    setPosts(filteredPosts.map(post => ({
+                        id: post.id,
+                        title: post.title,
+                        content: post.content,
+                        votes: post.likes || 0,
+                        views: post.views || 0,
+                        tags: post.tags || [],
+                        author: {
+                            nickname: post.authorName || 'Unknown',
+                            tier: 'Unranked'
+                        },
+                        commentCount: post.commentCount || 0,
+                        createdAt: post.createdAt?.toDate() || new Date(),
+                        gameType: post.gameType
+                    })));
+                }
+                
+                alert('게시글이 삭제되었습니다.');
+            } else {
+                alert('게시글 삭제에 실패했습니다.');
+            }
+        } catch (error) {
+            console.error('Delete error:', error);
+            alert('게시글 삭제 중 오류가 발생했습니다.');
+        }
+        
+        setShowDeleteModal(false);
+        setPostToDelete(null);
+    };
+
+    // Handle post share
+    const handlePostShare = (post) => {
+        const url = `${window.location.origin}/${post.gameType}/community/post/${post.id}`;
+        
+        if (navigator.share) {
+            navigator.share({
+                title: post.title,
+                text: `${post.title} - Judge.gg`,
+                url: url
+            }).catch(err => {
+                console.log('Error sharing:', err);
+                copyToClipboard(url);
+            });
+        } else {
+            copyToClipboard(url);
+        }
+    };
+
+    // Copy URL to clipboard
+    const copyToClipboard = (text) => {
+        navigator.clipboard.writeText(text).then(() => {
+            alert('링크가 클립보드에 복사되었습니다!');
+        }).catch(err => {
+            console.error('Could not copy text: ', err);
+            alert('링크 복사에 실패했습니다.');
+        });
+    };
+
     // 선택된 메뉴에 따른 제목 반환
     const getMenuTitle = () => {
         switch (selectedMenu) {
@@ -544,6 +645,10 @@ export default function MyPage() {
                                                     key={post.id}
                                                     post={post}
                                                     gameType={post.gameType}
+                                                    currentUser={user || session?.user}
+                                                    onEdit={handlePostEdit}
+                                                    onDelete={handlePostDelete}
+                                                    onShare={handlePostShare}
                                                 />
                                             ))}
                                         </div>
@@ -559,16 +664,19 @@ export default function MyPage() {
                                 </>
                             )}
 
-                            {selectedMenu === "feedbacks" && (
+                            {(selectedMenu === "requestedFeedbacks" || selectedMenu === "receivedFeedbacks") && (
                                 <div className="space-y-4">
                                     <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                                        {userType === "mentor"
-                                            ? "받은 피드백"
-                                            : "피드백 내역"}
+                                        {selectedMenu === "receivedFeedbacks"
+                                            ? "받은 피드백 요청"
+                                            : "신청한 피드백"}
                                     </h2>
-                                    {(userType === "mentor"
-                                        ? mockFeedbacks.received
-                                        : mockFeedbacks.requested
+                                    {(selectedMenu === "receivedFeedbacks"
+                                        ? receivedFeedbacks
+                                        : requestedFeedbacks
+                                    ).length > 0 ? (selectedMenu === "receivedFeedbacks"
+                                        ? receivedFeedbacks
+                                        : requestedFeedbacks
                                     ).map((feedback) => (
                                         <div
                                             key={feedback.id}
@@ -577,15 +685,15 @@ export default function MyPage() {
                                             <div className="flex justify-between items-start mb-2">
                                                 <div>
                                                     <h3 className="font-medium text-gray-900">
-                                                        {userType === "mentor"
+                                                        {selectedMenu === "receivedFeedbacks"
                                                             ? feedback.userName
-                                                            : feedback.mentorName}
+                                                            : `멘토 ID: ${feedback.mentorId}`}
                                                     </h3>
                                                     <p className="text-sm text-gray-600">
-                                                        {feedback.service}
+                                                        {feedback.serviceTitle || feedback.service}
                                                     </p>
                                                     <p className="text-sm text-gray-500 mt-1">
-                                                        {feedback.userMessage}
+                                                        {feedback.message}
                                                     </p>
                                                     {!userType === "mentor" &&
                                                         feedback.feedback && (
@@ -600,7 +708,7 @@ export default function MyPage() {
                                                 </div>
                                                 <div className="text-right">
                                                     <div className="text-sm font-medium text-gray-900">
-                                                        {feedback.price.toLocaleString()}
+                                                        {(feedback.price || 0).toLocaleString()}
                                                         원
                                                     </div>
                                                     <div className="mt-1">
@@ -613,12 +721,16 @@ export default function MyPage() {
                                             <div className="flex justify-between items-center text-sm">
                                                 <div className="text-gray-500">
                                                     신청일:{" "}
-                                                    {feedback.requestedAt}
+                                                    {feedback.createdAt?.toDate ? 
+                                                        feedback.createdAt.toDate().toLocaleDateString() : 
+                                                        new Date(feedback.createdAt || Date.now()).toLocaleDateString()
+                                                    }
                                                     {feedback.completedAt && (
                                                         <span className="ml-4">
                                                             완료일:{" "}
-                                                            {
-                                                                feedback.completedAt
+                                                            {feedback.completedAt?.toDate ? 
+                                                                feedback.completedAt.toDate().toLocaleDateString() : 
+                                                                new Date(feedback.completedAt).toLocaleDateString()
                                                             }
                                                         </span>
                                                     )}
@@ -688,7 +800,14 @@ export default function MyPage() {
                                                 )}
                                             </div>
                                         </div>
-                                    ))}
+                                    )) : (
+                                        <div className="text-center py-12">
+                                            <p className="text-gray-500">
+                                                {selectedMenu === "requestedFeedbacks" && "아직 신청한 피드백이 없습니다."}
+                                                {selectedMenu === "receivedFeedbacks" && "아직 받은 피드백 요청이 없습니다."}
+                                            </p>
+                                        </div>
+                                    )}
                                 </div>
                             )}
 
@@ -698,11 +817,11 @@ export default function MyPage() {
                                         찜한 멘토
                                     </h2>
                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                        {mockLikedMentors
+                                        {likedMentors
                                             .filter(
                                                 (mentor) =>
                                                     selectedGame === "all" ||
-                                                    mentor.game === selectedGame
+                                                    mentor.selectedGame === selectedGame
                                             )
                                             .map((mentor) => (
                                                 <div
@@ -717,13 +836,13 @@ export default function MyPage() {
                                                             {/* 프로필 이미지 */}
                                                             <div className="relative">
                                                                 <div className="w-16 h-16 bg-gradient-to-br from-primary-400 to-primary-600 rounded-full flex items-center justify-center text-white font-bold text-xl">
-                                                                    {mentor.nickname.charAt(
+                                                                    {(mentor.userName || mentor.nickname || mentor.name || mentor.displayName || '익명').charAt(
                                                                         0
                                                                     )}
                                                                 </div>
                                                                 <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-white rounded-full flex items-center justify-center shadow-md">
                                                                     <span className="text-xs font-medium text-gray-600">
-                                                                        {mentor.game ===
+                                                                        {mentor.selectedGame ===
                                                                         "lol"
                                                                             ? "LoL"
                                                                             : "발로란트"}
@@ -736,7 +855,7 @@ export default function MyPage() {
                                                                 <div className="flex items-center mb-1">
                                                                     <h3 className="font-medium text-gray-900 mr-2">
                                                                         {
-                                                                            mentor.nickname
+                                                                            mentor.userName || mentor.nickname || mentor.name || mentor.displayName || '익명'
                                                                         }
                                                                     </h3>
                                                                     {mentor.isVerified && (
@@ -763,19 +882,24 @@ export default function MyPage() {
                                                                             <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                                                                         </svg>
                                                                         {
-                                                                            mentor.rating
+                                                                            mentor.rating || 0
                                                                         }
                                                                     </div>
                                                                     <div>
                                                                         리뷰{" "}
                                                                         {
-                                                                            mentor.reviewCount
+                                                                            mentor.totalReviews || 0
                                                                         }
                                                                         개
                                                                     </div>
                                                                 </div>
                                                                 <div className="flex flex-wrap gap-1">
-                                                                    {mentor.tags.map(
+                                                                    {[
+                                                                        ...(mentor.characterTags || []),
+                                                                        ...(mentor.lineTags || []),
+                                                                        ...(mentor.championTags || []),
+                                                                        ...(mentor.experienceType || [])
+                                                                    ].slice(0, 3).map(
                                                                         (
                                                                             tag,
                                                                             index
@@ -799,6 +923,13 @@ export default function MyPage() {
                                                 </div>
                                             ))}
                                     </div>
+                                    {likedMentors.filter(mentor => selectedGame === "all" || mentor.selectedGame === selectedGame).length === 0 && (
+                                        <div className="text-center py-12">
+                                            <p className="text-gray-500">
+                                                아직 찜한 멘토가 없습니다.
+                                            </p>
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>
@@ -926,6 +1057,62 @@ export default function MyPage() {
                                     className="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 font-medium"
                                 >
                                     답변 완료
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* 게시글 삭제 확인 모달 */}
+                {showDeleteModal && postToDelete && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                        <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4">
+                            <div className="flex justify-between items-center mb-4">
+                                <h3 className="text-lg font-semibold text-gray-900">
+                                    게시글 삭제
+                                </h3>
+                                <button
+                                    onClick={() => {
+                                        setShowDeleteModal(false);
+                                        setPostToDelete(null);
+                                    }}
+                                    className="text-gray-400 hover:text-gray-600"
+                                >
+                                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            </div>
+                            
+                            <div className="mb-6">
+                                <p className="text-gray-700 mb-2">
+                                    정말로 이 게시글을 삭제하시겠습니까?
+                                </p>
+                                <div className="bg-gray-50 rounded-lg p-3">
+                                    <p className="font-medium text-gray-900 text-sm">
+                                        {postToDelete.title}
+                                    </p>
+                                </div>
+                                <p className="text-red-600 text-sm mt-2">
+                                    이 작업은 되돌릴 수 없습니다.
+                                </p>
+                            </div>
+                            
+                            <div className="flex justify-end space-x-3">
+                                <button
+                                    onClick={() => {
+                                        setShowDeleteModal(false);
+                                        setPostToDelete(null);
+                                    }}
+                                    className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium"
+                                >
+                                    취소
+                                </button>
+                                <button
+                                    onClick={confirmDelete}
+                                    className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium"
+                                >
+                                    삭제하기
                                 </button>
                             </div>
                         </div>

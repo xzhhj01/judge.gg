@@ -6,8 +6,12 @@ import PostFilter from "../../../components/PostFilter";
 import CommunityHeader from "../../../components/CommunityHeader";
 import communityTags from "@/data/communityTags.json";
 import { communityService } from '@/app/services/community/community.service';
+import { useAuth } from '@/app/utils/providers';
+import { useSession } from 'next-auth/react';
 
 export default function ValorantCommunityPage() {
+    const { user } = useAuth();
+    const { data: session } = useSession();
     const [selectedSituations, setSelectedSituations] = useState([]);
     const [selectedMaps, setSelectedMaps] = useState([]);
     const [selectedAgents, setSelectedAgents] = useState([]);
@@ -175,6 +179,34 @@ export default function ValorantCommunityPage() {
         setSelectedSituations([]);
         setSelectedMaps([]);
         setSelectedAgents([]);
+    };
+
+    // Handle post share
+    const handlePostShare = (post) => {
+        const url = `${window.location.origin}/valorant/community/post/${post.id}`;
+        
+        if (navigator.share) {
+            navigator.share({
+                title: post.title,
+                text: `${post.title} - Judge.gg`,
+                url: url
+            }).catch(err => {
+                console.log('Error sharing:', err);
+                copyToClipboard(url);
+            });
+        } else {
+            copyToClipboard(url);
+        }
+    };
+
+    // Copy URL to clipboard
+    const copyToClipboard = (text) => {
+        navigator.clipboard.writeText(text).then(() => {
+            alert('링크가 클립보드에 복사되었습니다!');
+        }).catch(err => {
+            console.error('Could not copy text: ', err);
+            alert('링크 복사에 실패했습니다.');
+        });
     };
 
     return (
@@ -354,6 +386,8 @@ export default function ValorantCommunityPage() {
                                             key={post.id}
                                             post={post}
                                             gameType="valorant"
+                                            currentUser={user || session?.user}
+                                            onShare={handlePostShare}
                                         />
                                     ))}
                                 </div>
