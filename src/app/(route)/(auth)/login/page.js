@@ -34,7 +34,8 @@ export default function Login() {
         try {
             const response = await axios.post('/api/auth/login', formData);
             if (response.status === 200) {
-                router.push("/");
+                // 로그인 성공 후 페이지 새로고침하여 세션 상태 갱신
+                window.location.href = "/";
             }
         } catch (error) {
             console.error("로그인 실패:", error);

@@ -1,52 +1,58 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
+import { useAuth } from "@/app/utils/providers";
 import { mentorService } from "@/app/services/mentor/mentor.service";
 
 export default function AdminMentorsPage() {
+    const { data: session } = useSession();
+    const { user: firebaseUser } = useAuth();
     const [pendingMentors, setPendingMentors] = useState([]);
     const [approvedMentors, setApprovedMentors] = useState([]);
+    const [rejectedMentors, setRejectedMentors] = useState([]);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('pending');
     const [isAuthenticated, setIsAuthenticated] = useState(false);
-    const [password, setPassword] = useState('');
     const [authError, setAuthError] = useState('');
+    const [actionLoading, setActionLoading] = useState({});
+    const [showRejectModal, setShowRejectModal] = useState(false);
+    const [selectedMentor, setSelectedMentor] = useState(null);
+    const [rejectReason, setRejectReason] = useState('');
 
     useEffect(() => {
-        // 세션에서 인증 상태 확인
-        const adminAuth = sessionStorage.getItem('adminAuthenticated');
-        if (adminAuth === 'true') {
+        // 이메일 기반 관리자 권한 확인
+        const currentUser = session?.user || firebaseUser;
+        const adminEmails = [
+            'admin@judge.gg',
+            'leaf4937@gmail.com',  // 개발자 계정
+            // 필요에 따라 다른 관리자 이메일 추가
+        ];
+        
+        if (currentUser && adminEmails.includes(currentUser.email)) {
             setIsAuthenticated(true);
             loadMentors();
+        } else if (currentUser) {
+            setAuthError('관리자 권한이 없습니다.');
+            setLoading(false);
         } else {
+            setAuthError('로그인이 필요합니다.');
             setLoading(false);
         }
-    }, []);
-
-    const handlePasswordSubmit = (e) => {
-        e.preventDefault();
-        
-        // 비밀번호 확인 (실제 서비스에서는 더 안전한 방법 사용)
-        if (password === '1234') {
-            setIsAuthenticated(true);
-            setAuthError('');
-            sessionStorage.setItem('adminAuthenticated', 'true');
-            loadMentors();
-        } else {
-            setAuthError('잘못된 비밀번호입니다.');
-        }
-    };
+    }, [session, firebaseUser]);
 
     const loadMentors = async () => {
         try {
             setLoading(true);
-            const [pending, approved] = await Promise.all([
+            const [pending, approved, rejected] = await Promise.all([
                 mentorService.getMentorsByStatus('pending'),
-                mentorService.getMentorsByStatus('approved')
+                mentorService.getMentorsByStatus('approved'),
+                mentorService.getMentorsByStatus('rejected')
             ]);
             
             setPendingMentors(pending);
             setApprovedMentors(approved);
+            setRejectedMentors(rejected);
         } catch (error) {
             console.error('멘토 목록 로드 실패:', error);
         } finally {
@@ -56,13 +62,49 @@ export default function AdminMentorsPage() {
 
     const handleApproval = async (mentorId, action, reason = '') => {
         try {
+            setActionLoading(prev => ({ ...prev, [mentorId]: true }));
+            
             await mentorService.updateMentorStatus(mentorId, action, reason);
             await loadMentors(); // 목록 새로고침
-            alert(`멘토가 ${action === 'approved' ? '승인' : '거절'}되었습니다.`);
+            
+            // 성공 메시지
+            const actionText = action === 'approved' ? '승인' : '거절';
+            alert(`멘토가 성공적으로 ${actionText}되었습니다.`);
+            
+            // 거절 모달 닫기
+            if (showRejectModal) {
+                setShowRejectModal(false);
+                setSelectedMentor(null);
+                setRejectReason('');
+            }
         } catch (error) {
             console.error('멘토 상태 업데이트 실패:', error);
-            alert('상태 업데이트에 실패했습니다.');
+            alert(`상태 업데이트에 실패했습니다: ${error.message}`);
+        } finally {
+            setActionLoading(prev => ({ ...prev, [mentorId]: false }));
         }
+    };
+
+    const handleRejectClick = (mentor) => {
+        setSelectedMentor(mentor);
+        setShowRejectModal(true);
+    };
+
+    const handleRejectSubmit = () => {
+        if (!rejectReason.trim()) {
+            alert('거절 사유를 입력해주세요.');
+            return;
+        }
+        
+        if (selectedMentor) {
+            handleApproval(selectedMentor.id, 'rejected', rejectReason);
+        }
+    };
+
+    const handleRejectCancel = () => {
+        setShowRejectModal(false);
+        setSelectedMentor(null);
+        setRejectReason('');
     };
 
     const MentorCard = ({ mentor, showActions = true }) => (
@@ -172,22 +214,34 @@ export default function AdminMentorsPage() {
                 </div>
 
                 {/* 액션 버튼 */}
-                {showActions && mentor.approvalStatus === 'pending' && (
+                {showActions && !mentor.isApproved && !mentor.rejectionReason && (
                     <div className="ml-4 flex flex-col space-y-2">
                         <button
-                            onClick={() => handleApproval(mentor.id, 'approved')}
-                            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                        >
-                            승인
-                        </button>
-                        <button
                             onClick={() => {
-                                const reason = prompt('거절 사유를 입력해주세요:');
-                                if (reason) {
-                                    handleApproval(mentor.id, 'rejected', reason);
+                                if (window.confirm('이 멘토를 승인하시겠습니까?')) {
+                                    handleApproval(mentor.id, 'approved');
                                 }
                             }}
-                            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                            disabled={actionLoading[mentor.id]}
+                            className={`px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center ${
+                                actionLoading[mentor.id] ? 'cursor-wait' : ''
+                            }`}
+                        >
+                            {actionLoading[mentor.id] ? (
+                                <>
+                                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                                    처리중...
+                                </>
+                            ) : (
+                                '승인'
+                            )}
+                        </button>
+                        <button
+                            onClick={() => handleRejectClick(mentor)}
+                            disabled={actionLoading[mentor.id]}
+                            className={`px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                                actionLoading[mentor.id] ? 'cursor-wait' : ''
+                            }`}
                         >
                             거절
                         </button>
@@ -197,47 +251,25 @@ export default function AdminMentorsPage() {
         </div>
     );
 
-    // 인증되지 않은 경우 비밀번호 입력 화면
+    // 인증되지 않은 경우 오류 화면
     if (!isAuthenticated) {
         return (
             <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
                 <div className="max-w-md w-full bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8">
-                    <div className="text-center mb-8">
-                        <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-                            관리자 인증
+                    <div className="text-center">
+                        <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+                            접근 권한 없음
                         </h1>
-                        <p className="text-gray-600 dark:text-gray-300">
-                            관리자 페이지에 접근하려면 비밀번호를 입력하세요.
+                        <p className="text-red-600 dark:text-red-400 mb-6">
+                            {authError}
                         </p>
-                    </div>
-                    
-                    <form onSubmit={handlePasswordSubmit}>
-                        <div className="mb-6">
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                비밀번호
-                            </label>
-                            <input
-                                type="password"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                                placeholder="관리자 비밀번호를 입력하세요"
-                                required
-                            />
-                            {authError && (
-                                <p className="mt-2 text-sm text-red-600 dark:text-red-400">
-                                    {authError}
-                                </p>
-                            )}
-                        </div>
-                        
                         <button
-                            type="submit"
-                            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition-colors"
+                            onClick={() => window.history.back()}
+                            className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors"
                         >
-                            인증하기
+                            돌아가기
                         </button>
-                    </form>
+                    </div>
                 </div>
             </div>
         );
@@ -267,13 +299,10 @@ export default function AdminMentorsPage() {
                         </p>
                     </div>
                     <button
-                        onClick={() => {
-                            sessionStorage.removeItem('adminAuthenticated');
-                            setIsAuthenticated(false);
-                        }}
-                        className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors"
+                        onClick={() => window.history.back()}
+                        className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg text-sm font-medium transition-colors"
                     >
-                        로그아웃
+                        돌아가기
                     </button>
                 </div>
 
@@ -299,6 +328,16 @@ export default function AdminMentorsPage() {
                             }`}
                         >
                             승인됨 ({approvedMentors.length})
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('rejected')}
+                            className={`pb-2 border-b-2 font-medium text-sm ${
+                                activeTab === 'rejected'
+                                    ? 'border-red-500 text-red-600 dark:text-red-400'
+                                    : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+                            }`}
+                        >
+                            거절됨 ({rejectedMentors.length})
                         </button>
                     </nav>
                 </div>
@@ -333,8 +372,83 @@ export default function AdminMentorsPage() {
                         </div>
                     )}
 
+                    {activeTab === 'rejected' && (
+                        <div>
+                            {rejectedMentors.length === 0 ? (
+                                <div className="text-center py-12">
+                                    <p className="text-gray-500 dark:text-gray-400">거절된 멘토가 없습니다.</p>
+                                </div>
+                            ) : (
+                                rejectedMentors.map(mentor => (
+                                    <MentorCard key={mentor.id} mentor={mentor} showActions={false} />
+                                ))
+                            )}
+                        </div>
+                    )}
+
                 </div>
             </div>
+
+            {/* 거절 사유 입력 모달 */}
+            {showRejectModal && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md mx-4">
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                            멘토 신청 거절
+                        </h3>
+                        
+                        {selectedMentor && (
+                            <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                                <p className="text-sm text-gray-600 dark:text-gray-300">
+                                    <span className="font-medium">{selectedMentor.nickname}</span>님의 멘토 신청을 거절하시겠습니까?
+                                </p>
+                            </div>
+                        )}
+
+                        <div className="mb-4">
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                거절 사유 <span className="text-red-500">*</span>
+                            </label>
+                            <textarea
+                                value={rejectReason}
+                                onChange={(e) => setRejectReason(e.target.value)}
+                                placeholder="거절 사유를 상세히 입력해주세요. 이 내용은 신청자에게 전달됩니다."
+                                className="w-full h-32 p-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent dark:bg-gray-700 dark:text-white resize-none"
+                                maxLength={500}
+                            />
+                            <div className="text-right text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                {rejectReason.length}/500
+                            </div>
+                        </div>
+
+                        <div className="flex justify-end space-x-3">
+                            <button
+                                onClick={handleRejectCancel}
+                                disabled={actionLoading[selectedMentor?.id]}
+                                className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-600 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors disabled:opacity-50"
+                            >
+                                취소
+                            </button>
+                            <button
+                                onClick={handleRejectSubmit}
+                                disabled={!rejectReason.trim() || actionLoading[selectedMentor?.id]}
+                                className={`px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center ${
+                                    actionLoading[selectedMentor?.id] ? 'cursor-wait' : ''
+                                }`}
+                            >
+                                {actionLoading[selectedMentor?.id] ? (
+                                    <>
+                                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                                        처리중...
+                                    </>
+                                ) : (
+                                    '거절하기'
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

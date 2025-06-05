@@ -6,6 +6,7 @@ import Link from "next/link";
 import CommunityHeader from "@/app/components/CommunityHeader";
 import { communityService } from '@/app/services/community/community.service';
 import { useAuth } from '@/app/utils/providers';
+import { useSession } from 'next-auth/react';
 import {
     getCharacterCountDisplay,
     VALIDATION_LIMITS,
@@ -15,7 +16,17 @@ export default function LoLCommunityPostPage() {
     const params = useParams();
     const router = useRouter();
     const { user } = useAuth();
+    const { data: session } = useSession();
     const postId = params.id;
+    
+    console.log('🔍 인증 상태 디버깅:', {
+        user: user,
+        session: session,
+        sessionUser: session?.user,
+        hasUser: !!user,
+        hasSession: !!session,
+        isLoggedIn: !!(user || session)
+    });
 
     const [post, setPost] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -28,6 +39,7 @@ export default function LoLCommunityPostPage() {
     const [hasVoted, setHasVoted] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const [isVoting, setIsVoting] = useState(false);
+    const [commentVoting, setCommentVoting] = useState({}); // 댓글별 투표 상태
 
     // 게시글 데이터 로드
     useEffect(() => {
@@ -35,6 +47,11 @@ export default function LoLCommunityPostPage() {
             try {
                 setLoading(true);
                 const postData = await communityService.getPostById('lol', postId);
+                console.log('🔍 로드된 게시글 데이터:', postData);
+                console.log('🔍 투표 옵션:', postData.voteOptions);
+                console.log('🔍 투표 결과:', postData.voteResults);
+                console.log('🔍 총 투표 수:', postData.totalVotes);
+                console.log('🔍 중립 허용:', postData.allowNeutral);
                 setPost(postData);
                 
                 // 댓글도 함께 로드
@@ -57,11 +74,12 @@ export default function LoLCommunityPostPage() {
 
     // 투표 처리
     const handleVote = async (voteType) => {
-        if (hasVoted || isVoting || !user) return;
+        if (hasVoted || isVoting || (!user && !session)) return;
         
         try {
             setIsVoting(true);
-            await communityService.votePost('lol', postId, voteType);
+            const currentUser = user || session?.user;
+            await communityService.votePost('lol', postId, voteType, currentUser);
             
             // 게시글 데이터 새로고침
             const updatedPost = await communityService.getPostById('lol', postId);
@@ -88,10 +106,11 @@ export default function LoLCommunityPostPage() {
     // 댓글 추가
     const handleAddComment = async (e) => {
         e.preventDefault();
-        if (!newComment.trim() || !user) return;
+        if (!newComment.trim() || (!user && !session)) return;
 
         try {
-            const comment = await communityService.addComment('lol', postId, newComment.trim());
+            const currentUser = user || session?.user;
+            const comment = await communityService.addComment('lol', postId, newComment.trim(), currentUser);
             setComments([...comments, comment]);
             setNewComment("");
             
@@ -108,9 +127,41 @@ export default function LoLCommunityPostPage() {
         }
     };
 
+    // 댓글 좋아요/투표
+    const handleCommentVote = async (commentId) => {
+        // 두 가지 인증 상태 모두 확인
+        if (!user && !session) {
+            alert('로그인이 필요합니다.');
+            return;
+        }
+
+        // 이미 투표 중인 댓글인지 확인
+        if (commentVoting[commentId]) return;
+
+        try {
+            setCommentVoting(prev => ({ ...prev, [commentId]: true }));
+            
+            const currentUser = user || session?.user;
+            await communityService.voteComment('lol', commentId, 'like', currentUser);
+            
+            // 댓글 목록에서 해당 댓글의 좋아요 수 업데이트
+            setComments(comments.map(comment => 
+                comment.id === commentId 
+                    ? { ...comment, likes: (comment.likes || 0) + 1 }
+                    : comment
+            ));
+            
+        } catch (error) {
+            console.error('댓글 투표 실패:', error);
+            alert('투표에 실패했습니다. 다시 시도해주세요.');
+        } finally {
+            setCommentVoting(prev => ({ ...prev, [commentId]: false }));
+        }
+    };
+
     // 게시글 삭제
     const handleDeletePost = async () => {
-        if (!user || !post) {
+        if ((!user && !session) || !post) {
             alert('삭제 권한이 없습니다.');
             return;
         }
@@ -242,27 +293,24 @@ export default function LoLCommunityPostPage() {
                             {post.title}
                         </h1>
                         <div className="flex space-x-2">
-                            {/* 디버깅: 사용자 정보 및 권한 체크 */}
-                            <div className="text-xs text-gray-500 mr-4">
-                                디버그: user={user ? 'Y' : 'N'}, authorUid={post.authorUid || 'none'}, userUid={user?.uid || 'none'}
-                            </div>
-                            
-                            {/* 임시로 모든 사용자에게 버튼 표시 */}
-                            <>
-                                <Link
-                                    href={`/lol/community/post/${postId}/edit`}
-                                    className="px-4 py-2 text-sm text-blue-600 hover:text-blue-700 border border-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
-                                >
-                                    수정하기
-                                </Link>
-                                <button 
-                                    onClick={handleDeletePost}
-                                    disabled={isDeleting}
-                                    className="px-4 py-2 text-sm text-red-600 hover:text-red-700 border border-red-600 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    {isDeleting ? '삭제 중...' : '삭제하기'}
-                                </button>
-                            </>
+                            {/* 작성자만 수정/삭제 버튼 표시 */}
+                            {((user && post.authorUid === user.uid) || (session && (post.authorId === session.user.id || post.authorUid === session.user.id))) && (
+                                <>
+                                    <Link
+                                        href={`/lol/community/post/${postId}/edit`}
+                                        className="px-4 py-2 text-sm text-blue-600 hover:text-blue-700 border border-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
+                                    >
+                                        수정하기
+                                    </Link>
+                                    <button 
+                                        onClick={handleDeletePost}
+                                        disabled={isDeleting}
+                                        className="px-4 py-2 text-sm text-red-600 hover:text-red-700 border border-red-600 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        {isDeleting ? '삭제 중...' : '삭제하기'}
+                                    </button>
+                                </>
+                            )}
                             <button
                                 onClick={() => {
                                     navigator.clipboard.writeText(
@@ -426,9 +474,82 @@ export default function LoLCommunityPostPage() {
                 {/* 투표 */}
                 <section className="bg-white rounded-xl border border-gray-200 p-6 mb-8">
                     <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                        이 게시글에 대한 당신의 의견은?
+                        이 상황에 대한 당신의 판단은?
                     </h2>
-                    {user ? (
+                    
+                    {/* 투표 옵션이 있는 경우 */}
+                    {post.voteOptions && Array.isArray(post.voteOptions) && post.voteOptions.length >= 2 ? (
+                        <div className="space-y-4">
+                            {/* 투표 옵션들 */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {post.voteOptions.map((option, index) => (
+                                    <button
+                                        key={index}
+                                        onClick={() => handleVote(`option_${index}`)}
+                                        disabled={hasVoted || isVoting}
+                                        className={`p-4 border-2 rounded-lg transition-all ${
+                                            selectedVote === `option_${index}`
+                                                ? 'border-blue-500 bg-blue-50 text-blue-900'
+                                                : 'border-gray-300 hover:border-blue-300 hover:bg-blue-50'
+                                        } ${hasVoted || isVoting ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
+                                    >
+                                        <div className="text-center">
+                                            <div className="font-medium text-lg mb-2">{option}</div>
+                                            <div className="text-sm text-gray-600">
+                                                {post.voteResults?.[index] || 0}표
+                                                {post.totalVotes > 0 && (
+                                                    <span className="ml-1">
+                                                        ({Math.round(((post.voteResults?.[index] || 0) / post.totalVotes) * 100)}%)
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                        {isVoting && selectedVote === `option_${index}` && (
+                                            <div className="mt-2 flex justify-center">
+                                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+                                            </div>
+                                        )}
+                                    </button>
+                                ))}
+                            </div>
+                            
+                            {/* 중립 옵션 */}
+                            {post.allowNeutral && (
+                                <div className="flex justify-center">
+                                    <button
+                                        onClick={() => handleVote('neutral')}
+                                        disabled={hasVoted || isVoting}
+                                        className={`px-6 py-3 border-2 rounded-lg transition-all ${
+                                            selectedVote === 'neutral'
+                                                ? 'border-gray-500 bg-gray-50 text-gray-900'
+                                                : 'border-gray-300 hover:border-gray-400'
+                                        } ${hasVoted || isVoting ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
+                                    >
+                                        판단하기 어려움
+                                        <span className="ml-2 text-sm text-gray-600">
+                                            ({post.voteResults?.neutral || 0}표)
+                                        </span>
+                                        {isVoting && selectedVote === 'neutral' && (
+                                            <div className="ml-2 inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-gray-500"></div>
+                                        )}
+                                    </button>
+                                </div>
+                            )}
+                            
+                            {/* 투표 마감일 */}
+                            {post.voteDeadline && (
+                                <div className="text-center text-sm text-gray-500 mt-4">
+                                    투표 마감: {new Date(post.voteDeadline).toLocaleString('ko-KR')}
+                                </div>
+                            )}
+                            
+                            {/* 총 투표 수 */}
+                            <div className="text-center text-sm text-gray-600 mt-2">
+                                총 {post.totalVotes || 0}명이 투표했습니다
+                            </div>
+                        </div>
+                    ) : (
+                        /* 기본 좋아요/싫어요 투표 */
                         <div className="flex justify-center space-x-4">
                             <button
                                 onClick={() => handleVote('like')}
@@ -465,11 +586,15 @@ export default function LoLCommunityPostPage() {
                                 )}
                             </button>
                         </div>
-                    ) : (
+                    )}
+                    
+                    {/* 로그인 필요 메시지 */}
+                    {!user && !session && (
                         <div className="text-center text-gray-500 py-4">
                             <p>투표하려면 <Link href="/login" className="text-blue-600 hover:text-blue-700">로그인</Link>이 필요합니다.</p>
                         </div>
                     )}
+                    
                     {hasVoted && (
                         <p className="text-center text-green-600 mt-3 text-sm">
                             투표해주셔서 감사합니다!
@@ -527,7 +652,15 @@ export default function LoLCommunityPostPage() {
                                             {formatDate(comment.createdAt?.toDate ? comment.createdAt.toDate() : comment.createdAt)}
                                         </span>
                                     </div>
-                                    <button className="text-sm text-gray-500 hover:text-red-600 flex items-center space-x-1">
+                                    <button 
+                                        onClick={() => handleCommentVote(comment.id)}
+                                        disabled={commentVoting[comment.id]}
+                                        className={`text-sm flex items-center space-x-1 transition-colors ${
+                                            commentVoting[comment.id] 
+                                                ? 'text-gray-400 cursor-not-allowed' 
+                                                : 'text-gray-500 hover:text-red-600'
+                                        }`}
+                                    >
                                         <svg
                                             className="w-4 h-4"
                                             fill="none"
@@ -541,7 +674,7 @@ export default function LoLCommunityPostPage() {
                                                 d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
                                             />
                                         </svg>
-                                        <span>0</span>
+                                        <span>{comment.likes || 0}</span>
                                     </button>
                                 </div>
                                 <p className="text-gray-700 leading-relaxed">

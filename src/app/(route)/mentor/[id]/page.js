@@ -37,6 +37,9 @@ export default function MentorDetailPage() {
     const params = useParams();
     const mentorId = params.id;
     const { user } = useAuth();
+    const [mentor, setMentor] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
     const [activeTab, setActiveTab] = useState("reviews");
     const [showContactModal, setShowContactModal] = useState(false);
     const [showApplyModal, setShowApplyModal] = useState(false);
@@ -48,6 +51,27 @@ export default function MentorDetailPage() {
     const [reviewText, setReviewText] = useState("");
     const [reviews, setReviews] = useState([]);
     const [submittingReview, setSubmittingReview] = useState(false);
+
+    // 멘토 데이터 로드
+    useEffect(() => {
+        const loadMentor = async () => {
+            try {
+                setLoading(true);
+                const mentorData = await mentorService.getMentorById(mentorId);
+                setMentor(mentorData);
+                setError(null);
+            } catch (err) {
+                console.error('멘토 정보 로드 실패:', err);
+                setError('멘토 정보를 불러오는데 실패했습니다.');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        if (mentorId) {
+            loadMentor();
+        }
+    }, [mentorId]);
 
     // 스낵바 자동 숨김
     useEffect(() => {
@@ -155,151 +179,37 @@ export default function MentorDetailPage() {
         }
     };
 
-    // 더미 멘토 데이터 (실제로는 API에서 ID로 조회)
-    const mockMentors = {
-        1: {
-            id: 1,
-            nickname: "프로게이머김철수",
-            game: "lol",
-            profileImage: null,
-            rating: 4.8,
-            reviewCount: 127,
-            responseRate: 95,
-            totalAnswers: 234,
-            isVerified: true,
-            // Profile 영역
-            oneLineIntro: "7년 프로게이머 경력의 정글 전문 코치입니다",
-            contact: "discord: kimcs#1234",
-            // Tag 영역
-            gameTag: "LoL",
-            characterTags: ["친절한", "체계적인", "실력향상보장"],
-            championTags: [], // JSON으로 추후 추가
-            lineTags: ["정글"],
-            // Experience 영역
-            experienceType: ["프로게이머", "코치"],
-            experienceDetails: [
-                "LCK 출전 경험 (2017-2022)",
-                "챌린저 달성 5회",
-                "정글 전문 코치 (2022-현재)",
-                "개인 멘토링 200명+ 지도",
-            ],
-            // Curriculum 영역
-            curriculum: {
-                title: "정글 마스터 과정",
-                description: "기초부터 고급까지 체계적인 정글 교육",
-                sessions: [
-                    {
-                        title: "1회차: 정글 기초 이론",
-                        duration: "60분",
-                        content: [
-                            "정글 루트 이해",
-                            "갱킹 기본 원리",
-                            "와드 배치",
-                        ],
-                    },
-                    {
-                        title: "2회차: 실전 갱킹",
-                        duration: "60분",
-                        content: [
-                            "갱킹 타이밍",
-                            "라인 상황 판단",
-                            "카운터 갱킹",
-                        ],
-                    },
-                    {
-                        title: "3회차: 오브젝트 컨트롤",
-                        duration: "60분",
-                        content: [
-                            "드래곤/바론 컨트롤",
-                            "팀파이트 포지셔닝",
-                            "후반 운영",
-                        ],
-                    },
-                ],
-                mentoring_types: {
-                    video_feedback: {
-                        isSelected: true,
-                        price: 10000,
-                    },
-                    realtime_onepoint: {
-                        isSelected: true,
-                        price: 15000,
-                    },
-                    realtime_private: {
-                        isSelected: true,
-                        price: 20000,
-                    },
-                },
-            },
-            // 상세 소개
-            detailedIntroduction:
-                "저는 7년간의 프로게이머 경력을 바탕으로 정글 포지션에서의 전문적인 코칭을 제공합니다.",
-        },
-        2: {
-            id: 2,
-            nickname: "발로마스터",
-            game: "valorant",
-            profileImage: null,
-            rating: 4.6,
-            reviewCount: 89,
-            responseRate: 88,
-            totalAnswers: 156,
-            isVerified: true,
-            oneLineIntro: "레디언트 달성 경험의 에임 전문 코치",
-            contact: "discord: valomaster#5678",
-            gameTag: "VALORANT",
-            characterTags: ["꼼꼼한", "에임향상전문"],
-            championTags: [],
-            lineTags: ["듀얼리스트", "컨트롤러"],
-            experienceType: ["고티어", "스트리머"],
-            experienceDetails: [
-                "레디언트 3회 달성",
-                "발로란트 챔피언스 투어 참가",
-                "트위치 스트리머 (팔로워 5만+)",
-                "에임 트레이닝 전문",
-            ],
-            curriculum: {
-                title: "에임 마스터 과정",
-                description: "체계적인 에임 향상과 게임 센스 개발",
-                sessions: [
-                    {
-                        title: "1회차: 에임 기초",
-                        duration: "60분",
-                        content: [
-                            "마우스 설정",
-                            "크로스헤어 조정",
-                            "기본 에임 연습",
-                        ],
-                    },
-                    {
-                        title: "2회차: 실전 에임",
-                        duration: "60분",
-                        content: [
-                            "피킹 연습",
-                            "리코일 컨트롤",
-                            "움직이며 쏘기",
-                        ],
-                    },
-                ],
-                mentoring_types: {
-                    video_feedback: {
-                        isSelected: true,
-                        price: 10000,
-                    },
-                    realtime_onepoint: {
-                        isSelected: true,
-                        price: 15000,
-                    },
-                    realtime_private: {
-                        isSelected: true,
-                        price: 20000,
-                    },
-                },
-            },
-        },
-    };
+    // 로딩 상태 처리
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+                    <p className="text-gray-600">멘토 정보를 불러오는 중...</p>
+                </div>
+            </div>
+        );
+    }
 
-    const mentor = mockMentors[mentorId];
+    // 에러 상태 처리
+    if (error) {
+        return (
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                <div className="text-center">
+                    <h1 className="text-2xl font-bold text-gray-900 mb-4">
+                        오류가 발생했습니다
+                    </h1>
+                    <p className="text-gray-600 mb-4">{error}</p>
+                    <Link
+                        href="/mentor"
+                        className="text-blue-600 hover:text-blue-700"
+                    >
+                        멘토 목록으로 돌아가기
+                    </Link>
+                </div>
+            </div>
+        );
+    }
 
     // 임시 리뷰 데이터
     const mockReviews = [
@@ -420,12 +330,12 @@ export default function MentorDetailPage() {
                                 <div className="flex flex-col items-center">
                                     <div className="relative">
                                         <div className="w-32 h-32 bg-gradient-to-br from-primary-400 to-primary-600 rounded-full flex items-center justify-center text-white font-bold text-4xl">
-                                            {mentor.nickname.charAt(0)}
+                                            {(mentor.nickname || mentor.userName || mentor.name || '멘토').charAt(0)}
                                         </div>
                                         <div className="absolute -bottom-1 -right-1 w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-md">
-                                            {mentor.game === "lol" ? (
+                                            {mentor.selectedGame === "lol" ? (
                                                 <img
-                                                    src="/images/lol-logo.png"
+                                                    src="/logo-lol.svg"
                                                     alt="League of Legends"
                                                     className="w-7 h-7"
                                                     onError={(e) => {
@@ -437,7 +347,7 @@ export default function MentorDetailPage() {
                                                 />
                                             ) : (
                                                 <img
-                                                    src="/images/valorant-logo.png"
+                                                    src="/logo-valorant.svg"
                                                     alt="VALORANT"
                                                     className="w-7 h-7"
                                                     onError={(e) => {
@@ -452,12 +362,12 @@ export default function MentorDetailPage() {
                                                 className="text-xs font-medium text-gray-600"
                                                 style={{ display: "none" }}
                                             >
-                                                {mentor.gameTag}
+                                                {mentor.selectedGame || 'GAME'}
                                             </span>
                                         </div>
                                     </div>
                                     <h1 className="text-xl font-bold text-gray-900 mt-4">
-                                        {mentor.nickname}
+                                        {mentor.nickname || mentor.userName || mentor.name || '멘토'}
                                     </h1>
                                 </div>
 
@@ -468,7 +378,7 @@ export default function MentorDetailPage() {
                                             한줄 소개
                                         </h3>
                                         <p className="text-gray-700 mb-4">
-                                            {mentor.oneLineIntro}
+                                            {mentor.oneLineIntro || '멘토 소개를 준비 중입니다.'}
                                         </p>
                                     </div>
 
@@ -480,7 +390,7 @@ export default function MentorDetailPage() {
                                                 특징
                                             </span>
                                             <div className="inline-flex flex-wrap gap-1">
-                                                {mentor.characterTags.map(
+                                                {(mentor.characterTags || []).map(
                                                     (tag, index) => (
                                                         <span
                                                             key={index}
@@ -489,6 +399,11 @@ export default function MentorDetailPage() {
                                                             {tag}
                                                         </span>
                                                     )
+                                                )}
+                                                {(!mentor.characterTags || mentor.characterTags.length === 0) && (
+                                                    <span className="text-xs text-gray-500">
+                                                        등록된 특징이 없습니다
+                                                    </span>
                                                 )}
                                             </div>
                                         </div>
@@ -499,7 +414,7 @@ export default function MentorDetailPage() {
                                                 라인
                                             </span>
                                             <div className="inline-flex flex-wrap gap-1">
-                                                {mentor.lineTags.map(
+                                                {(mentor.lineTags || []).map(
                                                     (tag, index) => (
                                                         <span
                                                             key={index}
@@ -508,6 +423,11 @@ export default function MentorDetailPage() {
                                                             {tag}
                                                         </span>
                                                     )
+                                                )}
+                                                {(!mentor.lineTags || mentor.lineTags.length === 0) && (
+                                                    <span className="text-xs text-gray-500">
+                                                        등록된 라인이 없습니다
+                                                    </span>
                                                 )}
                                             </div>
                                         </div>
@@ -531,18 +451,18 @@ export default function MentorDetailPage() {
                             <div className="grid grid-cols-3 gap-4 divide-x divide-gray-200">
                                 <div className="text-center">
                                     <div className="flex items-center justify-center mb-1">
-                                        {renderStars(mentor.rating)}
+                                        {renderStars(mentor.rating || 0)}
                                         <span className="ml-1 font-semibold text-gray-900">
-                                            {mentor.rating.toFixed(1)}
+                                            {(mentor.rating || 0).toFixed(1)}
                                         </span>
                                     </div>
                                     <div className="text-sm text-gray-600">
-                                        평점 ({mentor.reviewCount})
+                                        평점 ({mentor.totalReviews || 0})
                                     </div>
                                 </div>
                                 <div className="text-center">
                                     <div className="font-semibold text-gray-900">
-                                        {mentor.responseRate}%
+                                        {mentor.responseRate || 100}%
                                     </div>
                                     <div className="text-sm text-gray-600">
                                         응답률
@@ -550,7 +470,7 @@ export default function MentorDetailPage() {
                                 </div>
                                 <div className="text-center">
                                     <div className="font-semibold text-gray-900">
-                                        {mentor.totalAnswers}
+                                        {mentor.totalFeedbacks || 0}
                                     </div>
                                     <div className="text-sm text-gray-600">
                                         피드백 답변
@@ -568,7 +488,7 @@ export default function MentorDetailPage() {
                             {/* 경력 타입 */}
                             <div className="mb-4">
                                 <div className="flex flex-wrap gap-2">
-                                    {mentor.experienceType.map(
+                                    {(mentor.experienceType || []).map(
                                         (type, index) => (
                                             <span
                                                 key={index}
@@ -578,13 +498,18 @@ export default function MentorDetailPage() {
                                             </span>
                                         )
                                     )}
+                                    {(!mentor.experienceType || mentor.experienceType.length === 0) && (
+                                        <span className="text-sm text-gray-500">
+                                            등록된 경력 정보가 없습니다
+                                        </span>
+                                    )}
                                 </div>
                             </div>
 
                             {/* 상세 경력 */}
                             <div>
                                 <ul className="space-y-2">
-                                    {mentor.experienceDetails.map(
+                                    {(mentor.experienceDetails || []).map(
                                         (detail, index) => (
                                             <li
                                                 key={index}
@@ -596,6 +521,11 @@ export default function MentorDetailPage() {
                                                 </span>
                                             </li>
                                         )
+                                    )}
+                                    {(!mentor.experienceDetails || mentor.experienceDetails.length === 0) && (
+                                        <p className="text-sm text-gray-500">
+                                            상세 경력 정보가 등록되지 않았습니다
+                                        </p>
                                     )}
                                 </ul>
                             </div>
@@ -631,10 +561,10 @@ export default function MentorDetailPage() {
                                     },
                                 ].map((service) => {
                                     const serviceData =
-                                        mentor.curriculum.mentoring_types[
+                                        mentor.curriculum?.mentoring_types?.[
                                             service.type
                                         ];
-                                    if (!serviceData.isSelected) return null;
+                                    if (!serviceData?.isSelected) return null;
 
                                     return (
                                         <div
@@ -652,7 +582,7 @@ export default function MentorDetailPage() {
                                                 </div>
                                                 <div className="text-right">
                                                     <div className="text-lg font-bold text-primary-600">
-                                                        {serviceData.price.toLocaleString()}
+                                                        {(serviceData.price || 0).toLocaleString()}
                                                         원
                                                     </div>
                                                     <div className="text-sm text-gray-500">
@@ -662,7 +592,13 @@ export default function MentorDetailPage() {
                                             </div>
                                         </div>
                                     );
-                                })}
+                                }).filter(Boolean)}
+                                {(!mentor.curriculum?.mentoring_types || 
+                                  Object.values(mentor.curriculum.mentoring_types).every(service => !service.isSelected)) && (
+                                    <p className="text-sm text-gray-500 text-center py-4">
+                                        등록된 커리큘럼이 없습니다
+                                    </p>
+                                )}
                             </div>
                         </section>
 
@@ -830,7 +766,7 @@ export default function MentorDetailPage() {
                                     <button
                                         onClick={() => setShowApplyModal(true)}
                                         className={`w-full ${
-                                            mentor.game === "lol"
+                                            mentor.selectedGame === "lol"
                                                 ? "bg-blue-500 hover:bg-blue-600"
                                                 : "bg-red-500 hover:bg-red-600"
                                         } text-white py-3 rounded-lg font-medium transition-colors`}
@@ -953,13 +889,13 @@ export default function MentorDetailPage() {
                         <div className="mb-6">
                             <p className="text-gray-700 mb-2">
                                 <span className="font-medium">
-                                    {mentor.nickname}
+                                    {mentor.nickname || mentor.userName || mentor.name || '멘토'}
                                 </span>
                                 님의 연락처
                             </p>
                             <div className="bg-gray-50 p-3 rounded-lg">
                                 <p className="text-gray-900 font-mono">
-                                    {mentor.contact}
+                                    {mentor.contact || '연락처가 등록되지 않았습니다'}
                                 </p>
                             </div>
                         </div>
@@ -967,7 +903,7 @@ export default function MentorDetailPage() {
                             <button
                                 onClick={() =>
                                     navigator.clipboard.writeText(
-                                        mentor.contact
+                                        mentor.contact || ''
                                     )
                                 }
                                 className="flex-1 bg-primary-500 hover:bg-primary-600 text-white py-2 rounded-lg font-medium transition-colors"
@@ -1022,9 +958,9 @@ export default function MentorDetailPage() {
                                         서비스를 선택해주세요
                                     </option>
                                     {Object.entries(
-                                        mentor.curriculum.mentoring_types
+                                        mentor.curriculum?.mentoring_types || {}
                                     ).map(([type, data]) => {
-                                        if (!data.isSelected) return null;
+                                        if (!data?.isSelected) return null;
                                         const serviceTitle = {
                                             video_feedback: "영상 피드백",
                                             realtime_onepoint:
@@ -1035,7 +971,7 @@ export default function MentorDetailPage() {
                                         return (
                                             <option key={type} value={type}>
                                                 {serviceTitle} (
-                                                {data.price.toLocaleString()}원)
+                                                {(data.price || 0).toLocaleString()}원)
                                             </option>
                                         );
                                     })}
@@ -1059,7 +995,7 @@ export default function MentorDetailPage() {
                                     showSnackbar("신청이 완료되었습니다");
                                 }}
                                 className={`flex-1 ${
-                                    mentor.game === "lol"
+                                    mentor.selectedGame === "lol"
                                         ? "bg-blue-500 hover:bg-blue-600"
                                         : "bg-red-500 hover:bg-red-600"
                                 } text-white py-2 rounded-lg font-medium transition-colors`}

@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
+import { useAuth } from "@/app/utils/providers";
 import CommunityHeader from "@/app/components/CommunityHeader";
 import PostForm from "@/app/components/PostForm";
 import communityTags from "@/data/communityTags.json";
@@ -9,10 +11,13 @@ import communityTags from "@/data/communityTags.json";
 export default function LoLCommunityEditPage() {
     const params = useParams();
     const router = useRouter();
+    const { data: session } = useSession();
+    const { user: firebaseUser } = useAuth();
     const postId = params.id;
 
     const [initialData, setInitialData] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [authError, setAuthError] = useState(null);
 
     // 기존 게시글 데이터 로드
     useEffect(() => {
@@ -27,6 +32,25 @@ export default function LoLCommunityEditPage() {
                 const data = await response.json();
                 
                 if (data.success && data.post) {
+                    // 로그인한 사용자인지 확인
+                    const currentUser = session?.user || firebaseUser;
+                    if (!currentUser) {
+                        setAuthError('로그인이 필요합니다.');
+                        setLoading(false);
+                        return;
+                    }
+
+                    // 작성자인지 확인 (authorUid 기준)
+                    const currentUserId = currentUser.uid || currentUser.id;
+                    const postAuthorUid = data.post.authorUid;
+                    
+                    const isAuthor = postAuthorUid === currentUserId;
+                    
+                    if (!isAuthor) {
+                        setAuthError('수정 권한이 없습니다. 본인이 작성한 글만 수정할 수 있습니다.');
+                        setLoading(false);
+                        return;
+                    }
                     // 태그 데이터 변환 (더미 데이터와 Firebase 데이터 호환)
                     let tagsData = {
                         champions: [],
@@ -101,7 +125,31 @@ export default function LoLCommunityEditPage() {
         if (postId) {
             loadPostData();
         }
-    }, [postId, router]);
+    }, [postId, router, session, firebaseUser]);
+
+    // 권한 오류 처리
+    if (authError) {
+        return (
+            <div className="min-h-screen bg-gray-50">
+                <CommunityHeader
+                    gameType="lol"
+                    title="리그 오브 레전드 법원"
+                    description="소환사의 협곡에서 발생한 분쟁을 공정하게 심판합니다"
+                />
+                <div className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+                    <div className="text-center">
+                        <p className="text-red-600 mb-4">{authError}</p>
+                        <button
+                            onClick={() => router.push("/lol/community")}
+                            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                        >
+                            목록으로 돌아가기
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     const handleSubmit = async (formData) => {
         try {

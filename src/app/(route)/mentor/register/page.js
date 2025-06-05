@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from 'next/navigation';
 import Link from "next/link";
 import { mentorService } from '@/app/services/mentor/mentor.service';
+import communityTags from '@/data/communityTags.json';
 
 const SERVICE_TYPES = [
     {
@@ -38,6 +39,9 @@ export default function MentorRegisterPage() {
     const [experienceTags, setExperienceTags] = useState([]);
     const [experienceDetails, setExperienceDetails] = useState([""]);
     const [detailedIntro, setDetailedIntro] = useState("");
+    const [contact, setContact] = useState("");
+    const [responseRate, setResponseRate] = useState(100);
+    const [experienceYears, setExperienceYears] = useState(1);
 
     const [newCharacterTag, setNewCharacterTag] = useState("");
     const [newLineTag, setNewLineTag] = useState("");
@@ -76,46 +80,29 @@ export default function MentorRegisterPage() {
         });
     };
 
+    // communityTags.json에서 데이터 가져오기
     const tagData = {
         lol: {
-            lanes: ["탑", "정글", "미드", "원딜", "서폿"],
+            lanes: communityTags.lol.lanes,
+            champions: communityTags.lol.champions,
+            situations: communityTags.lol.situations
         },
         valorant: {
-            agents: [
-                "제트",
-                "레이나",
-                "피닉스",
-                "레이즈",
-                "요루",
-                "네온",
-                "세이지",
-                "킬조이",
-                "사이퍼",
-                "소바",
-                "오멘",
-                "브림스톤",
-                "바이퍼",
-                "아스트라",
-            ],
-            maps: [
-                "바인드",
-                "헤이븐",
-                "스플릿",
-                "어센트",
-                "아이스박스",
-                "브리즈",
-                "프랙처",
-                "펄",
-            ],
+            agents: communityTags.valorant.agents.map(agent => agent.name),
+            maps: communityTags.valorant.maps,
+            situations: communityTags.valorant.situations
         },
     };
 
     const featureTags = [
         "친절함",
-        "열정적임",
+        "열정적임", 
         "전문적임",
         "유머러스함",
         "인내심 강함",
+        "체계적임",
+        "꼼꼼함",
+        "이해하기 쉬움"
     ];
 
     const [selectedTags, setSelectedTags] = useState({
@@ -263,6 +250,10 @@ export default function MentorRegisterPage() {
             alert("상세 소개를 입력해주세요.");
             return;
         }
+        if (!contact.trim()) {
+            alert("연락처를 입력해주세요.");
+            return;
+        }
         if (!profileImage) {
             alert("프로필 사진을 업로드해주세요.");
             return;
@@ -285,6 +276,9 @@ export default function MentorRegisterPage() {
             formData.append("nickname", nickname);
             formData.append("oneLineIntro", oneLineIntro);
             formData.append("detailedIntro", detailedIntro);
+            formData.append("contact", contact);
+            formData.append("responseRate", responseRate);
+            formData.append("experienceYears", experienceYears);
             formData.append("profileImage", profileImage);
 
             // 선택된 태그들 추가
@@ -709,60 +703,75 @@ export default function MentorRegisterPage() {
                         <div className="mb-6">
                             <h3 className="font-medium text-gray-900 mb-3">
                                 {selectedGame === "valorant"
-                                    ? "요원"
-                                    : "챔피언"}
+                                    ? "특화 요원"
+                                    : "특화 챔피언"}
                             </h3>
                             <input
                                 type="text"
-                                placeholder="챔피언 태그를 검색하세요..."
+                                placeholder={`${selectedGame === "valorant" ? "요원" : "챔피언"} 이름을 검색하세요...`}
                                 value={championSearch}
                                 onChange={(e) =>
                                     setChampionSearch(e.target.value)
                                 }
                                 className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-3"
                             />
-                            <div className="flex flex-wrap gap-2">
-                                {tagData[selectedGame]?.champions
-                                    ?.filter((tag) =>
-                                        tag
-                                            .toLowerCase()
-                                            .includes(
-                                                championSearch.toLowerCase()
-                                            )
+                            <div className="max-h-60 overflow-y-auto border border-gray-200 rounded-lg p-3">
+                                <div className="flex flex-wrap gap-2">
+                                    {(selectedGame === "valorant" 
+                                        ? tagData[selectedGame]?.agents 
+                                        : tagData[selectedGame]?.champions
                                     )
-                                    ?.map((tag, index) => (
-                                        <button
-                                            key={index}
-                                            type="button"
-                                            onClick={() =>
-                                                toggleTag("champions", tag)
-                                            }
-                                            className={`inline-flex px-3 py-1 rounded-full text-sm border transition-colors bg-white text-gray-700 border-gray-300 ${
-                                                selectedTags.champions.includes(
-                                                    tag
+                                        ?.filter((tag) =>
+                                            tag
+                                                .toLowerCase()
+                                                .includes(
+                                                    championSearch.toLowerCase()
                                                 )
-                                                    ? "bg-blue-100"
-                                                    : "bg-white"
-                                            }`}
-                                            style={{
-                                                backgroundColor:
+                                        )
+                                        ?.map((tag, index) => (
+                                            <button
+                                                key={index}
+                                                type="button"
+                                                onClick={() =>
+                                                    toggleTag("champions", tag)
+                                                }
+                                                className={`inline-flex px-3 py-1 rounded-full text-sm border transition-colors ${
                                                     selectedTags.champions.includes(
                                                         tag
                                                     )
-                                                        ? "#bfdbfe"
-                                                        : "#ffffff",
-                                                borderColor:
-                                                    selectedTags.champions.includes(
-                                                        tag
-                                                    )
-                                                        ? "#60a5fa"
-                                                        : "#d1d5db",
-                                            }}
-                                        >
-                                            {tag}
-                                        </button>
-                                    ))}
+                                                        ? "bg-blue-100 border-blue-400 text-blue-800"
+                                                        : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
+                                                }`}
+                                            >
+                                                {tag}
+                                            </button>
+                                        ))}
+                                </div>
                             </div>
+                            {selectedTags.champions.length > 0 && (
+                                <div className="mt-3">
+                                    <p className="text-sm text-gray-600 mb-2">
+                                        선택된 {selectedGame === "valorant" ? "요원" : "챔피언"}: {selectedTags.champions.length}개
+                                    </p>
+                                    <div className="flex flex-wrap gap-1">
+                                        {selectedTags.champions.map((tag, index) => (
+                                            <span
+                                                key={index}
+                                                className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full"
+                                            >
+                                                {tag}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => toggleTag("champions", tag)}
+                                                    className="ml-1 text-blue-600 hover:text-blue-800"
+                                                >
+                                                    ×
+                                                </button>
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </section>
 
@@ -771,6 +780,27 @@ export default function MentorRegisterPage() {
                         <h2 className="text-lg font-semibold text-gray-900 mb-6">
                             경력사항
                         </h2>
+
+                        {/* 경력 년수 */}
+                        <div className="mb-6">
+                            <h3 className="font-medium text-gray-900 mb-3">
+                                경력 년수
+                            </h3>
+                            <div className="flex items-center space-x-4">
+                                <input
+                                    type="number"
+                                    min="1"
+                                    max="20"
+                                    value={experienceYears}
+                                    onChange={(e) => setExperienceYears(parseInt(e.target.value) || 1)}
+                                    className="w-24 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                />
+                                <span className="text-gray-700">년</span>
+                                <p className="text-sm text-gray-500">
+                                    해당 게임의 경력 년수를 입력해주세요
+                                </p>
+                            </div>
+                        </div>
 
                         {/* 경력 태그 */}
                         <div className="mb-6">
@@ -948,6 +978,47 @@ export default function MentorRegisterPage() {
                         <p className="text-sm text-gray-500 mt-2">
                             {detailedIntro.length}/1000자
                         </p>
+                    </section>
+
+                    {/* 연락처 정보 */}
+                    <section className="bg-white rounded-xl border border-gray-200 p-6">
+                        <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                            연락처 정보 <span className="text-red-500">*</span>
+                        </h2>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    연락처 (디스코드, 카카오톡 등)
+                                </label>
+                                <input
+                                    type="text"
+                                    value={contact}
+                                    onChange={(e) => setContact(e.target.value)}
+                                    placeholder="예: discord#1234, 카카오톡ID 등"
+                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    required
+                                />
+                                <p className="text-sm text-gray-500 mt-1">
+                                    멘티들이 연락할 수 있는 연락처를 입력해주세요.
+                                </p>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    예상 응답률 (%)
+                                </label>
+                                <input
+                                    type="number"
+                                    min="1"
+                                    max="100"
+                                    value={responseRate}
+                                    onChange={(e) => setResponseRate(parseInt(e.target.value) || 100)}
+                                    className="w-32 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                />
+                                <p className="text-sm text-gray-500 mt-1">
+                                    멘토링 요청에 대한 예상 응답률을 입력해주세요.
+                                </p>
+                            </div>
+                        </div>
                     </section>
 
                     {/* 서비스 설정 */}

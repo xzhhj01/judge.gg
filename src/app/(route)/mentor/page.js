@@ -1,78 +1,45 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import MentorCard from "../../components/MentorCard";
 import MentorSearchFilter from "../../components/MentorSearchFilter";
+import { mentorService } from "../../services/mentor/mentor.service";
 
 export default function MentorPage() {
     const [selectedGame, setSelectedGame] = useState("all");
     const [searchQuery, setSearchQuery] = useState("");
+    const [mentors, setMentors] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
 
-    // 더미 멘토 데이터
-    const mockMentors = [
-        {
-            id: 1,
-            nickname: "프로게이머김철수",
-            game: "lol",
-            profileImage: null,
-            rating: 4.8,
-            reviewCount: 127,
-            tags: ["정글", "갱킹", "캐리"],
-            responseRate: 95,
-            totalAnswers: 234,
-            isOnline: true,
-            isVerified: true,
-        },
-        {
-            id: 2,
-            nickname: "발로마스터",
-            game: "valorant",
-            profileImage: null,
-            rating: 4.6,
-            reviewCount: 89,
-            tags: ["에임", "포지셔닝", "전략"],
-            responseRate: 88,
-            totalAnswers: 156,
-            isOnline: false,
-            isVerified: true,
-        },
-        {
-            id: 3,
-            nickname: "서포터장인",
-            game: "lol",
-            profileImage: null,
-            rating: 4.9,
-            reviewCount: 203,
-            tags: ["서포터", "와드", "로밍"],
-            responseRate: 97,
-            totalAnswers: 445,
-            isOnline: true,
-            isVerified: false,
-        },
-        {
-            id: 4,
-            nickname: "듀얼리스트킹",
-            game: "valorant",
-            profileImage: null,
-            rating: 4.4,
-            reviewCount: 67,
-            tags: ["듀얼리스트", "엔트리", "클러치"],
-            responseRate: 82,
-            totalAnswers: 98,
-            isOnline: true,
-            isVerified: true,
-        },
-    ];
+    // 멘토 데이터 로드
+    useEffect(() => {
+        const loadMentors = async () => {
+            try {
+                setLoading(true);
+                const mentorData = await mentorService.getMentorsDirect(selectedGame);
+                setMentors(mentorData);
+                setError(null);
+            } catch (err) {
+                console.error('멘토 목록 로드 실패:', err);
+                setError('멘토 목록을 불러오는데 실패했습니다.');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        loadMentors();
+    }, [selectedGame]);
 
     // 필터링된 멘토 목록
-    const filteredMentors = mockMentors.filter((mentor) => {
-        const matchesGame = selectedGame === "all" || mentor.game === selectedGame;
+    const filteredMentors = mentors.filter((mentor) => {
         const matchesSearch = 
-            mentor.nickname.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            mentor.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
+            (mentor.nickname || mentor.userName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (mentor.characterTags || []).some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase())) ||
+            (mentor.lineTags || []).some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
         
-        return matchesGame && matchesSearch;
+        return matchesSearch;
     });
 
     return (
@@ -154,7 +121,20 @@ export default function MentorPage() {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                        {filteredMentors.length > 0 ? (
+                        {loading ? (
+                            <div className="col-span-full text-center py-12">
+                                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+                                <p className="text-gray-600">멘토 목록을 불러오는 중...</p>
+                            </div>
+                        ) : error ? (
+                            <div className="col-span-full text-center py-12">
+                                <div className="text-red-400 text-6xl mb-4">⚠️</div>
+                                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                                    오류가 발생했습니다
+                                </h3>
+                                <p className="text-gray-600">{error}</p>
+                            </div>
+                        ) : filteredMentors.length > 0 ? (
                             filteredMentors.map((mentor) => (
                                 <MentorCard key={mentor.id} mentor={mentor} />
                             ))
@@ -162,10 +142,10 @@ export default function MentorPage() {
                             <div className="col-span-full text-center py-12">
                                 <div className="text-gray-400 text-6xl mb-4">🔍</div>
                                 <h3 className="text-lg font-medium text-gray-900 mb-2">
-                                    검색 결과가 없습니다
+                                    {mentors.length === 0 ? '등록된 멘토가 없습니다' : '검색 결과가 없습니다'}
                                 </h3>
                                 <p className="text-gray-600">
-                                    다른 검색어나 필터를 시도해보세요
+                                    {mentors.length === 0 ? '첫 번째 멘토가 되어보세요!' : '다른 검색어나 필터를 시도해보세요'}
                                 </p>
                             </div>
                         )}

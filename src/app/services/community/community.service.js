@@ -17,6 +17,47 @@ import {
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 export const communityService = {
+  // 투표 옵션 유효성 검사
+  validateVoteOptions(voteOptions) {
+    if (!voteOptions || !Array.isArray(voteOptions)) {
+      return false;
+    }
+    
+    if (voteOptions.length < 2) {
+      return false;
+    }
+    
+    // 첫 번째와 두 번째 옵션이 모두 비어있지 않은 문자열인지 확인
+    const option1 = voteOptions[0];
+    const option2 = voteOptions[1];
+    
+    return (
+      typeof option1 === 'string' && option1.trim().length > 0 &&
+      typeof option2 === 'string' && option2.trim().length > 0
+    );
+  },
+
+  // 일관된 사용자 ID 생성
+  generateConsistentUserId(user) {
+    if (!user) return null;
+    
+    // NextAuth 사용자 (Google OAuth)
+    if (user.id) {
+      return user.id;
+    }
+    
+    // Firebase 사용자
+    if (user.uid) {
+      return user.uid;
+    }
+    
+    // 이메일만 있는 경우 (fallback)
+    if (user.email) {
+      return user.email;
+    }
+    
+    return null;
+  },
   // 게시글 목록 조회
   async getPosts(gameType, tags = [], searchQuery = '', page = 1, limit = 10, sortBy = 'recent') {
     try {
@@ -113,18 +154,35 @@ export const communityService = {
       }
 
       // 사용자 ID 일관성 유지 (NextAuth 세션 우선)
-      const userId = currentUser.id || currentUser.uid || currentUser.email?.replace(/[^a-zA-Z0-9]/g, '_');
+      const userId = this.generateConsistentUserId(currentUser);
       const userName = currentUser.name || currentUser.displayName || currentUser.email;
       const userPhoto = currentUser.image || currentUser.photoURL || null;
+      
+      console.log('🔍 게시글 작성 - 사용자 정보:', {
+        currentUser,
+        userId,
+        userName,
+        userPhoto,
+        authMethod: currentUser.id ? 'NextAuth' : 'Firebase'
+      });
 
       const docData = {
         title: postData.title,
         content: postData.content,
         tags: postData.tags || [],
         authorId: userId,
+        authorUid: userId, // 동일한 값으로 두 필드 모두 저장
         authorName: userName,
         authorPhoto: userPhoto,
         videoUrl,
+        // 투표 관련 필드 추가
+        voteOptions: this.validateVoteOptions(postData.voteOptions) ? postData.voteOptions : null,
+        allowNeutral: postData.allowNeutral || false,
+        voteDeadline: postData.voteDeadline || null,
+        voteResults: this.validateVoteOptions(postData.voteOptions) 
+          ? new Array(postData.voteOptions.length).fill(0).concat(postData.allowNeutral ? [0] : [])
+          : null,
+        totalVotes: 0,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
         likes: 0,
@@ -211,7 +269,7 @@ export const communityService = {
       }
       
       // 사용자 ID 확인 (NextAuth uid 또는 Firebase uid)
-      const userId = currentUser.uid || currentUser.id || currentUser.email?.replace(/[^a-zA-Z0-9]/g, '_');
+      const userId = this.generateConsistentUserId(currentUser);
       const postAuthorId = docSnap.data().authorId;
       
       console.log('사용자 ID 비교:', {
@@ -220,23 +278,18 @@ export const communityService = {
         currentUser: currentUser
       });
       
-      // 더 유연한 사용자 ID 매칭
+      // 엄격한 사용자 ID 매칭
       const isAuthor = postAuthorId === userId || 
                       postAuthorId === currentUser.email?.replace(/[^a-zA-Z0-9]/g, '_') ||
                       postAuthorId === currentUser.email ||
                       postAuthorId === currentUser.uid ||
                       postAuthorId === currentUser.id;
       
-      // 개발/테스트용 임시 우회: 이메일이 일치하면 허용
-      const isEmailMatch = currentUser.email && 
-                          (currentUser.email === 'leaf4937@gmail.com' || // 개발자 계정
-                           currentUser.email.includes('leaf4937'));
-      
-      if (!isAuthor && !isEmailMatch) {
-        throw new Error(`수정 권한이 없습니다. (작성자: ${postAuthorId}, 현재 사용자: ${userId})`);
+      if (!isAuthor) {
+        throw new Error(`수정 권한이 없습니다. 본인이 작성한 글만 수정할 수 있습니다.`);
       }
       
-      console.log('권한 확인 완료:', { isAuthor, isEmailMatch, email: currentUser.email });
+      console.log('권한 확인 완료:', { isAuthor, email: currentUser.email });
 
       const updateData = {
         title: postData.title,
@@ -285,23 +338,18 @@ export const communityService = {
       }
       
       // 사용자 ID 확인 (NextAuth uid 또는 Firebase uid)
-      const userId = currentUser.uid || currentUser.id || currentUser.email?.replace(/[^a-zA-Z0-9]/g, '_');
+      const userId = this.generateConsistentUserId(currentUser);
       const postAuthorId = docSnap.data().authorId;
       
-      // 더 유연한 사용자 ID 매칭
+      // 엄격한 사용자 ID 매칭
       const isAuthor = postAuthorId === userId || 
                       postAuthorId === currentUser.email?.replace(/[^a-zA-Z0-9]/g, '_') ||
                       postAuthorId === currentUser.email ||
                       postAuthorId === currentUser.uid ||
                       postAuthorId === currentUser.id;
       
-      // 개발/테스트용 임시 우회: 이메일이 일치하면 허용
-      const isEmailMatch = currentUser.email && 
-                          (currentUser.email === 'leaf4937@gmail.com' || // 개발자 계정
-                           currentUser.email.includes('leaf4937'));
-      
-      if (!isAuthor && !isEmailMatch) {
-        throw new Error(`삭제 권한이 없습니다. (작성자: ${postAuthorId}, 현재 사용자: ${userId})`);
+      if (!isAuthor) {
+        throw new Error(`삭제 권한이 없습니다. 본인이 작성한 글만 삭제할 수 있습니다.`);
       }
 
       await deleteDoc(docRef);
@@ -313,19 +361,28 @@ export const communityService = {
   },
 
   // 댓글 추가
-  async addComment(gameType, postId, commentText) {
+  async addComment(gameType, postId, commentText, sessionUser = null) {
     try {
-      const user = auth.currentUser;
-      if (!user) {
-        throw new Error('로그인이 필요합니다.');
+      // NextAuth 세션 사용자 우선
+      let currentUser = sessionUser;
+      if (!currentUser) {
+        currentUser = auth.currentUser;
+        if (!currentUser) {
+          throw new Error('로그인이 필요합니다.');
+        }
       }
+
+      const userId = this.generateConsistentUserId(currentUser);
+      const userName = currentUser.name || currentUser.displayName || currentUser.email;
+      const userPhoto = currentUser.image || currentUser.photoURL || null;
 
       const commentData = {
         postId,
         content: commentText,
-        authorId: user.uid,
-        authorName: user.displayName || user.email,
-        authorPhoto: user.photoURL || null,
+        authorId: userId,
+        authorUid: userId, // 동일한 값으로 두 필드 모두 저장
+        authorName: userName,
+        authorPhoto: userPhoto,
         createdAt: serverTimestamp()
       };
 
@@ -545,12 +602,16 @@ export const communityService = {
     }
   },
 
-  // 게시글 투표 (좋아요/싫어요)
-  async votePost(gameType, postId, voteType) {
+  // 게시글 투표 (좋아요/싫어요 또는 커스텀 투표)
+  async votePost(gameType, postId, voteType, sessionUser = null) {
     try {
-      const user = auth.currentUser;
-      if (!user) {
-        throw new Error('로그인이 필요합니다.');
+      // NextAuth 세션 사용자 우선
+      let currentUser = sessionUser;
+      if (!currentUser) {
+        currentUser = auth.currentUser;
+        if (!currentUser) {
+          throw new Error('로그인이 필요합니다.');
+        }
       }
 
       const postRef = doc(db, `${gameType}_posts`, postId);
@@ -561,17 +622,40 @@ export const communityService = {
       }
 
       const currentData = postSnap.data();
-      const currentLikes = currentData.likes || 0;
-      const currentDislikes = currentData.dislikes || 0;
+      
+      // 커스텀 투표 옵션이 있는 경우
+      if (this.validateVoteOptions(currentData.voteOptions)) {
+        const voteResults = currentData.voteResults || new Array(currentData.voteOptions.length).fill(0);
+        const totalVotes = currentData.totalVotes || 0;
+        
+        if (voteType.startsWith('option_')) {
+          const optionIndex = parseInt(voteType.split('_')[1]);
+          if (optionIndex >= 0 && optionIndex < voteResults.length) {
+            voteResults[optionIndex] += 1;
+          }
+        } else if (voteType === 'neutral' && currentData.allowNeutral) {
+          // 중립 투표는 배열의 마지막 인덱스
+          voteResults[voteResults.length - 1] += 1;
+        }
+        
+        await updateDoc(postRef, {
+          voteResults: voteResults,
+          totalVotes: totalVotes + 1
+        });
+      } else {
+        // 기본 좋아요/싫어요 투표
+        const currentLikes = currentData.likes || 0;
+        const currentDislikes = currentData.dislikes || 0;
 
-      if (voteType === 'like') {
-        await updateDoc(postRef, {
-          likes: currentLikes + 1
-        });
-      } else if (voteType === 'dislike') {
-        await updateDoc(postRef, {
-          dislikes: currentDislikes + 1
-        });
+        if (voteType === 'like') {
+          await updateDoc(postRef, {
+            likes: currentLikes + 1
+          });
+        } else if (voteType === 'dislike') {
+          await updateDoc(postRef, {
+            dislikes: currentDislikes + 1
+          });
+        }
       }
 
       return true;
@@ -582,12 +666,18 @@ export const communityService = {
   },
 
   // 댓글에 투표
-  async voteComment(gameType, commentId, voteType) {
+  async voteComment(gameType, commentId, voteType, sessionUser = null) {
     try {
-      const user = auth.currentUser;
-      if (!user) {
-        throw new Error('로그인이 필요합니다.');
+      // NextAuth 세션 사용자 우선
+      let currentUser = sessionUser;
+      if (!currentUser) {
+        currentUser = auth.currentUser;
+        if (!currentUser) {
+          throw new Error('로그인이 필요합니다.');
+        }
       }
+
+      const userId = this.generateConsistentUserId(currentUser);
 
       const commentRef = doc(db, `${gameType}_comments`, commentId);
       const commentSnap = await getDoc(commentRef);

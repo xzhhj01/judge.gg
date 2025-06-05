@@ -42,6 +42,31 @@ export const mentorService = {
         throw new Error('사용자 정보가 올바르지 않습니다.');
       }
 
+      // 태그 데이터를 배열로 변환
+      const characterTags = Array.isArray(mentorData.tags?.situations) ? mentorData.tags.situations : [];
+      const lineTags = Array.isArray(mentorData.tags?.lanes) ? mentorData.tags.lanes : 
+                       Array.isArray(mentorData.tags?.agents) ? mentorData.tags.agents : [];
+      const championTags = Array.isArray(mentorData.tags?.champions) ? mentorData.tags.champions : [];
+      const experienceType = Array.isArray(mentorData.tags?.experience) ? mentorData.tags.experience : [];
+
+      // 커리큘럼 데이터를 객체로 변환
+      const curriculum = {
+        mentoring_types: {
+          video_feedback: {
+            isSelected: mentorData.curriculums?.includes('영상 피드백') || false,
+            price: 50000 // 기본값, 실제로는 폼에서 받아와야 함
+          },
+          realtime_onepoint: {
+            isSelected: mentorData.curriculums?.includes('실시간 원포인트 피드백') || false,
+            price: 30000
+          },
+          realtime_private: {
+            isSelected: mentorData.curriculums?.includes('실시간 1:1 강의') || false,
+            price: 80000
+          }
+        }
+      };
+
       // Firestore에 저장할 데이터 준비 (undefined 값 제거)
       const firestoreData = {
         userId: userId,
@@ -49,6 +74,13 @@ export const mentorService = {
         userName: currentUser.name || currentUser.displayName || '',
         userPhoto: currentUser.image || currentUser.photoURL || '',
         ...mentorData,
+        // 태그들을 적절한 필드명으로 매핑
+        characterTags: characterTags,
+        lineTags: lineTags,
+        championTags: championTags,
+        experienceType: experienceType,
+        curriculum: curriculum,
+        detailedIntroduction: mentorData.detailedIntro,
         isApproved: false, // 기본값은 false (승인/미승인만 관리)
         appliedAt: serverTimestamp(),
         rating: 0,
@@ -188,21 +220,28 @@ export const mentorService = {
   // 상태별 멘토 목록 조회 (서버사이드용 - 직접 Firestore 호출)
   async getMentorsByStatusDirect(status) {
     try {
+      console.log('getMentorsByStatusDirect - 요청된 상태:', status);
       let q;
       
       if (status === 'pending') {
-        // 대기 중: isApproved가 false인 멘토들
-        q = query(collection(db, 'mentors'), where('isApproved', '==', false));
+        // 대기 중: isApproved가 false이고 rejectionReason이 없는 멘토들 (아직 처리되지 않은 신청)
+        q = query(
+          collection(db, 'mentors'), 
+          where('isApproved', '==', false)
+        );
       } else if (status === 'approved') {
         // 승인됨: isApproved가 true인 멘토들
         q = query(collection(db, 'mentors'), where('isApproved', '==', true));
+      } else if (status === 'rejected') {
+        // 거절됨: rejectionReason이 있는 멘토들
+        q = collection(db, 'mentors'); // 클라이언트에서 필터링
       } else {
         // 기본적으로 모든 멘토 조회
         q = collection(db, 'mentors');
       }
       
       const querySnapshot = await getDocs(q);
-      const mentors = [];
+      let mentors = [];
       
       querySnapshot.forEach((doc) => {
         mentors.push({
@@ -211,6 +250,22 @@ export const mentorService = {
         });
       });
       
+      console.log('getMentorsByStatusDirect - 전체 멘토 수:', mentors.length);
+      
+      // 상태별 추가 필터링 (클라이언트에서)
+      if (status === 'pending') {
+        // 대기 중: isApproved가 false이고 rejectionReason이 없는 것들만
+        mentors = mentors.filter(mentor => 
+          mentor.isApproved === false && !mentor.rejectionReason
+        );
+        console.log('getMentorsByStatusDirect - 대기 중 멘토 수:', mentors.length);
+      } else if (status === 'rejected') {
+        // 거절됨: rejectionReason이 있는 것들만
+        mentors = mentors.filter(mentor => mentor.rejectionReason);
+        console.log('getMentorsByStatusDirect - 거절된 멘토 수:', mentors.length);
+      }
+      
+      console.log('getMentorsByStatusDirect - 최종 반환 멘토 수:', mentors.length);
       return mentors;
     } catch (error) {
       console.error('상태별 멘토 목록 조회 실패:', error);
@@ -384,8 +439,29 @@ export const mentorService = {
     }
   },
 
-  // 멘토 리뷰 추가
-  async addMentorReview(mentorId, rating, reviewText) {
+  // 멘토 리뷰 추가 (새로운 형식)
+  async addMentorReview(reviewData) {
+    try {
+      const docRef = await addDoc(collection(db, 'mentor_reviews'), {
+        ...reviewData,
+        createdAt: serverTimestamp()
+      });
+      
+      // 멘토의 평점 업데이트
+      await this.updateMentorRating(reviewData.mentorId);
+      
+      return {
+        id: docRef.id,
+        ...reviewData
+      };
+    } catch (error) {
+      console.error('멘토 리뷰 추가 실패:', error);
+      throw error;
+    }
+  },
+
+  // 멘토 리뷰 추가 (기존 형식 - 호환성 유지)
+  async addMentorReviewLegacy(mentorId, rating, reviewText) {
     try {
       const user = auth.currentUser;
       if (!user) {

@@ -10,7 +10,8 @@
       "Bash(node test-storage.js)",
       "Bash(pkill:*)",
       "Bash(rm:*)",
-      "Bash(wc:*)"
+      "Bash(wc:*)",
+      "Bash(rg:*)"
     ],
     "deny": []
   }

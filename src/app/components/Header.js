@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "@/app/utils/providers";
+import { useSession } from "next-auth/react";
 import { useTheme } from "./ThemeProvider";
 import LoginButton from "./LoginButton";
 
@@ -11,6 +12,7 @@ export default function Header() {
     const router = useRouter();
     const pathname = usePathname();
     const { user, loading } = useAuth();
+    const { data: session, status } = useSession();
     
     const { theme, toggleTheme } = useTheme();
     const [currentGame, setCurrentGame] = useState("lol");
@@ -171,9 +173,9 @@ export default function Header() {
                         </button>
 
                         {/* 로그인/사용자 정보 */}
-                        {!loading && (
+                        {!loading && status !== 'loading' && (
                             <>
-                                {user ? (
+                                {(user || session) ? (
                                     <div className="flex items-center space-x-3">
                                         <Link
                                             href="/mypage"
@@ -188,12 +190,15 @@ export default function Header() {
                                         <LoginButton />
                                     </div>
                                 ) : (
-                                    <Link
-                                        href="/login"
-                                        className="bg-accent-600 hover:bg-accent-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-                                    >
-                                        로그인
-                                    </Link>
+                                    <div className="flex items-center space-x-3">
+                                        <Link
+                                            href="/login"
+                                            className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors border border-gray-300 dark:border-gray-600"
+                                        >
+                                            로그인
+                                        </Link>
+                                        <LoginButton />
+                                    </div>
                                 )}
                             </>
                         )}
@@ -275,7 +280,7 @@ export default function Header() {
                             >
                                 변호사
                             </Link>
-                            {user && (
+                            {(user || session) ? (
                                 <Link
                                     href="/mypage"
                                     className="block w-full text-left p-3 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-dark-800 transition-colors"
@@ -283,6 +288,16 @@ export default function Header() {
                                 >
                                     마이페이지
                                 </Link>
+                            ) : (
+                                <div className="space-y-2">
+                                    <Link
+                                        href="/login"
+                                        className="block w-full text-left p-3 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-dark-800 transition-colors"
+                                        onClick={() => setIsMobileMenuOpen(false)}
+                                    >
+                                        로그인
+                                    </Link>
+                                </div>
                             )}
                         </div>
                     </div>

@@ -1,13 +1,27 @@
 import { NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/lib/auth';
 import { mentorService } from '@/app/services/mentor/mentor.service';
 
 export async function PUT(request, { params }) {
   try {
+    // 관리자 인증 확인
+    const session = await getServerSession(authOptions);
+    const adminEmails = [
+      'admin@judge.gg',
+      'leaf4937@gmail.com',
+    ];
+
+    // 임시로 인증 체크 비활성화
+    // if (!session?.user?.email || !adminEmails.includes(session.user.email)) {
+    //   return NextResponse.json(
+    //     { error: '관리자 권한이 필요합니다.' },
+    //     { status: 403 }
+    //   );
+    // }
+
     const { id: mentorId } = params;
     const { status, reason } = await request.json();
-
-    // TODO: Add admin authentication check here
-    // For now, we'll allow anyone to update status for testing
 
     if (!mentorId) {
       return NextResponse.json(

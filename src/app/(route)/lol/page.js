@@ -9,6 +9,7 @@ import {
 import FixedWidthPostCard from "@/app/components/FixedWidthPostCard";
 import PopularPostCard from "@/app/components/PopularPostCard";
 import { useAuth } from "@/app/utils/providers";
+import { useSession } from "next-auth/react";
 import { communityService } from "@/app/services/community/community.service";
 
 // 배너 데이터
@@ -47,6 +48,7 @@ export default function LoLMainPage() {
     const [userPosts, setUserPosts] = useState([]);
     const [allUserPosts, setAllUserPosts] = useState([]);
     const { user } = useAuth();
+    const { data: session } = useSession();
 
     useEffect(() => {
         const loadPosts = async () => {
@@ -88,13 +90,14 @@ export default function LoLMainPage() {
     // 사용자 게시물 로드
     useEffect(() => {
         const loadUserPosts = async () => {
-            if (user && user.uid) {
+            if ((user && user.uid) || (session && session.user)) {
+                const currentUserId = user?.uid || session?.user?.id;
                 try {
-                    const result = await communityService.getUserPosts('lol', user.uid, 3);
+                    const result = await communityService.getUserPosts('lol', currentUserId, 3);
                     setUserPosts(result.posts);
                     
                     // 모든 게임의 사용자 게시물도 로드
-                    const allResult = await communityService.getAllUserPosts(user.uid, 5);
+                    const allResult = await communityService.getAllUserPosts(currentUserId, 5);
                     setAllUserPosts(allResult.posts);
                     
                     console.log("사용자 게시물:", result.posts);
@@ -113,7 +116,7 @@ export default function LoLMainPage() {
         };
 
         loadUserPosts();
-    }, [user]);
+    }, [user, session]);
 
     const handleBannerChange = (index) => {
         if (index > currentBanner) {
@@ -307,7 +310,7 @@ export default function LoLMainPage() {
                 </section>
 
                 {/* 내가 작성한 모든 게시글 섹션 */}
-                {user && allUserPosts.length > 0 && (
+                {(user || session) && allUserPosts.length > 0 && (
                     <section className="mb-12">
                         <div className="flex justify-between items-center mb-6">
                             <h2 className="text-2xl font-bold text-gray-900">
@@ -335,7 +338,7 @@ export default function LoLMainPage() {
                 )}
 
                 {/* 내가 작성한 LoL 글 섹션 */}
-                {user && userPosts.length > 0 && (
+                {(user || session) && userPosts.length > 0 && (
                     <section className="mb-12">
                         <div className="flex justify-between items-center mb-6">
                             <h2 className="text-2xl font-bold text-gray-900">
@@ -363,7 +366,7 @@ export default function LoLMainPage() {
                 )}
 
                 {/* 로그인하지 않은 사용자를 위한 안내 */}
-                {!user && (
+                {!user && !session && (
                     <section className="mb-12">
                         <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-8 text-center">
                             <h2 className="text-xl font-bold text-gray-900 mb-2">

@@ -6,10 +6,12 @@ import PostCard from "@/app/components/PostCard";
 import Link from "next/link";
 import { userService } from '@/app/services/user/user.service';
 import { useAuth } from '@/app/utils/providers';
+import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 
 export default function MyPage() {
     const { user, loading: authLoading } = useAuth();
+    const { data: session, status } = useSession();
     const router = useRouter();
     const [selectedMenu, setSelectedMenu] = useState("posts");
     const [selectedGame, setSelectedGame] = useState("all");
@@ -26,22 +28,27 @@ export default function MyPage() {
         valorant: { posts: 0, commentedPosts: 0, votedPosts: 0, likedMentors: 0 }
     });
 
-    // Redirect if not authenticated
+    // Redirect if not authenticated (check both NextAuth and Firebase)
     useEffect(() => {
-        if (!authLoading && !user) {
-            router.push('/login');
+        if (status !== 'loading' && authLoading === false) {
+            if (!session && !user) {
+                router.push('/login');
+                return;
+            }
         }
-    }, [user, authLoading, router]);
+    }, [user, authLoading, session, status, router]);
 
     // Load user info and stats
     useEffect(() => {
         const loadUserData = async () => {
-            if (user) {
+            if (user || session) {
+                const currentUser = user || session?.user;
+                const currentUserId = currentUser?.uid || currentUser?.id || currentUser?.email;
                 try {
                     // 사용자 정보 로드
-                    const info = await userService.getUserInfo(user.uid);
+                    const info = await userService.getUserInfo(currentUserId);
                     setUserInfo({
-                        nickname: info?.displayName || user.displayName || user.email,
+                        nickname: info?.displayName || currentUser.displayName || currentUser.name || currentUser.email,
                         riotIds: {
                             lol: info?.lolRiotId || null,
                             valorant: info?.valorantRiotId || null,
@@ -59,12 +66,12 @@ export default function MyPage() {
                     });
 
                     // 사용자 통계 로드
-                    const userStats = await userService.getUserStats(user.uid);
+                    const userStats = await userService.getUserStats(currentUserId);
                     setStats(userStats);
                 } catch (error) {
                     console.error("Error loading user data:", error);
                     setUserInfo({
-                        nickname: user.displayName || user.email,
+                        nickname: currentUser.displayName || currentUser.name || currentUser.email,
                         riotIds: { lol: null, valorant: null },
                         tiers: { lol: null, valorant: null },
                         isMentor: false,
@@ -75,7 +82,7 @@ export default function MyPage() {
         };
 
         loadUserData();
-    }, [user]);
+    }, [user, session]);
 
     // 임시 게시글 데이터
     const mockPosts = {
@@ -238,18 +245,47 @@ export default function MyPage() {
         const loadPosts = async () => {
             setLoading(true);
             try {
-                if (user) {
+                if (user || session) {
+                    const currentUser = user || session?.user;
+                    const currentUserId = currentUser?.uid || currentUser?.id || currentUser?.email;
+                    
+                    console.log("🔍 마이페이지 - 현재 사용자 정보:", {
+                        user: user ? 'Firebase user 존재' : 'Firebase user 없음',
+                        session: session ? 'NextAuth session 존재' : 'NextAuth session 없음',
+                        currentUser,
+                        currentUserId,
+                        selectedMenu,
+                        userUid: user?.uid,
+                        sessionUserId: session?.user?.id,
+                        sessionUserEmail: session?.user?.email
+                    });
                     let userPosts = [];
                     
                     if (selectedMenu === 'posts') {
-                        userPosts = await userService.getUserPosts(user.uid);
+                        console.log("🔍 작성한 글 로드 시작 - userId:", currentUserId);
+                        userPosts = await userService.getUserPosts(currentUserId);
+                        console.log("🔍 작성한 글 로드 완료 - 결과:", userPosts);
                     } else if (selectedMenu === 'commentedPosts') {
                         // 댓글 단 게시글 가져오기
                         const [lolCommentedPosts, valorantCommentedPosts] = await Promise.all([
-                            userService.getUserCommentedPostsData(user.uid, 'lol'),
-                            userService.getUserCommentedPostsData(user.uid, 'valorant')
+                            userService.getUserCommentedPostsData(currentUserId, 'lol'),
+                            userService.getUserCommentedPostsData(currentUserId, 'valorant')
                         ]);
                         userPosts = [...lolCommentedPosts, ...valorantCommentedPosts];
+                        
+                        // 최신순으로 재정렬
+                        userPosts.sort((a, b) => {
+                            const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt);
+                            const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt);
+                            return dateB - dateA;
+                        });
+                    } else if (selectedMenu === 'votedPosts') {
+                        // 좋아요/투표한 게시글 가져오기
+                        const [lolVotedPosts, valorantVotedPosts] = await Promise.all([
+                            userService.getUserVotedPostsData(currentUserId, 'lol'),
+                            userService.getUserVotedPostsData(currentUserId, 'valorant')
+                        ]);
+                        userPosts = [...lolVotedPosts, ...valorantVotedPosts];
                         
                         // 최신순으로 재정렬
                         userPosts.sort((a, b) => {
@@ -296,19 +332,46 @@ export default function MyPage() {
             }
         };
 
-        if (user) {
+        if (user || session) {
             loadPosts();
         }
-    }, [selectedMenu, selectedGame, user]);
+    }, [selectedMenu, selectedGame, user, session]);
 
     // Riot ID 연동 처리
     const handleRiotIdSubmit = async (riotId, game) => {
         try {
             await userService.connectRiotId(riotId, game);
             console.log("Riot ID 연동 성공:", riotId, game);
+            
+            // 성공 후 사용자 정보 다시 로드
+            if (user || session) {
+                const currentUser = user || session.user;
+                const currentUserId = currentUser.uid || currentUser.id;
+                const info = await userService.getUserInfo(currentUserId);
+                setUserInfo({
+                    nickname: info?.displayName || currentUser.displayName || currentUser.name || currentUser.email,
+                    riotIds: {
+                        lol: info?.lolRiotId || null,
+                        valorant: info?.valorantRiotId || null,
+                    },
+                    tiers: {
+                        lol: null,
+                        valorant: null,
+                    },
+                    isMentor: info?.isMentor || false,
+                    mentorStats: info?.mentorInfo || {
+                        totalFeedbacks: 0,
+                        totalReviews: 0,
+                        rating: 0,
+                    },
+                });
+            }
+            
+            alert("Riot ID가 성공적으로 연동되었습니다!");
             return true;
         } catch (error) {
             console.error("Error connecting Riot ID:", error);
+            alert("Riot ID 연동에 실패했습니다: " + error.message);
             return false;
         }
     };
@@ -376,7 +439,7 @@ export default function MyPage() {
         }
     };
 
-    if (authLoading) {
+    if (authLoading || status === 'loading') {
         return (
             <div className="min-h-screen bg-gray-50 flex items-center justify-center">
                 <div className="text-center">
@@ -387,7 +450,7 @@ export default function MyPage() {
         );
     }
 
-    if (!user) {
+    if (!user && !session) {
         return null; // Will redirect to login
     }
 
@@ -456,7 +519,7 @@ export default function MyPage() {
                             </div>
 
                             {/* 컨텐츠 영역 */}
-                            {selectedMenu === "posts" && (
+                            {(selectedMenu === "posts" || selectedMenu === "commentedPosts" || selectedMenu === "votedPosts") && (
                                 <>
                                     {loading ? (
                                         <div className="flex justify-center items-center h-64">
@@ -475,7 +538,9 @@ export default function MyPage() {
                                     ) : (
                                         <div className="text-center py-12">
                                             <p className="text-gray-500">
-                                                아직 작성한 글이 없습니다.
+                                                {selectedMenu === "posts" && "아직 작성한 글이 없습니다."}
+                                                {selectedMenu === "commentedPosts" && "아직 댓글을 단 글이 없습니다."}
+                                                {selectedMenu === "votedPosts" && "아직 투표한 글이 없습니다."}
                                             </p>
                                         </div>
                                     )}
