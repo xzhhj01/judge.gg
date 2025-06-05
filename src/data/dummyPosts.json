@@ -1,0 +1,110 @@
+{
+    "posts": [
+        {
+            "id": 1,
+            "title": "야스오 vs 제드 라인전 상황 판단",
+            "content": "미드 라인에서 야스오로 제드와 라인전을 하던 중 애매한 상황이 발생했습니다. 제드가 그림자를 사용해서 딜교환을 시도했는데, 제가 바람 장막을 사용한 타이밍이 맞았는지 궁금합니다.",
+            "author": {
+                "nickname": "소환사123",
+                "tier": "Gold"
+            },
+            "gameType": "lol",
+            "createdAt": "2024-03-20T10:30:00Z",
+            "votes": 156,
+            "views": 230,
+            "comments": 12,
+            "tags": ["미드", "라인전", "야스오"],
+            "voteCounts": {
+                "option1": 45,
+                "option2": 32,
+                "option1Text": "야스오가 잘했다",
+                "option2Text": "제드가 잘했다"
+            }
+        },
+        {
+            "id": 2,
+            "title": "정글러의 레드 버프 양보는 필수인가요?",
+            "content": "미드라이너가 레드버프를 요구하는 상황에서 정글러가 양보해야 하는지 의견이 궁금합니다.",
+            "author": {
+                "nickname": "정글러123",
+                "tier": "Platinum"
+            },
+            "gameType": "lol",
+            "createdAt": "2024-03-19T15:45:00Z",
+            "votes": 89,
+            "views": 180,
+            "comments": 25,
+            "tags": ["정글", "오브젝트", "매너"],
+            "voteCounts": {
+                "option1": 45,
+                "option2": 44,
+                "option1Text": "양보해야 함",
+                "option2Text": "양보할 필요 없음"
+            }
+        },
+        {
+            "id": 3,
+            "title": "제트 vs 레이나 듀얼 상황 판단",
+            "content": "A 사이트에서 제트와 레이나가 1대1 상황이었는데, 제트의 대쉬 타이밍이 적절했는지 판단 부탁드립니다.",
+            "author": {
+                "nickname": "발로란트유저",
+                "tier": "Diamond"
+            },
+            "gameType": "valorant",
+            "createdAt": "2024-03-18T09:15:00Z",
+            "votes": 120,
+            "views": 210,
+            "comments": 18,
+            "tags": ["듀얼리스트", "1대1", "제트"],
+            "voteCounts": {
+                "option1": 65,
+                "option2": 55,
+                "option1Text": "제트가 잘했다",
+                "option2Text": "레이나가 잘했다"
+            }
+        },
+        {
+            "id": 4,
+            "title": "탑 갱 타이밍 문의드립니다",
+            "content": "탑라인 갱킹 타이밍에 대해 의견을 구합니다. 레벨 3에 가는 게 좋을지, 6렙 이후에 가는 게 좋을지 고민입니다.",
+            "author": {
+                "nickname": "정글러456",
+                "tier": "Gold"
+            },
+            "gameType": "lol",
+            "createdAt": "2024-03-17T14:20:00Z",
+            "votes": 67,
+            "views": 150,
+            "comments": 15,
+            "tags": ["탑", "정글", "갱킹"],
+            "voteEndTime": "2024-03-24T14:20:00Z",
+            "voteCounts": {
+                "option1": 38,
+                "option2": 29,
+                "option1Text": "레벨 3 갱 적절",
+                "option2Text": "6렙 이후가 적절"
+            }
+        },
+        {
+            "id": 5,
+            "title": "컨트롤러의 스모크 우선순위는?",
+            "content": "발로란트에서 컨트롤러 역할을 할 때 스모크 우선순위에 대해 고민이 있습니다.",
+            "author": {
+                "nickname": "컨트롤러장인",
+                "tier": "Immortal"
+            },
+            "gameType": "valorant",
+            "createdAt": "2024-03-16T11:30:00Z",
+            "votes": 95,
+            "views": 180,
+            "comments": 22,
+            "tags": ["컨트롤러", "유틸", "전략"],
+            "voteCounts": {
+                "option1": 48,
+                "option2": 47,
+                "option1Text": "메인 진입로 우선",
+                "option2Text": "사각지대 우선"
+            }
+        }
+    ]
+}

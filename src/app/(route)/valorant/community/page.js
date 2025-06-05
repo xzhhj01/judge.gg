@@ -5,6 +5,7 @@ import PostCard from "../../../components/PostCard";
 import PostFilter from "../../../components/PostFilter";
 import CommunityHeader from "../../../components/CommunityHeader";
 import communityTags from "@/data/communityTags.json";
+import dummyPosts from "@/data/dummyPosts.json";
 
 export default function ValorantCommunityPage() {
     const [selectedSituations, setSelectedSituations] = useState([]);
@@ -60,51 +61,82 @@ export default function ValorantCommunityPage() {
         const fetchPosts = async () => {
             setLoading(true);
             try {
-                // TODO: 실제 API 호출로 대체
-                const filters = {
-                    situations: selectedSituations,
-                    maps: selectedMaps,
-                    agents: selectedAgents,
-                    sortBy,
-                    search: searchQuery,
-                };
-                console.log("Fetching posts with filters:", filters);
+                // 더미 데이터에서 Valorant 게시물만 필터링
+                let filteredPosts = dummyPosts.posts.filter(
+                    (post) => post.gameType === "valorant"
+                );
 
-                // 임시 데이터
-                const mockPosts = [
-                    {
-                        id: 1,
-                        title: "스파이크 설치 후 팀원이 이상한 곳에서 수비하는 상황",
-                        votes: 31,
-                        views: 203,
-                        tags: ["스파이크", "포지셔닝", "팀워크"],
-                        author: { nickname: "레이나마스터", tier: "Diamond" },
-                        commentCount: 18,
-                        createdAt: new Date(Date.now() - 1000 * 60 * 45),
-                    },
-                    {
-                        id: 2,
-                        title: "듀얼리스트가 엔트리 안 하고 뒤에서 킬 스틸만 하는 경우",
-                        votes: 52,
-                        views: 341,
-                        tags: ["듀얼리스트", "엔트리", "역할"],
-                        author: { nickname: "제트원챔", tier: "Immortal" },
-                        commentCount: 27,
-                        createdAt: new Date(Date.now() - 1000 * 60 * 60 * 1),
-                    },
-                    {
-                        id: 3,
-                        title: "센티넬이 사이트 안 지키고 로밍하는 상황",
-                        votes: 24,
-                        views: 127,
-                        tags: ["센티넬", "사이트 수비", "로밍"],
-                        author: { nickname: "사이퍼장인", tier: "Ascendant" },
-                        commentCount: 12,
-                        createdAt: new Date(Date.now() - 1000 * 60 * 60 * 3),
-                    },
-                ];
+                // 검색어 필터링
+                if (searchQuery) {
+                    filteredPosts = filteredPosts.filter((post) =>
+                        post.title
+                            .toLowerCase()
+                            .includes(searchQuery.toLowerCase())
+                    );
+                }
 
-                setPosts(mockPosts);
+                // 태그 필터링
+                if (selectedSituations.length > 0) {
+                    filteredPosts = filteredPosts.filter((post) =>
+                        post.tags.some((tag) =>
+                            selectedSituations.includes(tag)
+                        )
+                    );
+                }
+
+                if (selectedMaps.length > 0) {
+                    filteredPosts = filteredPosts.filter((post) =>
+                        post.tags.some((tag) => selectedMaps.includes(tag))
+                    );
+                }
+
+                if (selectedAgents.length > 0) {
+                    filteredPosts = filteredPosts.filter((post) =>
+                        post.tags.some((tag) => selectedAgents.includes(tag))
+                    );
+                }
+
+                // 정렬
+                switch (sortBy) {
+                    case "popular":
+                        filteredPosts.sort((a, b) => b.votes - a.votes);
+                        break;
+                    case "controversial":
+                        filteredPosts.sort((a, b) => {
+                            if (!a.voteCounts || !b.voteCounts) return 0;
+                            const ratioA = Math.abs(
+                                a.voteCounts.option1 /
+                                    (a.voteCounts.option1 +
+                                        a.voteCounts.option2) -
+                                    0.5
+                            );
+                            const ratioB = Math.abs(
+                                b.voteCounts.option1 /
+                                    (b.voteCounts.option1 +
+                                        b.voteCounts.option2) -
+                                    0.5
+                            );
+                            return ratioA - ratioB;
+                        });
+                        break;
+                    case "deadline":
+                        filteredPosts = filteredPosts
+                            .filter((post) => post.voteEndTime)
+                            .sort(
+                                (a, b) =>
+                                    new Date(a.voteEndTime) -
+                                    new Date(b.voteEndTime)
+                            );
+                        break;
+                    case "latest":
+                    default:
+                        filteredPosts.sort(
+                            (a, b) =>
+                                new Date(b.createdAt) - new Date(a.createdAt)
+                        );
+                }
+
+                setPosts(filteredPosts);
             } catch (error) {
                 console.error("Error fetching posts:", error);
             } finally {

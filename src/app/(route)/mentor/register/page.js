@@ -3,6 +3,27 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 
+const SERVICE_TYPES = [
+    {
+        id: "replay",
+        name: "영상 피드백",
+        description: "녹화된 게임 영상을 보고 상세한 피드백을 제공합니다.",
+        icon: "🎥",
+    },
+    {
+        id: "realtime",
+        name: "실시간 1:1",
+        description: "디스코드를 통해 실시간으로 1:1 코칭을 진행합니다.",
+        icon: "🎮",
+    },
+    {
+        id: "chat",
+        name: "채팅 상담",
+        description: "채팅을 통해 빠르게 질문하고 답변받을 수 있습니다.",
+        icon: "💬",
+    },
+];
+
 export default function MentorRegisterPage() {
     const [selectedGame, setSelectedGame] = useState("lol");
     const [profileImage, setProfileImage] = useState(null);
@@ -28,6 +49,19 @@ export default function MentorRegisterPage() {
         "실시간 원포인트 피드백",
         "실시간 1:1 강의",
     ];
+
+    const [services, setServices] = useState({
+        lol: SERVICE_TYPES.map((type) => ({
+            type: type.id,
+            enabled: false,
+            price: 0,
+        })),
+        valorant: SERVICE_TYPES.map((type) => ({
+            type: type.id,
+            enabled: false,
+            price: 0,
+        })),
+    });
 
     const toggleCurriculum = (curriculum) => {
         setSelectedCurriculums((prev) => {
@@ -198,6 +232,17 @@ export default function MentorRegisterPage() {
         });
     };
 
+    const handleServiceChange = (gameType, serviceType, field, value) => {
+        setServices((prev) => ({
+            ...prev,
+            [gameType]: prev[gameType].map((service) =>
+                service.type === serviceType
+                    ? { ...service, [field]: value }
+                    : service
+            ),
+        }));
+    };
+
     // 폼 제출
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -261,6 +306,17 @@ export default function MentorRegisterPage() {
                 "experienceDetails",
                 JSON.stringify(experienceDetails)
             );
+
+            // 서비스 정보 추가
+            services[selectedGame].forEach((service, index) => {
+                if (service.enabled) {
+                    formData.append(`service_${index}_type`, service.type);
+                    formData.append(
+                        `service_${index}_price`,
+                        service.price.toString()
+                    );
+                }
+            });
 
             // API 엔드포인트로 데이터 전송
             const response = await fetch("/api/mentor/register", {
@@ -889,6 +945,96 @@ export default function MentorRegisterPage() {
                         <p className="text-sm text-gray-500 mt-2">
                             {detailedIntro.length}/1000자
                         </p>
+                    </section>
+
+                    {/* 서비스 설정 */}
+                    <section className="bg-white rounded-xl border border-gray-200 p-6">
+                        <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                            서비스 설정
+                        </h2>
+                        <div className="space-y-4">
+                            {SERVICE_TYPES.map((service) => (
+                                <div
+                                    key={service.id}
+                                    className="border border-gray-200 rounded-lg p-4"
+                                >
+                                    <div className="flex items-start justify-between">
+                                        <div>
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <span>{service.icon}</span>
+                                                <h3 className="font-medium">
+                                                    {service.name}
+                                                </h3>
+                                            </div>
+                                            <p className="text-sm text-gray-600">
+                                                {service.description}
+                                            </p>
+                                        </div>
+                                        <label className="relative inline-flex items-center cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                className="sr-only peer"
+                                                checked={
+                                                    services[selectedGame].find(
+                                                        (s) =>
+                                                            s.type ===
+                                                            service.id
+                                                    ).enabled
+                                                }
+                                                onChange={(e) =>
+                                                    handleServiceChange(
+                                                        selectedGame,
+                                                        service.id,
+                                                        "enabled",
+                                                        e.target.checked
+                                                    )
+                                                }
+                                            />
+                                            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                                        </label>
+                                    </div>
+                                    {services[selectedGame].find(
+                                        (s) => s.type === service.id
+                                    ).enabled && (
+                                        <div className="mt-4">
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                가격 설정
+                                            </label>
+                                            <div className="flex items-center gap-2">
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    step="1000"
+                                                    value={
+                                                        services[
+                                                            selectedGame
+                                                        ].find(
+                                                            (s) =>
+                                                                s.type ===
+                                                                service.id
+                                                        ).price
+                                                    }
+                                                    onChange={(e) =>
+                                                        handleServiceChange(
+                                                            selectedGame,
+                                                            service.id,
+                                                            "price",
+                                                            parseInt(
+                                                                e.target.value
+                                                            ) || 0
+                                                        )
+                                                    }
+                                                    className="block w-32 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                                                />
+                                                <span className="text-gray-500">
+                                                    원
+                                                </span>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
                     </section>
 
                     {/* 제출 버튼 */}

@@ -1,25 +1,121 @@
-'use client';
+"use client";
 
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import LoginButton from "@/app/components/LoginButton";
+import axios from "axios";
 
 export default function Login() {
-  return (
-    <div className="mx-auto p-4 max-w-xs">
-      <h2 className="text-xl text-center mb-4">로그인</h2>
-      <form>
-        <input type="email" placeholder="이메일" required className="block w-full mb-3 p-2 border rounded" />
-        <input type="password" placeholder="비밀번호" required className="block w-full mb-4 p-2 border rounded" />
-        <button type="submit" className="w-full p-2 bg-[#1FAB89] text-white rounded">로그인</button>
-      </form>
-      <p className="text-center text-sm mt-2">
-        계정이 없으신가요? <a href="/signup" className="text-[#1FAB89]">회원가입</a>
-      </p>
-      <div className="my-6 text-center">
-        <span className="text-gray-400">— 또는 —</span>
-        <div className="mt-3 flex justify-center">
-          <LoginButton />
+    const router = useRouter();
+    const [formData, setFormData] = useState({
+        email: "",
+        password: "",
+    });
+
+    const [errors, setErrors] = useState({
+        email: "",
+        password: "",
+    });
+
+    const handleChange = (e) => {
+        const { name, value } = e.target;
+        setFormData((prev) => ({
+            ...prev,
+            [name]: value,
+        }));
+        setErrors((prev) => ({
+            ...prev,
+            [name]: "",
+        }));
+    };
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        try {
+            const response = await axios.post(
+                `${process.env.DEPLOY_PATH}/api/auth/login`,
+                formData
+            );
+            if (response.status === 200) {
+                router.push("/");
+            }
+        } catch (error) {
+            console.error("로그인 실패:", error);
+            setErrors({
+                email: "이메일 또는 비밀번호가 올바르지 않습니다.",
+                password: "이메일 또는 비밀번호가 올바르지 않습니다.",
+            });
+        }
+    };
+
+    return (
+        <div className="mx-auto p-4 max-w-md mt-16">
+            <h2 className="text-2xl font-semibold text-center mb-6">로그인</h2>
+            <form onSubmit={handleSubmit} className="space-y-4">
+                <div>
+                    <label className="block text-gray-700 mb-1">이메일</label>
+                    <input
+                        type="email"
+                        name="email"
+                        value={formData.email}
+                        onChange={handleChange}
+                        className="block w-full p-2 border rounded focus:outline-none focus:border-blue-500"
+                        required
+                    />
+                    {errors.email && (
+                        <p className="text-red-500 text-sm mt-1">
+                            {errors.email}
+                        </p>
+                    )}
+                </div>
+
+                <div>
+                    <label className="block text-gray-700 mb-1">비밀번호</label>
+                    <input
+                        type="password"
+                        name="password"
+                        value={formData.password}
+                        onChange={handleChange}
+                        className="block w-full p-2 border rounded focus:outline-none focus:border-blue-500"
+                        required
+                    />
+                    {errors.password && (
+                        <p className="text-red-500 text-sm mt-1">
+                            {errors.password}
+                        </p>
+                    )}
+                </div>
+
+                <button
+                    type="submit"
+                    className="w-full p-2 bg-blue-500 text-white rounded hover:bg-blue-600 mt-6"
+                >
+                    로그인
+                </button>
+            </form>
+
+            <p className="text-center text-sm mt-4">
+                계정이 없으신가요?{" "}
+                <a href="/signup" className="text-blue-500">
+                    회원가입
+                </a>
+            </p>
+
+            <div className="my-6 text-center">
+                <div className="relative">
+                    <div className="absolute inset-0 flex items-center">
+                        <div className="w-full border-t border-gray-300"></div>
+                    </div>
+                    <div className="relative flex justify-center text-sm">
+                        <span className="px-2 bg-white text-gray-500">
+                            또는
+                        </span>
+                    </div>
+                </div>
+                <div className="mt-6 flex justify-center">
+                    <LoginButton />
+                </div>
+            </div>
         </div>
-      </div>
-    </div>
-  );
+    );
 }
