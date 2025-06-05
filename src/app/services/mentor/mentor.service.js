@@ -570,5 +570,48 @@ export const mentorService = {
       console.error('멘토 리뷰 목록 조회 실패:', error);
       return [];
     }
+  },
+
+  // userId로 멘토 정보 조회 (멘토 상태 확인용)
+  async getMentorByUserId(userId) {
+    try {
+      console.log('🔍 getMentorByUserId 시작 - userId:', userId);
+      
+      if (!userId) {
+        console.log('🔍 userId가 없음');
+        return null;
+      }
+
+      const q = query(
+        collection(db, 'mentors'),
+        where('userId', '==', userId)
+      );
+      
+      const querySnapshot = await getDocs(q);
+      
+      if (querySnapshot.empty) {
+        console.log('🔍 해당 userId의 멘토 정보 없음');
+        return null;
+      }
+      
+      // 승인된 멘토 정보만 반환 (승인된 멘토만이 피드백을 받을 수 있음)
+      const mentorDoc = querySnapshot.docs.find(doc => doc.data().isApproved === true);
+      
+      if (!mentorDoc) {
+        console.log('🔍 해당 userId의 승인된 멘토 정보 없음');
+        return null;
+      }
+      
+      const mentorData = {
+        id: mentorDoc.id,
+        ...mentorDoc.data()
+      };
+      
+      console.log('🔍 찾은 멘토 정보:', mentorData);
+      return mentorData;
+    } catch (error) {
+      console.error('userId로 멘토 조회 실패:', error);
+      return null;
+    }
   }
 };

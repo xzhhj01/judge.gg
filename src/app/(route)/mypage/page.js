@@ -72,6 +72,24 @@ export default function MyPage() {
                     // 사용자 정보 로드
                     const info = await userService.getUserInfo(currentUserId);
                     
+                    // 멘토 정보 확인 (mentors 컬렉션에서 직접 조회)
+                    let isMentor = false;
+                    let mentorStats = { totalFeedbacks: 0, totalReviews: 0, rating: 0 };
+                    try {
+                        const mentorInfo = await mentorService.getMentorByUserId(currentUserId);
+                        if (mentorInfo) {
+                            isMentor = true;
+                            mentorStats = {
+                                totalFeedbacks: mentorInfo.totalFeedbacks || 0,
+                                totalReviews: mentorInfo.totalReviews || 0,
+                                rating: mentorInfo.rating || 0,
+                            };
+                            console.log('🔍 멘토 정보 확인됨:', mentorInfo);
+                        }
+                    } catch (error) {
+                        console.error('멘토 정보 조회 실패:', error);
+                    }
+                    
                     // LoL 프로필 정보 로드 (연동된 경우)
                     let lolProfile = null;
                     let lolTier = null;
@@ -114,12 +132,8 @@ export default function MyPage() {
                         },
                         lolProfile: lolProfile,
                         valorantProfile: valorantProfile,
-                        isMentor: info?.isMentor || false,
-                        mentorStats: info?.mentorInfo || {
-                            totalFeedbacks: 0,
-                            totalReviews: 0,
-                            rating: 0,
-                        },
+                        isMentor: isMentor,
+                        mentorStats: mentorStats,
                     });
 
                     // 사용자 통계 로드 (사용자 객체 정보 전달)

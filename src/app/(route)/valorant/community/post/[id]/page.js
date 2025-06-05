@@ -465,50 +465,25 @@ export default function ValorantCommunityPostPage() {
                                 </svg>
                                 <span>{post.commentCount || 0}</span>
                             </div>
+                            {/* 추천수 (추천 - 비추천의 총합) */}
                             <div className="flex items-center space-x-1 bg-red-50 px-2 py-1 rounded-lg">
                                 <svg className="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 20 20">
                                     <path fillRule="evenodd" d="M3.293 9.707a1 1 0 010-1.414l6-6a1 1 0 011.414 0l6 6a1 1 0 01-1.414 1.414L11 5.414V17a1 1 0 11-2 0V5.414L4.707 9.707a1 1 0 01-1.414 0z" clipRule="evenodd" />
                                 </svg>
                                 <span className="text-sm font-medium text-red-700">
-                                    {post.likes || 0}
+                                    {(() => {
+                                        // 투표 게시글인 경우 총 투표수 표시
+                                        if (post.voteOptions && Array.isArray(post.voteOptions) && post.voteOptions.length >= 2) {
+                                            return post.totalVotes || 0;
+                                        }
+                                        // 일반 게시글인 경우 추천 총합 (추천 - 비추천) 표시
+                                        const recommendations = post.recommendations || 0;
+                                        const unrecommendations = post.unrecommendations || 0;
+                                        return recommendations - unrecommendations;
+                                    })()}
                                 </span>
                             </div>
 
-                            {/* 추천 버튼 */}
-                            <button
-                                onClick={() => handleRecommendation('recommend')}
-                                disabled={isRecommending || (!user && !session)}
-                                className={`flex items-center space-x-1 px-2 py-1 rounded-lg transition-colors ${
-                                    selectedRecommendation === 'recommend'
-                                        ? 'bg-green-100 text-green-700'
-                                        : 'bg-green-50 text-green-600 hover:bg-green-100'
-                                } ${isRecommending || (!user && !session) ? 'opacity-50 cursor-not-allowed' : ''}`}
-                            >
-                                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fillRule="evenodd" d="M3.293 9.707a1 1 0 010-1.414l6-6a1 1 0 011.414 0l6 6a1 1 0 01-1.414 1.414L11 5.414V17a1 1 0 11-2 0V5.414L4.707 9.707a1 1 0 01-1.414 0z" clipRule="evenodd" />
-                                </svg>
-                                <span className="text-sm font-medium">
-                                    {post.recommendations || 0}
-                                </span>
-                            </button>
-
-                            {/* 비추천 버튼 */}
-                            <button
-                                onClick={() => handleRecommendation('unrecommend')}
-                                disabled={isRecommending || (!user && !session)}
-                                className={`flex items-center space-x-1 px-2 py-1 rounded-lg transition-colors ${
-                                    selectedRecommendation === 'unrecommend'
-                                        ? 'bg-red-100 text-red-700'
-                                        : 'bg-red-50 text-red-600 hover:bg-red-100'
-                                } ${isRecommending || (!user && !session) ? 'opacity-50 cursor-not-allowed' : ''}`}
-                            >
-                                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fillRule="evenodd" d="M16.707 10.293a1 1 0 010 1.414l-6 6a1 1 0 01-1.414 0l-6-6a1 1 0 111.414-1.414L9 14.586V3a1 1 0 012 0v11.586l4.293-4.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                </svg>
-                                <span className="text-sm font-medium">
-                                    {post.unrecommendations || 0}
-                                </span>
-                            </button>
                         </div>
                     </div>
                 </div>
@@ -565,14 +540,25 @@ export default function ValorantCommunityPostPage() {
                                         } ${isVoting ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
                                     >
                                         <div className="text-center">
-                                            <div className="font-medium text-lg mb-2">{option}</div>
-                                            <div className="text-sm text-gray-600">
+                                            <div className="font-medium text-lg mb-3">{option}</div>
+                                            <div className="text-sm text-gray-600 mb-2">
                                                 {post.voteResults?.[index] || 0}표
                                                 {post.totalVotes > 0 && (
                                                     <span className="ml-1">
                                                         ({Math.round(((post.voteResults?.[index] || 0) / post.totalVotes) * 100)}%)
                                                     </span>
                                                 )}
+                                            </div>
+                                            {/* 시각적 분포도 */}
+                                            <div className="w-full bg-gray-200 rounded-full h-2.5">
+                                                <div 
+                                                    className="bg-red-600 h-2.5 rounded-full transition-all duration-300"
+                                                    style={{ 
+                                                        width: post.totalVotes > 0 
+                                                            ? `${Math.round(((post.voteResults?.[index] || 0) / post.totalVotes) * 100)}%`
+                                                            : '0%'
+                                                    }}
+                                                ></div>
                                             </div>
                                         </div>
                                         {isVoting && selectedVote === `option_${index}` && (
@@ -590,18 +576,38 @@ export default function ValorantCommunityPostPage() {
                                     <button
                                         onClick={() => handleVote('neutral')}
                                         disabled={isVoting}
-                                        className={`px-6 py-3 border-2 rounded-lg transition-all ${
+                                        className={`px-6 py-4 border-2 rounded-lg transition-all min-w-[200px] ${
                                             selectedVote === 'neutral'
                                                 ? 'border-gray-500 bg-gray-50 text-gray-900'
                                                 : 'border-gray-300 hover:border-gray-400'
                                         } ${isVoting ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
                                     >
-                                        판단하기 어려움
-                                        <span className="ml-2 text-sm text-gray-600">
-                                            ({post.voteResults?.[post.voteResults.length - 1] || 0}표)
-                                        </span>
+                                        <div className="text-center">
+                                            <div className="font-medium mb-2">판단하기 어려움</div>
+                                            <div className="text-sm text-gray-600 mb-2">
+                                                {post.voteResults?.neutral || 0}표
+                                                {post.totalVotes > 0 && (
+                                                    <span className="ml-1">
+                                                        ({Math.round(((post.voteResults?.neutral || 0) / post.totalVotes) * 100)}%)
+                                                    </span>
+                                                )}
+                                            </div>
+                                            {/* 시각적 분포도 */}
+                                            <div className="w-full bg-gray-200 rounded-full h-2.5">
+                                                <div 
+                                                    className="bg-gray-500 h-2.5 rounded-full transition-all duration-300"
+                                                    style={{ 
+                                                        width: post.totalVotes > 0 
+                                                            ? `${Math.round(((post.voteResults?.neutral || 0) / post.totalVotes) * 100)}%`
+                                                            : '0%'
+                                                    }}
+                                                ></div>
+                                            </div>
+                                        </div>
                                         {isVoting && selectedVote === 'neutral' && (
-                                            <div className="ml-2 inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-gray-500"></div>
+                                            <div className="mt-2 flex justify-center">
+                                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-500"></div>
+                                            </div>
                                         )}
                                     </button>
                                 </div>
@@ -632,7 +638,7 @@ export default function ValorantCommunityPostPage() {
                                 } ${isVoting ? 'opacity-50 cursor-not-allowed' : ''}`}
                             >
                                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fillRule="evenodd" d="M3.293 9.707a1 1 0 010-1.414l6-6a1 1 0 011.414 0l6 6a1 1 0 01-1.414 1.414L11 5.414V17a1 1 0 11-2 0V5.414L4.707 9.707a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                                    <path fillRule="evenodd" d="M10 18l-6-6h4V4h4v8h4l-6 6z" clipRule="evenodd" />
                                 </svg>
                                 <span>좋아요 ({post.likes || 0})</span>
                                 {isVoting && selectedVote === 'like' && (
@@ -649,7 +655,7 @@ export default function ValorantCommunityPostPage() {
                                 } ${isVoting ? 'opacity-50 cursor-not-allowed' : ''}`}
                             >
                                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fillRule="evenodd" d="M16.707 10.293a1 1 0 010 1.414l-6 6a1 1 0 01-1.414 0l-6-6a1 1 0 111.414-1.414L9 14.586V3a1 1 0 012 0v11.586l4.293-4.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                    <path fillRule="evenodd" d="M10 2l6 6h-4v8H8V8H4l6-6z" clipRule="evenodd" />
                                 </svg>
                                 <span>싫어요 ({post.dislikes || 0})</span>
                                 {isVoting && selectedVote === 'dislike' && (
@@ -669,6 +675,66 @@ export default function ValorantCommunityPostPage() {
                     {selectedVote && (
                         <p className="text-center text-green-600 mt-3 text-sm">
                             투표해주셔서 감사합니다! 같은 옵션을 다시 클릭하면 투표를 취소할 수 있습니다.
+                        </p>
+                    )}
+                </section>
+
+                {/* 추천/비추천 섹션 */}
+                <section className="bg-white rounded-xl border border-gray-200 p-6 mb-8">
+                    <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                        이 게시글이 도움이 되었나요?
+                    </h2>
+                    <div className="flex justify-center space-x-4">
+                        {/* 추천 버튼 */}
+                        <button
+                            onClick={() => handleRecommendation('recommend')}
+                            disabled={isRecommending || (!user && !session)}
+                            className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-colors ${
+                                selectedRecommendation === 'recommend'
+                                    ? 'bg-green-500 text-white'
+                                    : 'bg-green-50 text-green-700 hover:bg-green-100'
+                            } ${isRecommending || (!user && !session) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        >
+                            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M3.293 9.707a1 1 0 010-1.414l6-6a1 1 0 011.414 0l6 6a1 1 0 01-1.414 1.414L11 5.414V17a1 1 0 11-2 0V5.414L4.707 9.707a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                            </svg>
+                            <span>도움됨 ({post.recommendations || 0})</span>
+                            {isRecommending && selectedRecommendation === 'recommend' && (
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                            )}
+                        </button>
+
+                        {/* 비추천 버튼 */}
+                        <button
+                            onClick={() => handleRecommendation('unrecommend')}
+                            disabled={isRecommending || (!user && !session)}
+                            className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-colors ${
+                                selectedRecommendation === 'unrecommend'
+                                    ? 'bg-red-500 text-white'
+                                    : 'bg-red-50 text-red-700 hover:bg-red-100'
+                            } ${isRecommending || (!user && !session) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        >
+                            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M16.707 10.293a1 1 0 010 1.414l-6 6a1 1 0 01-1.414 0l-6-6a1 1 0 111.414-1.414L9 14.586V3a1 1 0 012 0v11.586l4.293-4.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                            </svg>
+                            <span>도움 안됨 ({post.unrecommendations || 0})</span>
+                            {isRecommending && selectedRecommendation === 'unrecommend' && (
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                            )}
+                        </button>
+                    </div>
+                    
+                    {/* 로그인 필요 메시지 */}
+                    {!user && !session && (
+                        <div className="text-center text-gray-500 py-4">
+                            <p>추천하려면 <Link href="/login" className="text-red-600 hover:text-red-700">로그인</Link>이 필요합니다.</p>
+                        </div>
+                    )}
+                    
+                    {/* 추천 완료 메시지 */}
+                    {selectedRecommendation && (
+                        <p className="text-center text-green-600 mt-3 text-sm">
+                            {selectedRecommendation === 'recommend' ? '도움됨' : '도움 안됨'}으로 평가해주셔서 감사합니다! 같은 버튼을 다시 클릭하면 취소할 수 있습니다.
                         </p>
                     )}
                 </section>

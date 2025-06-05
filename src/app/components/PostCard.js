@@ -284,7 +284,7 @@ export default function PostCard({ post, gameType, currentUser, onEdit, onDelete
                             <span>{post.commentCount}</span>
                         </div>
 
-                        {/* 추천수 */}
+                        {/* 추천수 (추천 - 비추천의 총합) */}
                         <div className="flex items-center space-x-1 bg-blue-50 px-2 py-1 rounded-lg">
                             <svg
                                 className="w-4 h-4 text-blue-500"
@@ -298,10 +298,16 @@ export default function PostCard({ post, gameType, currentUser, onEdit, onDelete
                                 />
                             </svg>
                             <span className="text-base font-medium text-blue-700">
-                                {post.voteOptions && Array.isArray(post.voteOptions) && post.voteOptions.length >= 2 
-                                    ? (post.totalVotes || 0)
-                                    : (post.votes || post.likes || 0)
-                                }
+                                {(() => {
+                                    // 투표 게시글인 경우 총 투표수 표시
+                                    if (post.voteOptions && Array.isArray(post.voteOptions) && post.voteOptions.length >= 2) {
+                                        return post.totalVotes || 0;
+                                    }
+                                    // 일반 게시글인 경우 추천 총합 (추천 - 비추천) 표시
+                                    const recommendations = post.recommendations || 0;
+                                    const unrecommendations = post.unrecommendations || 0;
+                                    return recommendations - unrecommendations;
+                                })()}
                             </span>
                         </div>
                     </div>

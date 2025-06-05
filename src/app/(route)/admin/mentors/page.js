@@ -24,7 +24,7 @@ export default function AdminMentorsPage() {
 
     useEffect(() => {
         // 로그인 상태 확인
-        const currentUser = session?.userr || fiebaseUser;
+        const currentUser = session?.user || firebaseUser;
 
         if (currentUser) {
             // 로그인한 사용자라면 비밀번호 입력 모달 표시
