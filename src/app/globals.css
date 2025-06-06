@@ -1,51 +1,26 @@
 @import "tailwindcss";
 
-/* 기본 CSS 변수 설정 (Light Mode) */
+/* 기본 CSS 변수 설정 */
 :root {
-    --background: #ffffff;
-    --background-secondary: #f8fafc;
-    --foreground: #0f172a;
-    --foreground-secondary: #334155;
-    --card: #ffffff;
-    --card-border: #e2e8f0;
-    --primary: #10b981;
-    --primary-foreground: #ffffff;
-    --secondary: #f1f5f9;
-    --muted: #64748b;
-    --border: #e2e8f0;
-    --input: #f8fafc;
-    --hover: #f1f5f9;
-    --accent: #10b981;
+    --background: #0c0032;
+    --background-secondary: #0c0032;
+    --foreground: #ffffff;
+    --foreground-secondary: rgba(255, 255, 255, 0.6);
+    --card: #0c0032;
+    --card-border: rgba(255, 255, 255, 0.1);
+    --primary: #ffffff;
+    --primary-foreground: #0c0032;
+    --secondary: #0c0032;
+    --muted: rgba(255, 255, 255, 0.6);
+    --border: rgba(255, 255, 255, 0.1);
+    --input: #0c0032;
+    --hover: rgba(255, 255, 255, 0.1);
+    --accent: #ffffff;
     --radius: 8px;
-    
+
     /* Game colors */
     --lol-primary: #3b82f6;
     --valorant-primary: #ef4444;
-}
-
-/* 다크 모드 설정 */
-:root.dark {
-    --background: #0f172a;
-    --background-secondary: #1e293b;
-    --foreground: #f8fafc;
-    --foreground-secondary: #cbd5e1;
-    --card: #1e293b;
-    --card-border: #334155;
-    --primary: #10b981;
-    --primary-foreground: #ffffff;
-    --secondary: #334155;
-    --muted: #64748b;
-    --border: #334155;
-    --input: #334155;
-    --hover: #334155;
-    --accent: #10b981;
-}
-
-@theme inline {
-    --color-background: var(--background);
-    --color-foreground: var(--foreground);
-    --font-sans: var(--font-geist-sans);
-    --font-mono: var(--font-geist-mono);
 }
 
 /* 기본 스타일 */
@@ -61,7 +36,8 @@ html {
 body {
     background: var(--background);
     color: var(--foreground);
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+        "Helvetica Neue", Arial, sans-serif;
     line-height: 1.6;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -70,7 +46,7 @@ body {
     min-height: 100vh;
 }
 
-/* dak.gg 스타일 스크롤바 */
+/* 스크롤바 스타일 */
 ::-webkit-scrollbar {
     width: 6px;
     height: 6px;
@@ -99,25 +75,25 @@ body {
 
 /* 포커스 스타일 */
 :focus-visible {
-    outline: 2px solid var(--ring);
+    outline: 2px solid var(--accent);
     outline-offset: 2px;
 }
 
 /* 선택 스타일 */
 ::selection {
-    background: var(--primary);
+    background: var(--accent);
     color: var(--primary-foreground);
 }
 
 /* 링크 기본 스타일 */
 a {
-    color: var(--primary);
+    color: var(--foreground);
     text-decoration: none;
     transition: color 0.2s ease-in-out;
 }
 
 a:hover {
-    color: var(--primary);
+    color: var(--foreground);
     opacity: 0.8;
 }
 
@@ -136,17 +112,24 @@ button:disabled {
 input,
 textarea,
 select {
-    background: var(--background);
+    background: #ffffff;
     border: 1px solid var(--border);
-    color: var(--foreground);
+    color: #0c0032;
     transition: border-color 0.2s ease-in-out;
 }
 
 input:focus,
 textarea:focus,
 select:focus {
-    border-color: var(--ring);
+    border-color: var(--accent);
     outline: none;
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.1);
+}
+
+/* placeholder 스타일 */
+input::placeholder,
+textarea::placeholder {
+    color: rgba(12, 0, 50, 0.5);
 }
 
 /* 유틸리티 클래스 */
@@ -190,5 +173,92 @@ select:focus {
     to {
         transform: translate(-50%, 0);
         opacity: 1;
+    }
+}
+
+/* 필터 영역 스타일 */
+.filter-section {
+    background-color: #ffffff;
+    color: #1a1a1a;
+}
+
+.filter-section h3 {
+    color: #1a1a1a;
+}
+
+.filter-section label {
+    color: #1a1a1a;
+}
+
+.filter-section input[type="text"] {
+    color: #1a1a1a;
+}
+
+.filter-section input[type="text"]::placeholder {
+    color: #666666;
+}
+
+/* 태그 스타일 */
+.tag {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.tag:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+/* LoL 커뮤니티 페이지 스타일 */
+.bg-lol-400 {
+    background-color: #60a5fa;
+}
+
+.bg-lol-500 {
+    background-color: #3b82f6;
+}
+
+.bg-lol-600 {
+    background-color: #2563eb;
+}
+
+.bg-lol-700 {
+    background-color: #1d4ed8;
+}
+
+.text-lol-100 {
+    color: #dbeafe;
+}
+
+.text-lol-600 {
+    color: #2563eb;
+}
+
+.text-lol-700 {
+    color: #1d4ed8;
+}
+
+.hover\:bg-lol-600:hover {
+    background-color: #2563eb;
+}
+
+.focus\:ring-lol-500:focus {
+    --tw-ring-color: #3b82f6;
+}
+
+.border-lol-500 {
+    border-color: #3b82f6;
+}
+
+/* 플로팅 애니메이션 */
+@keyframes float {
+    0% {
+        transform: translateY(0px);
+    }
+    50% {
+        transform: translateY(-10px);
+    }
+    100% {
+        transform: translateY(0px);
     }
 }

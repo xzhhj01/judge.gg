@@ -8,6 +8,7 @@ export default function CommunityHeader({ gameType, title, description }) {
                 textColor: "text-lol-100",
                 logo: "/logo-lol.svg",
                 alt: "LoL",
+                bgImage: "/community-banner-lol.jpg",
             };
         } else if (gameType === "valorant") {
             return {
@@ -15,6 +16,7 @@ export default function CommunityHeader({ gameType, title, description }) {
                 textColor: "text-valorant-100",
                 logo: "/logo-valorant.svg",
                 alt: "Valorant",
+                bgImage: "/community-banner-valorant.jpg",
             };
         }
         return {
@@ -22,6 +24,7 @@ export default function CommunityHeader({ gameType, title, description }) {
             textColor: "text-gray-100",
             logo: "/logo-default.svg",
             alt: "Game",
+            bgImage: "/community-banner-default.jpg",
         };
     };
 
@@ -29,10 +32,17 @@ export default function CommunityHeader({ gameType, title, description }) {
 
     return (
         <Link href={`/${gameType}/community`}>
-            <div
-                className={`relative h-32 bg-gradient-to-r ${colors.gradient} overflow-hidden cursor-pointer hover:opacity-100`}
-            >
-                {/* 배경 이미지 영역 */}
+            <div className="relative h-32 overflow-hidden cursor-pointer hover:opacity-100">
+                {/* 배경 이미지 */}
+                <div
+                    className="absolute inset-0 w-full h-full bg-cover bg-center"
+                    style={{ backgroundImage: `url(${colors.bgImage})` }}
+                />
+                {/* 그라데이션 오버레이 */}
+                <div
+                    className={`absolute inset-0 bg-gradient-to-r ${colors.gradient} opacity-80`}
+                ></div>
+                {/* 추가 오버레이 */}
                 <div className="absolute inset-0 bg-black bg-opacity-20"></div>
 
                 <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-end pb-4">

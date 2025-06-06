@@ -37,7 +37,11 @@ export const MainPostCard = ({
                         {post.tags.map((tag) => (
                             <span
                                 key={tag}
-                                className={`px-2 py-1 text-xs bg-${themeColor}-100 text-${themeColor}-700 rounded-full`}
+                                className={`px-2 py-1 text-xs rounded-full ${
+                                    isLol
+                                        ? "bg-blue-100 text-blue-700"
+                                        : "bg-red-100 text-red-700"
+                                }`}
                             >
                                 {tag}
                             </span>
@@ -115,7 +119,7 @@ export const MainPostCard = ({
                             <span>{post.comments || 0}</span>
                         </div>
 
-                        {/* 추천수 */}
+                        {/* 투표수 */}
                         {!hideVotes && (
                             <div
                                 className={`flex items-center space-x-1 bg-${accentColor}-50 px-2 py-1 rounded-lg`}
@@ -134,7 +138,11 @@ export const MainPostCard = ({
                                 <span
                                     className={`text-sm font-medium text-${accentColor}-700`}
                                 >
-                                    {post.votes}
+                                    {post.voteOptions &&
+                                    Array.isArray(post.voteOptions) &&
+                                    post.voteOptions.length >= 2
+                                        ? post.totalVotes || 0
+                                        : post.votes || 0}
                                 </span>
                             </div>
                         )}

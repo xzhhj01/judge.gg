@@ -18,12 +18,14 @@ export default function MentorPage() {
         const loadMentors = async () => {
             try {
                 setLoading(true);
-                const mentorData = await mentorService.getMentorsDirect(selectedGame);
+                const mentorData = await mentorService.getMentorsDirect(
+                    selectedGame
+                );
                 setMentors(mentorData);
                 setError(null);
             } catch (err) {
-                console.error('멘토 목록 로드 실패:', err);
-                setError('멘토 목록을 불러오는데 실패했습니다.');
+                console.error("멘토 목록 로드 실패:", err);
+                setError("멘토 목록을 불러오는데 실패했습니다.");
             } finally {
                 setLoading(false);
             }
@@ -34,11 +36,17 @@ export default function MentorPage() {
 
     // 필터링된 멘토 목록
     const filteredMentors = mentors.filter((mentor) => {
-        const matchesSearch = 
-            (mentor.nickname || mentor.userName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-            (mentor.characterTags || []).some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase())) ||
-            (mentor.lineTags || []).some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
-        
+        const matchesSearch =
+            (mentor.nickname || mentor.userName || "")
+                .toLowerCase()
+                .includes(searchQuery.toLowerCase()) ||
+            (mentor.characterTags || []).some((tag) =>
+                tag.toLowerCase().includes(searchQuery.toLowerCase())
+            ) ||
+            (mentor.lineTags || []).some((tag) =>
+                tag.toLowerCase().includes(searchQuery.toLowerCase())
+            );
+
         return matchesSearch;
     });
 
@@ -55,19 +63,23 @@ export default function MentorPage() {
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 {/* 2. Banner Section */}
                 <section className="mb-8">
-                    <div className="relative bg-gradient-to-r from-primary-500 to-primary-600 rounded-2xl overflow-hidden h-48">
-                        <div className="absolute inset-0 bg-black bg-opacity-20"></div>
-                        <div className="relative h-full flex items-center justify-center text-center text-white">
+                    <div className="relative rounded-2xl overflow-hidden h-48">
+                        <img
+                            src="/banner-mentor.jpg"
+                            alt="멘토 배너"
+                            className="w-full h-full object-cover"
+                        />
+                        <div className="absolute inset-0 bg-black/70"></div>
+                        <div className="absolute inset-0 flex items-center justify-center text-center text-white">
                             <div>
                                 <h2 className="text-3xl font-bold mb-3">
                                     전문 게임 멘토와 함께하세요
                                 </h2>
-                                <p className="text-lg text-primary-100">
+                                <p className="text-lg text-white">
                                     영상 피드백부터 1:1 심층 강의까지
                                 </p>
                             </div>
                         </div>
-                        {/* TODO: 슬라이드 기능 추가 예정 */}
                     </div>
                 </section>
 
@@ -85,22 +97,9 @@ export default function MentorPage() {
                             </div>
                             <Link
                                 href="/mentor/register"
-                                className="bg-white text-green-600 hover:bg-green-50 px-6 py-2 rounded-lg font-medium transition-all hover:shadow-lg inline-flex items-center text-sm"
+                                className="inline-flex items-center justify-center px-6 py-3 border border-gray-300 text-base font-medium rounded-lg bg-white hover:bg-gray-50 !text-gray-900 shadow-sm hover:shadow-md transition-all"
                             >
                                 멘토 등록하기
-                                <svg
-                                    className="w-4 h-4 ml-2"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
-                                >
-                                    <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth={2}
-                                        d="M17 8l4 4m0 0l-4 4m4-4H3"
-                                    />
-                                </svg>
                             </Link>
                         </div>
                     </div>
@@ -124,11 +123,15 @@ export default function MentorPage() {
                         {loading ? (
                             <div className="col-span-full text-center py-12">
                                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-                                <p className="text-gray-600">멘토 목록을 불러오는 중...</p>
+                                <p className="text-gray-600">
+                                    멘토 목록을 불러오는 중...
+                                </p>
                             </div>
                         ) : error ? (
                             <div className="col-span-full text-center py-12">
-                                <div className="text-red-400 text-6xl mb-4">⚠️</div>
+                                <div className="text-red-400 text-6xl mb-4">
+                                    ⚠️
+                                </div>
                                 <h3 className="text-lg font-medium text-gray-900 mb-2">
                                     오류가 발생했습니다
                                 </h3>
@@ -140,12 +143,18 @@ export default function MentorPage() {
                             ))
                         ) : (
                             <div className="col-span-full text-center py-12">
-                                <div className="text-gray-400 text-6xl mb-4">🔍</div>
+                                <div className="text-gray-400 text-6xl mb-4">
+                                    🔍
+                                </div>
                                 <h3 className="text-lg font-medium text-gray-900 mb-2">
-                                    {mentors.length === 0 ? '등록된 멘토가 없습니다' : '검색 결과가 없습니다'}
+                                    {mentors.length === 0
+                                        ? "등록된 멘토가 없습니다"
+                                        : "검색 결과가 없습니다"}
                                 </h3>
                                 <p className="text-gray-600">
-                                    {mentors.length === 0 ? '첫 번째 멘토가 되어보세요!' : '다른 검색어나 필터를 시도해보세요'}
+                                    {mentors.length === 0
+                                        ? "첫 번째 멘토가 되어보세요!"
+                                        : "다른 검색어나 필터를 시도해보세요"}
                                 </p>
                             </div>
                         )}

@@ -6,10 +6,11 @@ import PostFilter from "../../../components/PostFilter";
 import CommunityHeader from "../../../components/CommunityHeader";
 import Snackbar from "../../../components/Snackbar";
 import communityTags from "@/data/communityTags.json";
-import { communityService } from '@/app/services/community/community.service';
-import { useAuth } from '@/app/utils/providers';
-import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { communityService } from "@/app/services/community/community.service";
+import { useAuth } from "@/app/utils/providers";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 export default function LoLCommunityPage() {
     const { user } = useAuth();
@@ -29,19 +30,19 @@ export default function LoLCommunityPage() {
     const [snackbar, setSnackbar] = useState({
         message: "",
         type: "success",
-        isVisible: false
+        isVisible: false,
     });
 
     const showSnackbar = (message, type = "success") => {
         setSnackbar({
             message,
             type,
-            isVisible: true
+            isVisible: true,
         });
     };
 
     const closeSnackbar = () => {
-        setSnackbar(prev => ({ ...prev, isVisible: false }));
+        setSnackbar((prev) => ({ ...prev, isVisible: false }));
     };
 
     // 태그 데이터
@@ -55,44 +56,55 @@ export default function LoLCommunityPage() {
                 // 선택된 태그들을 모두 합침
                 const allSelectedTags = [
                     ...selectedSituations,
-                    ...selectedLanes, 
-                    ...selectedChampions
+                    ...selectedLanes,
+                    ...selectedChampions,
                 ];
-                
+
                 console.log("Fetching posts with tags:", allSelectedTags);
-                
+
                 const result = await communityService.getPosts(
-                    'lol',
+                    "lol",
                     allSelectedTags,
                     searchQuery,
                     1,
                     20
                 );
-                
+
                 let filteredPosts = result.posts || [];
-                
+
                 // 정렬 처리
                 switch (sortBy) {
                     case "popular":
-                        filteredPosts.sort((a, b) => (b.likes || 0) - (a.likes || 0));
+                        filteredPosts.sort(
+                            (a, b) => (b.likes || 0) - (a.likes || 0)
+                        );
                         break;
                     case "views":
-                        filteredPosts.sort((a, b) => (b.views || 0) - (a.views || 0));
+                        filteredPosts.sort(
+                            (a, b) => (b.views || 0) - (a.views || 0)
+                        );
                         break;
                     case "comments":
-                        filteredPosts.sort((a, b) => (b.commentCount || 0) - (a.commentCount || 0));
+                        filteredPosts.sort(
+                            (a, b) =>
+                                (b.commentCount || 0) - (a.commentCount || 0)
+                        );
                         break;
                     case "latest":
                     default:
                         filteredPosts.sort((a, b) => {
-                            const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt);
-                            const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt);
+                            const dateA = a.createdAt?.toDate
+                                ? a.createdAt.toDate()
+                                : new Date(a.createdAt);
+                            const dateB = b.createdAt?.toDate
+                                ? b.createdAt.toDate()
+                                : new Date(b.createdAt);
                             return dateB - dateA;
                         });
                 }
-                
+
                 // 게시글 데이터를 PostCard에 맞게 변환
-                const formattedPosts = filteredPosts.map(post => ({
+                const formattedPosts = filteredPosts.map((post) => ({
                     id: post.id,
                     title: post.title,
                     content: post.content,
@@ -106,15 +118,17 @@ export default function LoLCommunityPage() {
                     views: post.views || 0,
                     tags: post.tags || [],
                     author: {
-                        nickname: post.authorName || '알 수 없음',
+                        nickname: post.authorName || "알 수 없음",
                         profileImage: post.authorPhoto,
-                        tier: post.authorTier || 'Unranked'
+                        tier: post.authorTier || "Unranked",
                     },
                     commentCount: post.commentCount || 0,
-                    createdAt: post.createdAt?.toDate ? post.createdAt.toDate() : new Date(post.createdAt),
-                    videoUrl: post.videoUrl
+                    createdAt: post.createdAt?.toDate
+                        ? post.createdAt.toDate()
+                        : new Date(post.createdAt),
+                    videoUrl: post.videoUrl,
                 }));
-                
+
                 setPosts(formattedPosts);
             } catch (error) {
                 console.error("Error fetching posts:", error);
@@ -188,24 +202,27 @@ export default function LoLCommunityPage() {
     // Confirm post deletion
     const confirmDelete = async () => {
         if (!postToDelete) return;
-        
+
         try {
-            const response = await fetch(`/api/community/lol/posts/${postToDelete.id}`, {
-                method: 'DELETE',
-            });
-            
+            const response = await fetch(
+                `/api/community/lol/posts/${postToDelete.id}`,
+                {
+                    method: "DELETE",
+                }
+            );
+
             if (response.ok) {
                 // Remove post from local state
-                setPosts(posts.filter(p => p.id !== postToDelete.id));
-                alert('게시글이 삭제되었습니다.');
+                setPosts(posts.filter((p) => p.id !== postToDelete.id));
+                alert("게시글이 삭제되었습니다.");
             } else {
-                alert('게시글 삭제에 실패했습니다.');
+                alert("게시글 삭제에 실패했습니다.");
             }
         } catch (error) {
-            console.error('Delete error:', error);
-            alert('게시글 삭제 중 오류가 발생했습니다.');
+            console.error("Delete error:", error);
+            alert("게시글 삭제 중 오류가 발생했습니다.");
         }
-        
+
         setShowDeleteModal(false);
         setPostToDelete(null);
     };
@@ -213,16 +230,18 @@ export default function LoLCommunityPage() {
     // Handle post share
     const handlePostShare = (post) => {
         const url = `${window.location.origin}/lol/community/post/${post.id}`;
-        
+
         if (navigator.share) {
-            navigator.share({
-                title: post.title,
-                text: `${post.title} - Judge.gg`,
-                url: url
-            }).catch(err => {
-                console.log('Error sharing:', err);
-                copyToClipboard(url);
-            });
+            navigator
+                .share({
+                    title: post.title,
+                    text: `${post.title} - Judge.gg`,
+                    url: url,
+                })
+                .catch((err) => {
+                    console.log("Error sharing:", err);
+                    copyToClipboard(url);
+                });
         } else {
             copyToClipboard(url);
         }
@@ -230,39 +249,54 @@ export default function LoLCommunityPage() {
 
     // Copy URL to clipboard
     const copyToClipboard = (text) => {
-        navigator.clipboard.writeText(text).then(() => {
-            showSnackbar('링크가 클립보드에 복사되었습니다!', 'success');
-        }).catch(err => {
-            console.error('Could not copy text: ', err);
-            showSnackbar('링크 복사에 실패했습니다.', 'error');
-        });
+        navigator.clipboard
+            .writeText(text)
+            .then(() => {
+                showSnackbar("링크가 클립보드에 복사되었습니다!", "success");
+            })
+            .catch((err) => {
+                console.error("Could not copy text: ", err);
+                showSnackbar("링크 복사에 실패했습니다.", "error");
+            });
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 dark:bg-dark-950">
-            {/* 게임 헤더 */}
-            <div className="bg-gradient-to-r from-lol-600 to-lol-700 dark:from-lol-700 dark:to-lol-800">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                    <div className="text-center">
-                        <div className="flex items-center justify-center mb-4">
-                            <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center mr-4">
-                                <div className="w-8 h-8 bg-lol-500 rounded"></div>
-                            </div>
-                            <h1 className="text-3xl font-bold text-white">리그 오브 레전드 법원</h1>
+        <div className="min-h-screen bg-gradient-to-b from-[#0c0032] to-[#190061]">
+            <div className="relative h-32 overflow-hidden">
+                <div
+                    className="absolute inset-0 w-full h-full"
+                    style={{
+                        backgroundImage: `url('/community-banner-lol.jpg')`,
+                        backgroundSize: "cover",
+                        backgroundPosition: "top -50px center",
+                        backgroundRepeat: "no-repeat",
+                    }}
+                ></div>
+                <div
+                    className="absolute inset-0 w-full h-full"
+                    style={{
+                        background:
+                            "linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6))",
+                        backgroundPosition: "top -50px center",
+                    }}
+                ></div>
+                <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-end pb-4">
+                    <div className="flex items-center space-x-4">
+                        <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center shadow-lg">
+                            <img
+                                alt="LoL"
+                                className="w-8 h-8"
+                                src="/logo-lol.svg"
+                            />
                         </div>
-                        <p className="text-lol-100 text-lg">소환사의 협곡에서 발생한 분쟁을 공정하게 심판합니다</p>
-                        
-                        {/* 글쓰기 버튼 */}
-                        <div className="mt-6">
-                            <a 
-                                href="/lol/community/write"
-                                className="inline-flex items-center px-6 py-3 bg-white text-lol-600 font-medium rounded-lg hover:bg-gray-50 transition-colors shadow-lg"
-                            >
-                                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                                </svg>
-                                글쓰기
-                            </a>
+                        <div className="text-white">
+                            <h1 className="text-2xl font-bold mb-1">
+                                리그 오브 레전드 법원
+                            </h1>
+                            <p className="text-lol-100 text-sm">
+                                소환사의 협곡에서 발생한 분쟁을 공정하게
+                                심판합니다
+                            </p>
                         </div>
                     </div>
                 </div>
@@ -270,13 +304,11 @@ export default function LoLCommunityPage() {
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
                 <div className="flex gap-6">
-                    {/* 왼쪽 필터 사이드바 */}
-                    <div className="hidden lg:block w-64 flex-shrink-0">
-                        <div className="bg-white dark:bg-dark-800 rounded-xl border border-gray-200 dark:border-dark-700 p-4 sticky top-24">
-                            <h3 className="font-semibold text-gray-900 dark:text-white mb-4">필터</h3>
-                            
+                    {/* 왼쪽 필터 */}
+                    <div className="w-48 flex-shrink-0">
+                        <div className="filter-section bg-white rounded-lg shadow-sm border border-gray-200 p-2 sticky top-24">
                             {/* 전체 */}
-                            <label className="flex items-center p-3 hover:bg-gray-50 dark:hover:bg-dark-700 rounded-lg cursor-pointer transition-colors">
+                            <label className="flex items-center px-2 py-1 hover:bg-gray-50 rounded cursor-pointer">
                                 <input
                                     type="checkbox"
                                     checked={
@@ -293,38 +325,38 @@ export default function LoLCommunityPage() {
                                             clearAllFilters();
                                         }
                                     }}
-                                    className="w-4 h-4 mr-3 rounded border-gray-300 dark:border-dark-600 text-lol-600 focus:ring-lol-500"
+                                    className="w-4 h-4 mr-2 rounded border-gray-300 text-lol-600 focus:ring-lol-500"
                                 />
-                                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">전체</span>
+                                <span className="text-sm text-gray-900">
+                                    전체
+                                </span>
                             </label>
 
                             {/* 상황별 */}
-                            <div className="mt-6">
-                                <h4 className="font-medium text-gray-900 dark:text-white mb-3 text-sm">
+                            <div className="mt-3">
+                                <h3 className="font-medium text-gray-900 px-2 mb-2 text-sm">
                                     상황별
-                                </h4>
-                                <div className="space-y-1">
-                                    {tagData.situations.map((situation) => (
-                                        <label
-                                            key={situation}
-                                            className="flex items-center p-2 hover:bg-gray-50 dark:hover:bg-dark-700 rounded-lg cursor-pointer transition-colors"
-                                        >
-                                            <input
-                                                type="checkbox"
-                                                checked={selectedSituations.includes(
-                                                    situation
-                                                )}
-                                                onChange={() =>
-                                                    toggleSituation(situation)
-                                                }
-                                                className="w-4 h-4 mr-3 rounded border-gray-300 dark:border-dark-600 text-lol-600 focus:ring-lol-500"
-                                            />
-                                            <span className="text-sm text-gray-700 dark:text-gray-300">
-                                                {situation}
-                                            </span>
-                                        </label>
-                                    ))}
-                                </div>
+                                </h3>
+                                {tagData.situations.map((tag) => (
+                                    <label
+                                        key={tag}
+                                        className="flex items-center px-2 py-0.5 hover:bg-gray-50 rounded cursor-pointer"
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            checked={selectedSituations.includes(
+                                                tag
+                                            )}
+                                            onChange={() =>
+                                                toggleSituation(tag)
+                                            }
+                                            className="w-4 h-4 mr-2 rounded border-gray-300 text-lol-600 focus:ring-lol-500"
+                                        />
+                                        <span className="text-sm text-gray-900">
+                                            {tag}
+                                        </span>
+                                    </label>
+                                ))}
                             </div>
 
                             {/* 라인별 */}
@@ -332,28 +364,24 @@ export default function LoLCommunityPage() {
                                 <h3 className="font-medium text-gray-900 px-2 mb-2 text-sm">
                                     라인별
                                 </h3>
-                                <div>
-                                    {tagData.lanes.map((lane) => (
-                                        <label
-                                            key={lane}
-                                            className="flex items-center px-2 py-0.5 hover:bg-gray-50 rounded cursor-pointer"
-                                        >
-                                            <input
-                                                type="checkbox"
-                                                checked={selectedLanes.includes(
-                                                    lane
-                                                )}
-                                                onChange={() =>
-                                                    toggleLane(lane)
-                                                }
-                                                className="w-4 h-4 mr-2 rounded border-gray-300 text-lol-600 focus:ring-lol-500"
-                                            />
-                                            <span className="text-sm">
-                                                {lane}
-                                            </span>
-                                        </label>
-                                    ))}
-                                </div>
+                                {tagData.lanes.map((tag) => (
+                                    <label
+                                        key={tag}
+                                        className="flex items-center px-2 py-0.5 hover:bg-gray-50 rounded cursor-pointer"
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            checked={selectedLanes.includes(
+                                                tag
+                                            )}
+                                            onChange={() => toggleLane(tag)}
+                                            className="w-4 h-4 mr-2 rounded border-gray-300 text-lol-600 focus:ring-lol-500"
+                                        />
+                                        <span className="text-sm text-gray-900">
+                                            {tag}
+                                        </span>
+                                    </label>
+                                ))}
                             </div>
 
                             {/* 챔피언별 */}
@@ -369,7 +397,7 @@ export default function LoLCommunityPage() {
                                         onChange={(e) =>
                                             setChampionSearch(e.target.value)
                                         }
-                                        className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-lol-500"
+                                        className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-lol-500 text-gray-900"
                                     />
                                 </div>
                                 <div className="max-h-48 overflow-y-auto">
@@ -400,7 +428,7 @@ export default function LoLCommunityPage() {
                                                     }
                                                     className="w-4 h-4 mr-2 rounded border-gray-300 text-lol-600 focus:ring-lol-500"
                                                 />
-                                                <span className="text-sm">
+                                                <span className="text-sm text-gray-900">
                                                     {champion}
                                                 </span>
                                             </label>
@@ -421,58 +449,17 @@ export default function LoLCommunityPage() {
                         </div>
                     </div>
 
-                    {/* 메인 콘텐츠 */}
+                    {/* 메인 컨텐츠 */}
                     <div className="flex-1">
-                        {/* 상단 필터 및 정렬 */}
-                        <div className="bg-white dark:bg-dark-800 rounded-xl border border-gray-200 dark:border-dark-700 p-4 mb-6">
-                            <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
-                                {/* 검색 */}
-                                <div className="flex-1 max-w-md">
-                                    <div className="relative">
-                                        <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                        </svg>
-                                        <input
-                                            type="text"
-                                            placeholder="게시글 검색..."
-                                            value={searchQuery}
-                                            onChange={(e) => setSearchQuery(e.target.value)}
-                                            className="w-full pl-10 pr-4 py-2.5 bg-gray-50 dark:bg-dark-700 border border-gray-200 dark:border-dark-600 rounded-lg focus:ring-2 focus:ring-accent-500 focus:border-transparent text-gray-900 dark:text-white placeholder-gray-500"
-                                        />
-                                    </div>
-                                </div>
+                        <PostFilter
+                            gameType="lol"
+                            onSortChange={handleSortChange}
+                            onSearchChange={handleSearchChange}
+                        />
 
-                                {/* 정렬 */}
-                                <div className="flex items-center space-x-3">
-                                    <span className="text-sm text-gray-600 dark:text-gray-400">정렬:</span>
-                                    <select
-                                        value={sortBy}
-                                        onChange={(e) => setSortBy(e.target.value)}
-                                        className="bg-gray-50 dark:bg-dark-700 border border-gray-200 dark:border-dark-600 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-accent-500 focus:border-transparent"
-                                    >
-                                        <option value="latest">최신순</option>
-                                        <option value="popular">인기순</option>
-                                        <option value="views">조회순</option>
-                                        <option value="comments">댓글순</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* 게시글 목록 */}
                         {loading ? (
                             <div className="flex items-center justify-center h-48">
-                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent-600"></div>
-                            </div>
-                        ) : posts.length === 0 ? (
-                            <div className="bg-white dark:bg-dark-800 rounded-xl border border-gray-200 dark:border-dark-700 p-12 text-center">
-                                <div className="w-16 h-16 bg-gray-100 dark:bg-dark-700 rounded-full flex items-center justify-center mx-auto mb-4">
-                                    <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                                    </svg>
-                                </div>
-                                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">게시글이 없습니다</h3>
-                                <p className="text-gray-600 dark:text-gray-400">첫 번째 재판을 열어보세요!</p>
+                                <div className="text-gray-500">로딩 중...</div>
                             </div>
                         ) : (
                             <>
@@ -490,88 +477,67 @@ export default function LoLCommunityPage() {
                                     ))}
                                 </div>
 
-                                {posts.length >= 10 && (
-                                    <div className="text-center mt-8">
-                                        <button className="px-6 py-3 bg-accent-600 hover:bg-accent-700 text-white rounded-lg transition-colors shadow-sm">
-                                            더 많은 게시글 보기
-                                        </button>
-                                    </div>
-                                )}
+                                <div className="text-center mt-8">
+                                    <button className="px-6 py-3 bg-lol-500 text-white rounded-lg hover:bg-lol-600 transition-colors">
+                                        더 많은 게시글 보기
+                                    </button>
+                                </div>
                             </>
                         )}
                     </div>
                 </div>
             </div>
 
-            {/* 모바일 필터 패널 */}
-            <div className="lg:hidden fixed bottom-6 left-4 z-50">
-                <button className="w-12 h-12 bg-white dark:bg-dark-800 rounded-full shadow-lg border border-gray-200 dark:border-dark-700 flex items-center justify-center hover:shadow-xl transition-all">
-                    <svg className="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+            {/* 플로팅 글쓰기 버튼 */}
+            <div className="fixed bottom-6 right-32 z-50 group flex flex-col items-center">
+                <div
+                    className="mb-4 bg-gray-800 text-white px-3 py-2 rounded-lg text-sm whitespace-nowrap transition-all duration-200"
+                    style={{
+                        animation: "float 3s ease-in-out infinite",
+                    }}
+                >
+                    ⚖️ 새 재판 열기
+                    <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800"></div>
+                </div>
+
+                <button
+                    onClick={() =>
+                        (window.location.href = "/lol/community/write")
+                    }
+                    className="w-14 h-14 rounded-full shadow-lg transition-all duration-200 flex items-center justify-center"
+                    style={{
+                        backgroundColor: "#3B82F6",
+                    }}
+                    onMouseEnter={(e) => {
+                        e.target.style.backgroundColor = "#2563EB";
+                        e.target.style.transform = "scale(1.1)";
+                    }}
+                    onMouseLeave={(e) => {
+                        e.target.style.backgroundColor = "#3B82F6";
+                        e.target.style.transform = "scale(1)";
+                    }}
+                >
+                    <svg
+                        className="w-6 h-6 text-white"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                    >
+                        <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M12 4v16m8-8H4"
+                        />
                     </svg>
                 </button>
             </div>
 
-            {/* 게시글 삭제 확인 모달 */}
-            {showDeleteModal && postToDelete && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                    <div className="bg-white dark:bg-dark-800 rounded-xl p-6 max-w-md w-full mx-4">
-                        <div className="flex justify-between items-center mb-4">
-                            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                                게시글 삭제
-                            </h3>
-                            <button
-                                onClick={() => {
-                                    setShowDeleteModal(false);
-                                    setPostToDelete(null);
-                                }}
-                                className="text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
-                            >
-                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                            </button>
-                        </div>
-                        
-                        <div className="mb-6">
-                            <p className="text-gray-700 dark:text-gray-300 mb-2">
-                                정말로 이 게시글을 삭제하시겠습니까?
-                            </p>
-                            <div className="bg-gray-50 dark:bg-dark-700 rounded-lg p-3">
-                                <p className="font-medium text-gray-900 dark:text-white text-sm">
-                                    {postToDelete.title}
-                                </p>
-                            </div>
-                            <p className="text-red-600 dark:text-red-400 text-sm mt-2">
-                                이 작업은 되돌릴 수 없습니다.
-                            </p>
-                        </div>
-                        
-                        <div className="flex justify-end space-x-3">
-                            <button
-                                onClick={() => {
-                                    setShowDeleteModal(false);
-                                    setPostToDelete(null);
-                                }}
-                                className="px-4 py-2 border border-gray-300 dark:border-dark-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-dark-700 font-medium"
-                            >
-                                취소
-                            </button>
-                            <button
-                                onClick={confirmDelete}
-                                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium"
-                            >
-                                삭제하기
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-            
+            {/* 스낵바 */}
             <Snackbar
+                isVisible={snackbar.isVisible}
                 message={snackbar.message}
                 type={snackbar.type}
-                isVisible={snackbar.isVisible}
                 onClose={closeSnackbar}
             />
         </div>

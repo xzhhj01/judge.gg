@@ -28,9 +28,11 @@ export default function RootLayout({ children }) {
             >
                 <ThemeProvider>
                     <Providers>
-                        <Header />
-                        <main className="min-h-screen">{children}</main>
-                        <Footer />
+                        <div suppressHydrationWarning>
+                            <Header />
+                            <main className="min-h-screen">{children}</main>
+                            <Footer />
+                        </div>
                     </Providers>
                 </ThemeProvider>
             </body>

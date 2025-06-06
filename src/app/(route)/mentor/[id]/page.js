@@ -5,9 +5,9 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { mentorService } from "@/app/services/mentor/mentor.service";
 import { userService } from "@/app/services/user/user.service";
-import { useAuth } from '@/app/utils/providers';
-import { useSession } from 'next-auth/react';
-import { communityService } from '@/app/services/community/community.service';
+import { useAuth } from "@/app/utils/providers";
+import { useSession } from "next-auth/react";
+import { communityService } from "@/app/services/community/community.service";
 
 const ServiceCard = ({ service, game }) => {
     const gameColor = game === "lol" ? "blue" : "red";
@@ -68,18 +68,25 @@ export default function MentorDetailPage() {
                 const mentorData = await mentorService.getMentorById(mentorId);
                 setMentor(mentorData);
                 setError(null);
-                
+
                 // 로그인한 사용자의 찜하기 상태 확인
                 if (user || session) {
                     const currentUser = user || session?.user;
-                    const currentUserId = communityService.generateConsistentUserId(currentUser);
-                    console.log('🔍 찜하기 상태 확인:', { currentUser, currentUserId });
-                    const liked = await userService.isLikedMentor(currentUserId, mentorId);
+                    const currentUserId =
+                        communityService.generateConsistentUserId(currentUser);
+                    console.log("🔍 찜하기 상태 확인:", {
+                        currentUser,
+                        currentUserId,
+                    });
+                    const liked = await userService.isLikedMentor(
+                        currentUserId,
+                        mentorId
+                    );
                     setIsLiked(liked);
                 }
             } catch (err) {
-                console.error('멘토 정보 로드 실패:', err);
-                setError('멘토 정보를 불러오는데 실패했습니다.');
+                console.error("멘토 정보 로드 실패:", err);
+                setError("멘토 정보를 불러오는데 실패했습니다.");
             } finally {
                 setLoading(false);
             }
@@ -104,10 +111,12 @@ export default function MentorDetailPage() {
     useEffect(() => {
         const loadReviews = async () => {
             try {
-                const reviewData = await mentorService.getMentorReviews(mentorId);
+                const reviewData = await mentorService.getMentorReviews(
+                    mentorId
+                );
                 setReviews(reviewData);
             } catch (error) {
-                console.error('리뷰 로드 실패:', error);
+                console.error("리뷰 로드 실패:", error);
                 setReviews([]);
             }
         };
@@ -122,10 +131,14 @@ export default function MentorDetailPage() {
         const loadRecentActivities = async () => {
             if (mentor?.userId) {
                 try {
-                    const activities = await userService.getMentorRecentActivity(mentor.userId, 10);
+                    const activities =
+                        await userService.getMentorRecentActivity(
+                            mentor.userId,
+                            10
+                        );
                     setRecentActivities(activities);
                 } catch (error) {
-                    console.error('최근 활동 로드 실패:', error);
+                    console.error("최근 활동 로드 실패:", error);
                     setRecentActivities([]);
                 }
             }
@@ -159,32 +172,42 @@ export default function MentorDetailPage() {
 
         try {
             setSubmittingFeedback(true);
-            
+
             const currentUser = user || session?.user;
-            const serviceInfo = mentor.curriculum?.mentoring_types?.[selectedService];
-            
+            const serviceInfo =
+                mentor.curriculum?.mentoring_types?.[selectedService];
+
             const requestData = {
                 service: selectedService,
-                serviceTitle: {
-                    video_feedback: "영상 피드백",
-                    realtime_onepoint: "실시간 원포인트 피드백",
-                    realtime_private: "실시간 1:1 피드백",
-                }[selectedService] || selectedService,
+                serviceTitle:
+                    {
+                        video_feedback: "영상 피드백",
+                        realtime_onepoint: "실시간 원포인트 피드백",
+                        realtime_private: "실시간 1:1 피드백",
+                    }[selectedService] || selectedService,
                 message: feedbackMessage,
                 price: serviceInfo?.price || 0,
-                game: mentor.selectedGame
+                game: mentor.selectedGame,
             };
 
-            console.log('🔍 피드백 신청:', { mentorId, requestData, currentUser });
-            
-            await mentorService.requestFeedback(mentorId, requestData, currentUser);
-            
+            console.log("🔍 피드백 신청:", {
+                mentorId,
+                requestData,
+                currentUser,
+            });
+
+            await mentorService.requestFeedback(
+                mentorId,
+                requestData,
+                currentUser
+            );
+
             setShowApplyModal(false);
             setSelectedService("");
             setFeedbackMessage("");
             showSnackbar("피드백 신청이 완료되었습니다!");
         } catch (error) {
-            console.error('피드백 신청 실패:', error);
+            console.error("피드백 신청 실패:", error);
             showSnackbar("피드백 신청에 실패했습니다. 다시 시도해주세요.");
         } finally {
             setSubmittingFeedback(false);
@@ -196,12 +219,17 @@ export default function MentorDetailPage() {
             showSnackbar("로그인이 필요합니다.");
             return;
         }
-        
+
         try {
             const currentUser = user || session?.user;
-            const currentUserId = communityService.generateConsistentUserId(currentUser);
-            console.log('🔍 찜하기 요청:', { currentUser, currentUserId, isLiked });
-            
+            const currentUserId =
+                communityService.generateConsistentUserId(currentUser);
+            console.log("🔍 찜하기 요청:", {
+                currentUser,
+                currentUserId,
+                isLiked,
+            });
+
             if (isLiked) {
                 await userService.removeLikedMentor(currentUserId, mentorId);
                 setIsLiked(false);
@@ -212,7 +240,7 @@ export default function MentorDetailPage() {
                 showSnackbar("찜 목록에 추가되었어요.");
             }
         } catch (error) {
-            console.error('찜하기 요청 실패:', error);
+            console.error("찜하기 요청 실패:", error);
             showSnackbar("오류가 발생했습니다. 다시 시도해주세요.");
         }
     };
@@ -241,29 +269,34 @@ export default function MentorDetailPage() {
                 mentorId: mentorId,
                 rating: rating,
                 comment: reviewText.trim(),
-                reviewerId: currentUser.uid || currentUser.id || currentUser.sub,
-                reviewerName: currentUser.displayName || currentUser.name || currentUser.email || "익명",
+                reviewerId:
+                    currentUser.uid || currentUser.id || currentUser.sub,
+                reviewerName:
+                    currentUser.displayName ||
+                    currentUser.name ||
+                    currentUser.email ||
+                    "익명",
             };
 
             await mentorService.addMentorReview(reviewData);
-            
+
             // 새로운 리뷰를 로컬 상태에 추가
             const newReview = {
                 ...reviewData,
                 id: Date.now().toString(),
                 createdAt: new Date().toISOString(),
             };
-            setReviews(prev => [newReview, ...prev]);
+            setReviews((prev) => [newReview, ...prev]);
 
             // 모달 닫기 및 상태 초기화
             setShowReviewModal(false);
             setRating(0);
             setHoveredRating(0);
             setReviewText("");
-            
+
             showSnackbar("리뷰가 성공적으로 등록되었습니다!");
         } catch (error) {
-            console.error('리뷰 제출 실패:', error);
+            console.error("리뷰 제출 실패:", error);
             showSnackbar("리뷰 등록에 실패했습니다. 다시 시도해주세요.");
         } finally {
             setSubmittingReview(false);
@@ -301,7 +334,6 @@ export default function MentorDetailPage() {
             </div>
         );
     }
-
 
     if (!mentor) {
         return (
@@ -389,7 +421,12 @@ export default function MentorDetailPage() {
                                 <div className="flex flex-col items-center">
                                     <div className="relative">
                                         <div className="w-32 h-32 bg-gradient-to-br from-primary-400 to-primary-600 rounded-full flex items-center justify-center text-white font-bold text-4xl">
-                                            {(mentor.nickname || mentor.userName || mentor.name || '멘토').charAt(0)}
+                                            {(
+                                                mentor.nickname ||
+                                                mentor.userName ||
+                                                mentor.name ||
+                                                "멘토"
+                                            ).charAt(0)}
                                         </div>
                                         <div className="absolute -bottom-1 -right-1 w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-md">
                                             {mentor.selectedGame === "lol" ? (
@@ -421,12 +458,15 @@ export default function MentorDetailPage() {
                                                 className="text-xs font-medium text-gray-600"
                                                 style={{ display: "none" }}
                                             >
-                                                {mentor.selectedGame || 'GAME'}
+                                                {mentor.selectedGame || "GAME"}
                                             </span>
                                         </div>
                                     </div>
                                     <h1 className="text-xl font-bold text-gray-900 mt-4">
-                                        {mentor.nickname || mentor.userName || mentor.name || '멘토'}
+                                        {mentor.nickname ||
+                                            mentor.userName ||
+                                            mentor.name ||
+                                            "멘토"}
                                     </h1>
                                 </div>
 
@@ -437,7 +477,8 @@ export default function MentorDetailPage() {
                                             한줄 소개
                                         </h3>
                                         <p className="text-gray-700 mb-4">
-                                            {mentor.oneLineIntro || '멘토 소개를 준비 중입니다.'}
+                                            {mentor.oneLineIntro ||
+                                                "멘토 소개를 준비 중입니다."}
                                         </p>
                                     </div>
 
@@ -449,17 +490,19 @@ export default function MentorDetailPage() {
                                                 특징
                                             </span>
                                             <div className="inline-flex flex-wrap gap-1">
-                                                {(mentor.characterTags || []).map(
-                                                    (tag, index) => (
-                                                        <span
-                                                            key={index}
-                                                            className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full"
-                                                        >
-                                                            {tag}
-                                                        </span>
-                                                    )
-                                                )}
-                                                {(!mentor.characterTags || mentor.characterTags.length === 0) && (
+                                                {(
+                                                    mentor.characterTags || []
+                                                ).map((tag, index) => (
+                                                    <span
+                                                        key={index}
+                                                        className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full"
+                                                    >
+                                                        {tag}
+                                                    </span>
+                                                ))}
+                                                {(!mentor.characterTags ||
+                                                    mentor.characterTags
+                                                        .length === 0) && (
                                                     <span className="text-xs text-gray-500">
                                                         등록된 특징이 없습니다
                                                     </span>
@@ -483,7 +526,9 @@ export default function MentorDetailPage() {
                                                         </span>
                                                     )
                                                 )}
-                                                {(!mentor.lineTags || mentor.lineTags.length === 0) && (
+                                                {(!mentor.lineTags ||
+                                                    mentor.lineTags.length ===
+                                                        0) && (
                                                     <span className="text-xs text-gray-500">
                                                         등록된 라인이 없습니다
                                                     </span>
@@ -539,7 +584,10 @@ export default function MentorDetailPage() {
                         </section>
 
                         {/* 3. Experience 영역 */}
-                        <section id="experience" className="bg-white rounded-xl border border-gray-200 p-6">
+                        <section
+                            id="experience"
+                            className="bg-white rounded-xl border border-gray-200 p-6"
+                        >
                             <h2 className="text-lg font-semibold text-gray-900 mb-4">
                                 경력
                             </h2>
@@ -557,7 +605,8 @@ export default function MentorDetailPage() {
                                             </span>
                                         )
                                     )}
-                                    {(!mentor.experienceType || mentor.experienceType.length === 0) && (
+                                    {(!mentor.experienceType ||
+                                        mentor.experienceType.length === 0) && (
                                         <span className="text-sm text-gray-500">
                                             등록된 경력 정보가 없습니다
                                         </span>
@@ -581,7 +630,9 @@ export default function MentorDetailPage() {
                                             </li>
                                         )
                                     )}
-                                    {(!mentor.experienceDetails || mentor.experienceDetails.length === 0) && (
+                                    {(!mentor.experienceDetails ||
+                                        mentor.experienceDetails.length ===
+                                            0) && (
                                         <p className="text-sm text-gray-500">
                                             상세 경력 정보가 등록되지 않았습니다
                                         </p>
@@ -618,42 +669,55 @@ export default function MentorDetailPage() {
                                         description:
                                             "1:1 맞춤형 실시간 코칭을 제공합니다",
                                     },
-                                ].map((service) => {
-                                    const serviceData =
-                                        mentor.curriculum?.mentoring_types?.[
-                                            service.type
-                                        ];
-                                    if (!serviceData?.isSelected) return null;
+                                ]
+                                    .map((service) => {
+                                        const serviceData =
+                                            mentor.curriculum
+                                                ?.mentoring_types?.[
+                                                service.type
+                                            ];
+                                        if (!serviceData?.isSelected)
+                                            return null;
 
-                                    return (
-                                        <div
-                                            key={service.type}
-                                            className="border border-gray-200 rounded-lg hover:border-primary-500 transition-colors p-4"
-                                        >
-                                            <div className="flex justify-between items-start">
-                                                <div>
-                                                    <h4 className="text-base font-semibold text-gray-900 mb-1">
-                                                        {service.title}
-                                                    </h4>
-                                                    <p className="text-sm text-gray-600">
-                                                        {service.description}
-                                                    </p>
-                                                </div>
-                                                <div className="text-right">
-                                                    <div className="text-lg font-bold text-primary-600">
-                                                        {(serviceData.price || 0).toLocaleString()}
-                                                        원
+                                        return (
+                                            <div
+                                                key={service.type}
+                                                className="border border-gray-200 rounded-lg hover:border-primary-500 transition-colors p-4"
+                                            >
+                                                <div className="flex justify-between items-start">
+                                                    <div>
+                                                        <h4 className="text-base font-semibold text-gray-900 mb-1">
+                                                            {service.title}
+                                                        </h4>
+                                                        <p className="text-sm text-gray-600">
+                                                            {
+                                                                service.description
+                                                            }
+                                                        </p>
                                                     </div>
-                                                    <div className="text-sm text-gray-500">
-                                                        회당
+                                                    <div className="text-right">
+                                                        <div className="text-lg font-bold text-gray-900">
+                                                            {(
+                                                                serviceData.price ||
+                                                                0
+                                                            ).toLocaleString()}
+                                                            원
+                                                        </div>
+                                                        <div className="text-sm text-gray-600">
+                                                            회당
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                    );
-                                }).filter(Boolean)}
-                                {(!mentor.curriculum?.mentoring_types || 
-                                  Object.values(mentor.curriculum.mentoring_types).every(service => !service.isSelected)) && (
+                                        );
+                                    })
+                                    .filter(Boolean)}
+                                {(!mentor.curriculum?.mentoring_types ||
+                                    Object.values(
+                                        mentor.curriculum.mentoring_types
+                                    ).every(
+                                        (service) => !service.isSelected
+                                    )) && (
                                     <p className="text-sm text-gray-500 text-center py-4">
                                         등록된 커리큘럼이 없습니다
                                     </p>
@@ -662,7 +726,10 @@ export default function MentorDetailPage() {
                         </section>
 
                         {/* 6. 상세 소개 영역 */}
-                        <section id="introduction" className="bg-white rounded-xl border border-gray-200 p-6">
+                        <section
+                            id="introduction"
+                            className="bg-white rounded-xl border border-gray-200 p-6"
+                        >
                             <h2 className="text-lg font-semibold text-gray-900 mb-4">
                                 상세 소개
                             </h2>
@@ -673,7 +740,10 @@ export default function MentorDetailPage() {
                         </section>
 
                         {/* 5. 탭 영역 */}
-                        <section id="reviews" className="bg-white rounded-xl border border-gray-200">
+                        <section
+                            id="reviews"
+                            className="bg-white rounded-xl border border-gray-200"
+                        >
                             {/* 탭 헤더 */}
                             <div className="border-b border-gray-200">
                                 <nav className="grid grid-cols-2">
@@ -690,7 +760,7 @@ export default function MentorDetailPage() {
                                                 activeTab === tab.key
                                                     ? "border-primary-500 text-primary-600"
                                                     : "border-transparent text-gray-500 hover:text-gray-700"
-                                            }`}
+                                            } !text-gray-900`}
                                         >
                                             {tab.label}
                                         </button>
@@ -706,7 +776,9 @@ export default function MentorDetailPage() {
                                         {(user || session) && (
                                             <div className="flex justify-end">
                                                 <button
-                                                    onClick={() => setShowReviewModal(true)}
+                                                    onClick={() =>
+                                                        setShowReviewModal(true)
+                                                    }
                                                     className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium transition-colors"
                                                 >
                                                     리뷰 작성하기
@@ -725,9 +797,8 @@ export default function MentorDetailPage() {
                                                         <div>
                                                             <div className="flex items-center gap-2">
                                                                 <span className="font-medium text-gray-900">
-                                                                    {
-                                                                        review.reviewerName || review.userName
-                                                                    }
+                                                                    {review.reviewerName ||
+                                                                        review.userName}
                                                                 </span>
                                                                 <span className="text-sm text-gray-500">
                                                                     {
@@ -765,7 +836,8 @@ export default function MentorDetailPage() {
                                                         </span>
                                                     </div>
                                                     <p className="text-gray-700">
-                                                        {review.comment || review.content}
+                                                        {review.comment ||
+                                                            review.content}
                                                     </p>
                                                 </div>
                                             ))}
@@ -787,16 +859,41 @@ export default function MentorDetailPage() {
                                                     <div className="flex items-start space-x-3">
                                                         {/* 활동 타입 아이콘 */}
                                                         <div className="flex-shrink-0 mt-1">
-                                                            {activity.type === 'post' ? (
+                                                            {activity.type ===
+                                                            "post" ? (
                                                                 <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                                                                    <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                                    <svg
+                                                                        className="w-4 h-4 text-blue-600"
+                                                                        fill="none"
+                                                                        stroke="currentColor"
+                                                                        viewBox="0 0 24 24"
+                                                                    >
+                                                                        <path
+                                                                            strokeLinecap="round"
+                                                                            strokeLinejoin="round"
+                                                                            strokeWidth={
+                                                                                2
+                                                                            }
+                                                                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                                                                        />
                                                                     </svg>
                                                                 </div>
                                                             ) : (
                                                                 <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                                                                    <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                                                                    <svg
+                                                                        className="w-4 h-4 text-green-600"
+                                                                        fill="none"
+                                                                        stroke="currentColor"
+                                                                        viewBox="0 0 24 24"
+                                                                    >
+                                                                        <path
+                                                                            strokeLinecap="round"
+                                                                            strokeLinejoin="round"
+                                                                            strokeWidth={
+                                                                                2
+                                                                            }
+                                                                            d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+                                                                        />
                                                                     </svg>
                                                                 </div>
                                                             )}
@@ -806,70 +903,155 @@ export default function MentorDetailPage() {
                                                         <div className="flex-1 min-w-0">
                                                             <div className="flex items-center space-x-2 mb-1">
                                                                 <span className="text-sm font-medium text-gray-900">
-                                                                    {activity.type === 'post' ? '게시글 작성' : '댓글 작성'}
+                                                                    {activity.type ===
+                                                                    "post"
+                                                                        ? "게시글 작성"
+                                                                        : "댓글 작성"}
                                                                 </span>
-                                                                <span className={`px-2 py-1 text-xs rounded-full ${
-                                                                    activity.gameType === 'lol' 
-                                                                        ? 'bg-blue-100 text-blue-700' 
-                                                                        : 'bg-red-100 text-red-700'
-                                                                }`}>
-                                                                    {activity.gameType === 'lol' ? 'LoL' : 'VALORANT'}
+                                                                <span
+                                                                    className={`px-2 py-1 text-xs rounded-full ${
+                                                                        activity.gameType ===
+                                                                        "lol"
+                                                                            ? "bg-blue-100 text-blue-700"
+                                                                            : "bg-red-100 text-red-700"
+                                                                    }`}
+                                                                >
+                                                                    {activity.gameType ===
+                                                                    "lol"
+                                                                        ? "LoL"
+                                                                        : "VALORANT"}
                                                                 </span>
                                                                 <span className="text-sm text-gray-500">
-                                                                    {activity.createdAt.toLocaleDateString('ko-KR')}
+                                                                    {activity.createdAt.toLocaleDateString(
+                                                                        "ko-KR"
+                                                                    )}
                                                                 </span>
                                                             </div>
-                                                            
-                                                            {activity.type === 'post' ? (
+
+                                                            {activity.type ===
+                                                            "post" ? (
                                                                 <div>
-                                                                    <Link 
+                                                                    <Link
                                                                         href={`/${activity.gameType}/community/post/${activity.id}`}
                                                                         className="font-medium text-gray-900 hover:text-blue-600 transition-colors block mb-1"
                                                                     >
-                                                                        {activity.title}
+                                                                        {
+                                                                            activity.title
+                                                                        }
                                                                     </Link>
                                                                     <p className="text-sm text-gray-600 mb-2">
-                                                                        {activity.content}
+                                                                        {
+                                                                            activity.content
+                                                                        }
                                                                     </p>
                                                                     <div className="flex items-center space-x-4 text-xs text-gray-500">
                                                                         <span className="flex items-center">
-                                                                            <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                                                                            <svg
+                                                                                className="w-3 h-3 mr-1"
+                                                                                fill="none"
+                                                                                stroke="currentColor"
+                                                                                viewBox="0 0 24 24"
+                                                                            >
+                                                                                <path
+                                                                                    strokeLinecap="round"
+                                                                                    strokeLinejoin="round"
+                                                                                    strokeWidth={
+                                                                                        2
+                                                                                    }
+                                                                                    d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+                                                                                />
                                                                             </svg>
-                                                                            {activity.likes}
+                                                                            {
+                                                                                activity.likes
+                                                                            }
                                                                         </span>
                                                                         <span className="flex items-center">
-                                                                            <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                                                                            <svg
+                                                                                className="w-3 h-3 mr-1"
+                                                                                fill="none"
+                                                                                stroke="currentColor"
+                                                                                viewBox="0 0 24 24"
+                                                                            >
+                                                                                <path
+                                                                                    strokeLinecap="round"
+                                                                                    strokeLinejoin="round"
+                                                                                    strokeWidth={
+                                                                                        2
+                                                                                    }
+                                                                                    d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+                                                                                />
                                                                             </svg>
-                                                                            {activity.commentCount}
+                                                                            {
+                                                                                activity.commentCount
+                                                                            }
                                                                         </span>
                                                                         <span className="flex items-center">
-                                                                            <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                                                            <svg
+                                                                                className="w-3 h-3 mr-1"
+                                                                                fill="none"
+                                                                                stroke="currentColor"
+                                                                                viewBox="0 0 24 24"
+                                                                            >
+                                                                                <path
+                                                                                    strokeLinecap="round"
+                                                                                    strokeLinejoin="round"
+                                                                                    strokeWidth={
+                                                                                        2
+                                                                                    }
+                                                                                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                                                                                />
+                                                                                <path
+                                                                                    strokeLinecap="round"
+                                                                                    strokeLinejoin="round"
+                                                                                    strokeWidth={
+                                                                                        2
+                                                                                    }
+                                                                                    d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                                                                                />
                                                                             </svg>
-                                                                            {activity.views}
+                                                                            {
+                                                                                activity.views
+                                                                            }
                                                                         </span>
                                                                     </div>
                                                                 </div>
                                                             ) : (
                                                                 <div>
-                                                                    <Link 
+                                                                    <Link
                                                                         href={`/${activity.gameType}/community/post/${activity.postId}`}
                                                                         className="text-sm text-gray-600 hover:text-blue-600 transition-colors block mb-1"
                                                                     >
-                                                                        {activity.postTitle}에 댓글 작성
+                                                                        {
+                                                                            activity.postTitle
+                                                                        }
+                                                                        에 댓글
+                                                                        작성
                                                                     </Link>
                                                                     <p className="text-sm text-gray-700 mb-2">
-                                                                        {activity.content}
+                                                                        {
+                                                                            activity.content
+                                                                        }
                                                                     </p>
                                                                     <div className="flex items-center space-x-4 text-xs text-gray-500">
                                                                         <span className="flex items-center">
-                                                                            <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                                                                            <svg
+                                                                                className="w-3 h-3 mr-1"
+                                                                                fill="none"
+                                                                                stroke="currentColor"
+                                                                                viewBox="0 0 24 24"
+                                                                            >
+                                                                                <path
+                                                                                    strokeLinecap="round"
+                                                                                    strokeLinejoin="round"
+                                                                                    strokeWidth={
+                                                                                        2
+                                                                                    }
+                                                                                    d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+                                                                                />
                                                                             </svg>
-                                                                            {activity.likes}
+                                                                            {
+                                                                                activity.likes
+                                                                            }
                                                                         </span>
                                                                     </div>
                                                                 </div>
@@ -958,25 +1140,25 @@ export default function MentorDetailPage() {
                                 <nav className="space-y-3">
                                     <a
                                         href="#experience"
-                                        className="block text-gray-600 hover:text-primary-600 transition-colors"
+                                        className="block text-gray-900 hover:text-primary-600 transition-colors !text-gray-900"
                                     >
                                         경력
                                     </a>
                                     <a
                                         href="#curriculum"
-                                        className="block text-gray-600 hover:text-primary-600 transition-colors"
+                                        className="block text-gray-900 hover:text-primary-600 transition-colors !text-gray-900"
                                     >
                                         커리큘럼
                                     </a>
                                     <a
                                         href="#introduction"
-                                        className="block text-gray-600 hover:text-primary-600 transition-colors"
+                                        className="block text-gray-900 hover:text-primary-600 transition-colors !text-gray-900"
                                     >
                                         상세 소개
                                     </a>
                                     <a
                                         href="#reviews"
-                                        className="block text-gray-600 hover:text-primary-600 transition-colors"
+                                        className="block text-gray-900 hover:text-primary-600 transition-colors !text-gray-900"
                                     >
                                         리뷰
                                     </a>
@@ -1017,13 +1199,17 @@ export default function MentorDetailPage() {
                         <div className="mb-6">
                             <p className="text-gray-700 mb-2">
                                 <span className="font-medium">
-                                    {mentor.nickname || mentor.userName || mentor.name || '멘토'}
+                                    {mentor.nickname ||
+                                        mentor.userName ||
+                                        mentor.name ||
+                                        "멘토"}
                                 </span>
                                 님의 연락처
                             </p>
                             <div className="bg-gray-50 p-3 rounded-lg">
                                 <p className="text-gray-900 font-mono">
-                                    {mentor.contact || '연락처가 등록되지 않았습니다'}
+                                    {mentor.contact ||
+                                        "연락처가 등록되지 않았습니다"}
                                 </p>
                             </div>
                         </div>
@@ -1031,7 +1217,7 @@ export default function MentorDetailPage() {
                             <button
                                 onClick={() =>
                                     navigator.clipboard.writeText(
-                                        mentor.contact || ''
+                                        mentor.contact || ""
                                     )
                                 }
                                 className="flex-1 bg-primary-500 hover:bg-primary-600 text-white py-2 rounded-lg font-medium transition-colors"
@@ -1081,9 +1267,11 @@ export default function MentorDetailPage() {
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
                                     신청할 서비스
                                 </label>
-                                <select 
+                                <select
                                     value={selectedService}
-                                    onChange={(e) => setSelectedService(e.target.value)}
+                                    onChange={(e) =>
+                                        setSelectedService(e.target.value)
+                                    }
                                     className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                                 >
                                     <option value="">
@@ -1103,7 +1291,10 @@ export default function MentorDetailPage() {
                                         return (
                                             <option key={type} value={type}>
                                                 {serviceTitle} (
-                                                {(data.price || 0).toLocaleString()}원)
+                                                {(
+                                                    data.price || 0
+                                                ).toLocaleString()}
+                                                원)
                                             </option>
                                         );
                                     })}
@@ -1115,7 +1306,9 @@ export default function MentorDetailPage() {
                                 </label>
                                 <textarea
                                     value={feedbackMessage}
-                                    onChange={(e) => setFeedbackMessage(e.target.value)}
+                                    onChange={(e) =>
+                                        setFeedbackMessage(e.target.value)
+                                    }
                                     className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 min-h-[100px]"
                                     placeholder="멘토에게 전달할 메시지를 입력해주세요"
                                 />
@@ -1219,7 +1412,9 @@ export default function MentorDetailPage() {
                                 </label>
                                 <textarea
                                     value={reviewText}
-                                    onChange={(e) => setReviewText(e.target.value)}
+                                    onChange={(e) =>
+                                        setReviewText(e.target.value)
+                                    }
                                     className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 min-h-[120px]"
                                     placeholder="멘토님의 피드백이 어떤 점에서 도움이 되었나요?"
                                 />
@@ -1242,7 +1437,11 @@ export default function MentorDetailPage() {
                             <button
                                 onClick={handleSubmitReview}
                                 className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                                disabled={!rating || !reviewText.trim() || submittingReview}
+                                disabled={
+                                    !rating ||
+                                    !reviewText.trim() ||
+                                    submittingReview
+                                }
                             >
                                 {submittingReview ? "등록 중..." : "리뷰 등록"}
                             </button>

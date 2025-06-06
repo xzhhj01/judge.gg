@@ -32,14 +32,16 @@ export default function Login() {
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
-            const response = await axios.post('/api/auth/login', formData);
+            const response = await axios.post("/api/auth/login", formData);
             if (response.status === 200) {
                 // 로그인 성공 후 페이지 새로고침하여 세션 상태 갱신
                 window.location.href = "/";
             }
         } catch (error) {
             console.error("로그인 실패:", error);
-            const errorMessage = error.response?.data?.error || "이메일 또는 비밀번호가 올바르지 않습니다.";
+            const errorMessage =
+                error.response?.data?.error ||
+                "이메일 또는 비밀번호가 올바르지 않습니다.";
             setErrors({
                 email: errorMessage,
                 password: "",
@@ -52,7 +54,7 @@ export default function Login() {
             <h2 className="text-2xl font-semibold text-center mb-6">로그인</h2>
             <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                    <label className="block text-gray-700 mb-1">이메일</label>
+                    <label className="block text-white mb-1">이메일</label>
                     <input
                         type="email"
                         name="email"
@@ -69,7 +71,7 @@ export default function Login() {
                 </div>
 
                 <div>
-                    <label className="block text-gray-700 mb-1">비밀번호</label>
+                    <label className="block text-white mb-1">비밀번호</label>
                     <input
                         type="password"
                         name="password"
@@ -103,7 +105,7 @@ export default function Login() {
             <div className="my-6 text-center">
                 <div className="relative">
                     <div className="absolute inset-0 flex items-center">
-                        <div className="w-full border-t border-gray-300"></div>
+                        <div className="w-full border-t border-white"></div>
                     </div>
                     <div className="relative flex justify-center text-sm">
                         <span className="px-2 bg-white text-gray-500">

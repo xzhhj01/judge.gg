@@ -91,14 +91,15 @@ export default function SignUp() {
 
         setIsSubmitting(true);
         try {
-            const response = await axios.post('/api/auth/signup', formData);
+            const response = await axios.post("/api/auth/signup", formData);
             if (response.status === 200) {
                 router.push("/login");
             }
         } catch (error) {
             console.error("회원가입 실패:", error);
-            const errorMessage = error.response?.data?.error || "회원가입에 실패했습니다.";
-            
+            const errorMessage =
+                error.response?.data?.error || "회원가입에 실패했습니다.";
+
             if (errorMessage.includes("이메일")) {
                 setErrors((prev) => ({
                     ...prev,
@@ -122,7 +123,7 @@ export default function SignUp() {
             </h2>
             <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                    <label className="block text-gray-700 mb-1">이름</label>
+                    <label className="block text-white mb-1">이름</label>
                     <input
                         type="text"
                         name="username"
@@ -139,7 +140,7 @@ export default function SignUp() {
                 </div>
 
                 <div>
-                    <label className="block text-gray-700 mb-1">닉네임</label>
+                    <label className="block text-white mb-1">닉네임</label>
                     <input
                         type="text"
                         name="nickname"
@@ -156,7 +157,7 @@ export default function SignUp() {
                 </div>
 
                 <div>
-                    <label className="block text-gray-700 mb-1">이메일</label>
+                    <label className="block text-white mb-1">이메일</label>
                     <input
                         type="email"
                         name="email"
@@ -173,7 +174,7 @@ export default function SignUp() {
                 </div>
 
                 <div>
-                    <label className="block text-gray-700 mb-1">비밀번호</label>
+                    <label className="block text-white mb-1">비밀번호</label>
                     <input
                         type="password"
                         name="password"
@@ -190,7 +191,7 @@ export default function SignUp() {
                 </div>
 
                 <div>
-                    <label className="block text-gray-700 mb-1">
+                    <label className="block text-white mb-1">
                         비밀번호 확인
                     </label>
                     <input

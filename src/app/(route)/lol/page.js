@@ -16,24 +16,21 @@ import { communityService } from "@/app/services/community/community.service";
 const bannerData = [
     {
         id: 1,
-        title: "League of Legends 법정",
-        description: "여러분의 게임 판단을 공유하고 토론하세요",
-        imageUrl:
-            "https://images.contentstack.io/v3/assets/blt731acb42bb3d1659/blt8979808c7798ecf8/65c54b97bd5a9714f3bc7928/2024_Season_Start_Article_Banner.jpg",
+        title: "League of Legends 법원",
+        description: "소환사의 협곡에서 발생한 분쟁을 공유하고 판단해 보세요.",
+        imageUrl: "/main-banner-1.webp",
     },
     {
         id: 2,
-        title: "새로운 시즌이 시작됐습니다",
-        description: "시즌 14의 새로운 변화에 대해 토론해보세요",
-        imageUrl:
-            "https://images.contentstack.io/v3/assets/blt731acb42bb3d1659/blt40e25de64f6f5a83/65b2f4581efb944d51d6e682/01162024_Patch_14_2_Notes_Banner.jpg",
+        title: "Judge.gg 도움말",
+        description: "Judge.gg와 함께 새로운 게임 커뮤니티를 경험하세요.",
+        imageUrl: "logo.svg",
     },
     {
         id: 3,
-        title: "새로운 챔피언 스마이트",
-        description: "스마이트의 플레이 스타일에 대해 의견을 나눠보세요",
-        imageUrl:
-            "https://images.contentstack.io/v3/assets/blt731acb42bb3d1659/blt262ed0d511afcd11/65aa5d4f431fa67880b2891b/011024_Smolder_Abilities_Preview_Banner.jpg",
+        title: "피드백 신청하기",
+        description: "멘토에게 부담 없이 피드백을 신청하고 답변을 받아 보세요.",
+        imageUrl: "/banner-mentor.jpg",
     },
 ];
 
@@ -54,19 +51,38 @@ export default function LoLMainPage() {
         const loadPosts = async () => {
             try {
                 // Firebase에서 실제 게시물 조회
-                const popularResult = await communityService.getPosts('lol', [], '', 1, 10, 'popular');
-                const recentResult = await communityService.getPosts('lol', [], '', 1, 10, 'recent');
-                
+                const popularResult = await communityService.getPosts(
+                    "lol",
+                    [],
+                    "",
+                    1,
+                    10,
+                    "popular"
+                );
+                const recentResult = await communityService.getPosts(
+                    "lol",
+                    [],
+                    "",
+                    1,
+                    10,
+                    "recent"
+                );
+
                 // 인기 게시물 (가중치 기반 정렬)
-                const popular = communityService.sortPosts(popularResult.posts, 'popular').slice(0, 3);
+                const popular = communityService
+                    .sortPosts(popularResult.posts, "popular")
+                    .slice(0, 3);
                 setPopularPosts(popular);
 
                 // 최신 게시물 (최신순 정렬)
-                const recent = communityService.sortPosts(recentResult.posts, 'recent').slice(0, 3);
+                const recent = communityService
+                    .sortPosts(recentResult.posts, "recent")
+                    .slice(0, 3);
                 setRecentPosts(recent);
 
                 // 분쟁 활발 게시물 조회
-                const controversial = await communityService.getControversialPosts('lol', 1);
+                const controversial =
+                    await communityService.getControversialPosts("lol", 1);
                 setControversialPosts(controversial);
 
                 // 마감 임박 게시물은 빈 상태로 설정 (투표 기능 구현 후 추가 예정)
@@ -75,7 +91,7 @@ export default function LoLMainPage() {
                 console.log("인기 게시물:", popular);
                 console.log("최신 게시물:", recent);
             } catch (error) {
-                console.error('게시물 로드 실패:', error);
+                console.error("게시물 로드 실패:", error);
                 // 에러 발생 시 빈 배열로 설정
                 setPopularPosts([]);
                 setRecentPosts([]);
@@ -93,13 +109,20 @@ export default function LoLMainPage() {
             if ((user && user.uid) || (session && session.user)) {
                 const currentUserId = user?.uid || session?.user?.id;
                 try {
-                    const result = await communityService.getUserPosts('lol', currentUserId, 3);
+                    const result = await communityService.getUserPosts(
+                        "lol",
+                        currentUserId,
+                        3
+                    );
                     setUserPosts(result.posts);
-                    
+
                     // 모든 게임의 사용자 게시물도 로드
-                    const allResult = await communityService.getAllUserPosts(currentUserId, 5);
+                    const allResult = await communityService.getAllUserPosts(
+                        currentUserId,
+                        5
+                    );
                     setAllUserPosts(allResult.posts);
-                    
+
                     console.log("사용자 게시물:", result.posts);
                     console.log("전체 사용자 게시물:", allResult.posts);
                 } catch (error) {
@@ -128,18 +151,30 @@ export default function LoLMainPage() {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50">
+        <div className="min-h-screen bg-gradient-to-b from-[#0c0032] to-[#190061]">
             {/* 히어로 섹션 */}
             <div className="relative h-[280px] overflow-hidden">
                 {/* 현재 배너 */}
                 <div
-                    className="absolute inset-0 w-full h-full transition-transform duration-500 ease-in-out"
+                    className="absolute inset-0 w-full h-full transition-transform duration-500 ease-in-out cursor-pointer"
                     style={{
                         transform: `translateX(0%)`,
-                        backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url(${bannerData[currentBanner].imageUrl})`,
+                        backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), url(${bannerData[currentBanner].imageUrl})`,
                         backgroundSize: "cover",
                         backgroundPosition: "center",
                         backgroundRepeat: "no-repeat",
+                    }}
+                    onClick={() => {
+                        if (currentBanner === 0) {
+                            window.location.href = "/lol/community";
+                        } else if (currentBanner === 1) {
+                            window.open(
+                                "https://judgegg.notion.site/?source=copy_link",
+                                "_blank"
+                            );
+                        } else if (currentBanner === 2) {
+                            window.location.href = "/mentor";
+                        }
                     }}
                 >
                     <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-center">
@@ -161,7 +196,7 @@ export default function LoLMainPage() {
                         transform: `translateX(${
                             slideDirection === "right" ? "100%" : "-100%"
                         })`,
-                        backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url(${
+                        backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), url(${
                             bannerData[
                                 (currentBanner +
                                     (slideDirection === "right" ? 1 : -1) +
@@ -223,7 +258,7 @@ export default function LoLMainPage() {
                     {/* 분쟁 활발 섹션 */}
                     <section>
                         <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-2xl font-bold text-gray-900">
+                            <h2 className="text-2xl font-bold text-white">
                                 🔥 분쟁 활발
                             </h2>
                         </div>
@@ -241,7 +276,7 @@ export default function LoLMainPage() {
                     {/* 마감 임박 섹션 */}
                     <section>
                         <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-2xl font-bold text-gray-900">
+                            <h2 className="text-2xl font-bold text-white">
                                 ⏰ 마감 임박
                             </h2>
                         </div>
@@ -260,7 +295,7 @@ export default function LoLMainPage() {
                 {/* 인기 재판 섹션 */}
                 <section className="mb-12">
                     <div className="flex justify-between items-center mb-6">
-                        <h2 className="text-2xl font-bold text-gray-900">
+                        <h2 className="text-2xl font-bold text-white">
                             ⚖️ 인기 재판
                         </h2>
                         <Link
@@ -286,7 +321,7 @@ export default function LoLMainPage() {
                 {/* 최신 재판 섹션 */}
                 <section className="mb-12">
                     <div className="flex justify-between items-center mb-6">
-                        <h2 className="text-2xl font-bold text-gray-900">
+                        <h2 className="text-2xl font-bold text-white">
                             📝 최신 재판
                         </h2>
                         <Link
@@ -313,7 +348,7 @@ export default function LoLMainPage() {
                 {(user || session) && allUserPosts.length > 0 && (
                     <section className="mb-12">
                         <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-2xl font-bold text-gray-900">
+                            <h2 className="text-2xl font-bold text-white">
                                 ✍️ 내가 작성한 모든 게시글
                             </h2>
                             <Link
@@ -341,7 +376,7 @@ export default function LoLMainPage() {
                 {(user || session) && userPosts.length > 0 && (
                     <section className="mb-12">
                         <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-2xl font-bold text-gray-900">
+                            <h2 className="text-2xl font-bold text-white">
                                 ⚔️ 내가 작성한 LoL 게시글
                             </h2>
                             <Link
@@ -373,7 +408,8 @@ export default function LoLMainPage() {
                                 나만의 재판 기록을 남겨보세요!
                             </h2>
                             <p className="text-gray-600 mb-4">
-                                로그인하시면 작성한 글들을 여기서 확인할 수 있습니다.
+                                로그인하시면 작성한 글들을 여기서 확인할 수
+                                있습니다.
                             </p>
                             <Link
                                 href="/login"

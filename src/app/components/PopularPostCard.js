@@ -16,7 +16,11 @@ export default function PopularPostCard({ post, gameType }) {
                         {post.tags.map((tag) => (
                             <span
                                 key={tag}
-                                className={`px-2 py-1 text-xs bg-${colorClass}-100 text-${colorClass}-700 rounded-full`}
+                                className={`px-2 py-1 text-xs rounded-full ${
+                                    gameType === "lol"
+                                        ? "bg-blue-100 text-blue-700"
+                                        : "bg-red-100 text-red-700"
+                                }`}
                             >
                                 {tag}
                             </span>
@@ -63,10 +67,16 @@ export default function PopularPostCard({ post, gameType }) {
                         <span>{post.commentCount || post.comments || 0}</span>
                     </div>
                     <div
-                        className={`flex items-center space-x-1 bg-${colorClass}-50 px-2 py-1 rounded-lg`}
+                        className={`flex items-center space-x-1 ${
+                            gameType === "lol" ? "bg-blue-50" : "bg-red-50"
+                        } px-2 py-1 rounded-lg`}
                     >
                         <svg
-                            className={`w-4 h-4 text-${colorClass}-500`}
+                            className={`w-4 h-4 ${
+                                gameType === "lol"
+                                    ? "text-blue-500"
+                                    : "text-red-500"
+                            }`}
                             fill="currentColor"
                             viewBox="0 0 20 20"
                         >
@@ -77,9 +87,17 @@ export default function PopularPostCard({ post, gameType }) {
                             ></path>
                         </svg>
                         <span
-                            className={`text-sm font-medium text-${colorClass}-700`}
+                            className={`text-sm font-medium ${
+                                gameType === "lol"
+                                    ? "text-blue-700"
+                                    : "text-red-700"
+                            }`}
                         >
-                            {post.likes || post.votes || 0}
+                            {post.voteOptions &&
+                            Array.isArray(post.voteOptions) &&
+                            post.voteOptions.length >= 2
+                                ? post.totalVotes || 0
+                                : post.votes || 0}
                         </span>
                     </div>
                 </div>

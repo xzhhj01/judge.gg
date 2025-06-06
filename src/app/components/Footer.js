@@ -75,11 +75,16 @@ export default function Footer() {
                                 마이페이지
                             </h3>
                         </Link>
-                        <Link href="/help" className="block">
+                        <a
+                            href="https://judgegg.notion.site/?source=copy_link"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="block"
+                        >
                             <h3 className="text-white text-base font-semibold hover:text-gray-400 transition-colors">
                                 도움말
                             </h3>
-                        </Link>
+                        </a>
                     </div>
 
                     {/* 4열: SNS (1칸) */}
