@@ -1,15 +1,16 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import PostCard from "../../../components/PostCard";
+import ModernPostCard from "../../../components/ModernPostCard";
 import PostFilter from "../../../components/PostFilter";
 import CommunityHeader from "../../../components/CommunityHeader";
 import Snackbar from "../../../components/Snackbar";
 import communityTags from "@/data/communityTags.json";
-import { communityService } from '@/app/services/community/community.service';
-import { useAuth } from '@/app/utils/providers';
-import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { communityService } from "@/app/services/community/community.service";
+import { useAuth } from "@/app/utils/providers";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 export default function ValorantCommunityPage() {
     const { user } = useAuth();
@@ -29,19 +30,19 @@ export default function ValorantCommunityPage() {
     const [snackbar, setSnackbar] = useState({
         message: "",
         type: "success",
-        isVisible: false
+        isVisible: false,
     });
 
     const showSnackbar = (message, type = "success") => {
         setSnackbar({
             message,
             type,
-            isVisible: true
+            isVisible: true,
         });
     };
 
     const closeSnackbar = () => {
-        setSnackbar(prev => ({ ...prev, isVisible: false }));
+        setSnackbar((prev) => ({ ...prev, isVisible: false }));
     };
 
     // 태그 데이터
@@ -91,51 +92,66 @@ export default function ValorantCommunityPage() {
                 const allSelectedTags = [
                     ...selectedSituations,
                     ...selectedMaps,
-                    ...selectedAgents
+                    ...selectedAgents,
                 ];
-                
+
                 console.log("Fetching posts with tags:", allSelectedTags);
-                
+
                 const result = await communityService.getPosts(
-                    'valorant',
+                    "valorant",
                     allSelectedTags,
                     searchQuery,
                     1,
                     20
                 );
-                
+
                 let filteredPosts = result.posts || [];
-                
+
                 // 정렬 처리
                 switch (sortBy) {
                     case "popular":
-                        filteredPosts.sort((a, b) => (b.likes || 0) - (a.likes || 0));
+                        filteredPosts.sort(
+                            (a, b) => (b.likes || 0) - (a.likes || 0)
+                        );
                         break;
                     case "views":
-                        filteredPosts.sort((a, b) => (b.views || 0) - (a.views || 0));
+                        filteredPosts.sort(
+                            (a, b) => (b.views || 0) - (a.views || 0)
+                        );
                         break;
                     case "comments":
-                        filteredPosts.sort((a, b) => (b.commentCount || 0) - (a.commentCount || 0));
+                        filteredPosts.sort(
+                            (a, b) =>
+                                (b.commentCount || 0) - (a.commentCount || 0)
+                        );
                         break;
                     case "controversial":
                         // 댓글 수대비 좋아요 비율로 논란 정도 계산
                         filteredPosts.sort((a, b) => {
-                            const ratioA = (a.commentCount || 0) / Math.max(a.likes || 1, 1);
-                            const ratioB = (b.commentCount || 0) / Math.max(b.likes || 1, 1);
+                            const ratioA =
+                                (a.commentCount || 0) /
+                                Math.max(a.likes || 1, 1);
+                            const ratioB =
+                                (b.commentCount || 0) /
+                                Math.max(b.likes || 1, 1);
                             return ratioB - ratioA;
                         });
                         break;
                     case "latest":
                     default:
                         filteredPosts.sort((a, b) => {
-                            const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt);
-                            const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt);
+                            const dateA = a.createdAt?.toDate
+                                ? a.createdAt.toDate()
+                                : new Date(a.createdAt);
+                            const dateB = b.createdAt?.toDate
+                                ? b.createdAt.toDate()
+                                : new Date(b.createdAt);
                             return dateB - dateA;
                         });
                 }
-                
+
                 // 게시글 데이터를 PostCard에 맞게 변환
-                const formattedPosts = filteredPosts.map(post => ({
+                const formattedPosts = filteredPosts.map((post) => ({
                     id: post.id,
                     title: post.title,
                     content: post.content,
@@ -149,15 +165,17 @@ export default function ValorantCommunityPage() {
                     views: post.views || 0,
                     tags: post.tags || [],
                     author: {
-                        nickname: post.authorName || '알 수 없음',
+                        nickname: post.authorName || "알 수 없음",
                         profileImage: post.authorPhoto,
-                        tier: post.authorTier || 'Unranked'
+                        tier: post.authorTier || "Unranked",
                     },
                     commentCount: post.commentCount || 0,
-                    createdAt: post.createdAt?.toDate ? post.createdAt.toDate() : new Date(post.createdAt),
-                    videoUrl: post.videoUrl
+                    createdAt: post.createdAt?.toDate
+                        ? post.createdAt.toDate()
+                        : new Date(post.createdAt),
+                    videoUrl: post.videoUrl,
                 }));
-                
+
                 setPosts(formattedPosts);
             } catch (error) {
                 console.error("Error fetching posts:", error);
@@ -223,24 +241,27 @@ export default function ValorantCommunityPage() {
     // Confirm post deletion
     const confirmDelete = async () => {
         if (!postToDelete) return;
-        
+
         try {
-            const response = await fetch(`/api/community/valorant/posts/${postToDelete.id}`, {
-                method: 'DELETE',
-            });
-            
+            const response = await fetch(
+                `/api/community/valorant/posts/${postToDelete.id}`,
+                {
+                    method: "DELETE",
+                }
+            );
+
             if (response.ok) {
                 // Remove post from local state
-                setPosts(posts.filter(p => p.id !== postToDelete.id));
-                alert('게시글이 삭제되었습니다.');
+                setPosts(posts.filter((p) => p.id !== postToDelete.id));
+                alert("게시글이 삭제되었습니다.");
             } else {
-                alert('게시글 삭제에 실패했습니다.');
+                alert("게시글 삭제에 실패했습니다.");
             }
         } catch (error) {
-            console.error('Delete error:', error);
-            alert('게시글 삭제 중 오류가 발생했습니다.');
+            console.error("Delete error:", error);
+            alert("게시글 삭제 중 오류가 발생했습니다.");
         }
-        
+
         setShowDeleteModal(false);
         setPostToDelete(null);
     };
@@ -248,16 +269,18 @@ export default function ValorantCommunityPage() {
     // Handle post share
     const handlePostShare = (post) => {
         const url = `${window.location.origin}/valorant/community/post/${post.id}`;
-        
+
         if (navigator.share) {
-            navigator.share({
-                title: post.title,
-                text: `${post.title} - Judge.gg`,
-                url: url
-            }).catch(err => {
-                console.log('Error sharing:', err);
-                copyToClipboard(url);
-            });
+            navigator
+                .share({
+                    title: post.title,
+                    text: `${post.title} - Judge.gg`,
+                    url: url,
+                })
+                .catch((err) => {
+                    console.log("Error sharing:", err);
+                    copyToClipboard(url);
+                });
         } else {
             copyToClipboard(url);
         }
@@ -265,27 +288,63 @@ export default function ValorantCommunityPage() {
 
     // Copy URL to clipboard
     const copyToClipboard = (text) => {
-        navigator.clipboard.writeText(text).then(() => {
-            showSnackbar('링크가 클립보드에 복사되었습니다!', 'success');
-        }).catch(err => {
-            console.error('Could not copy text: ', err);
-            showSnackbar('링크 복사에 실패했습니다.', 'error');
-        });
+        navigator.clipboard
+            .writeText(text)
+            .then(() => {
+                showSnackbar("링크가 클립보드에 복사되었습니다!", "success");
+            })
+            .catch((err) => {
+                console.error("Could not copy text: ", err);
+                showSnackbar("링크 복사에 실패했습니다.", "error");
+            });
     };
 
     return (
-        <div className="min-h-screen bg-gray-50">
-            <CommunityHeader
-                gameType="valorant"
-                title="발로란트 법원"
-                description="발로란트에서 발생한 분쟁을 공정하게 심판합니다"
-            />
+        <div className="min-h-screen bg-gradient-to-b from-[#0c0032] to-[#190061]">
+            <div className="relative h-32 overflow-hidden">
+                <div
+                    className="absolute inset-0 w-full h-full"
+                    style={{
+                        backgroundImage: `url('/community-banner-val.jpg')`,
+                        backgroundSize: "cover",
+                        backgroundPosition: "top -30px center",
+                        backgroundRepeat: "no-repeat",
+                    }}
+                ></div>
+                <div
+                    className="absolute inset-0 w-full h-full"
+                    style={{
+                        background:
+                            "linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6))",
+                        backgroundPosition: "top -30px center",
+                    }}
+                ></div>
+                <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-end pb-4">
+                    <div className="flex items-center space-x-4">
+                        <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center shadow-lg">
+                            <img
+                                alt="Valorant"
+                                className="w-8 h-8"
+                                src="/logo-valorant.svg"
+                            />
+                        </div>
+                        <div className="text-white">
+                            <h1 className="text-2xl font-bold mb-1">
+                                발로란트 법원
+                            </h1>
+                            <p className="text-valorant-100 text-sm">
+                                전장에서 발생한 분쟁을 공정하게 심판합니다
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
                 <div className="flex gap-6">
                     {/* 왼쪽 필터 */}
                     <div className="w-48 flex-shrink-0">
-                        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-2 sticky top-24">
+                        <div className="filter-section bg-white rounded-lg shadow-sm border border-gray-200 p-2 sticky top-24">
                             {/* 전체 */}
                             <label className="flex items-center px-2 py-1 hover:bg-gray-50 rounded cursor-pointer">
                                 <input
@@ -306,7 +365,9 @@ export default function ValorantCommunityPage() {
                                     }}
                                     className="w-4 h-4 mr-2 rounded border-gray-300 text-valorant-600 focus:ring-valorant-500"
                                 />
-                                <span className="text-sm">전체</span>
+                                <span className="text-sm text-gray-900">
+                                    전체
+                                </span>
                             </label>
 
                             {/* 상황별 */}
@@ -405,7 +466,7 @@ export default function ValorantCommunityPage() {
                                                             }
                                                             className="w-4 h-4 mr-2 rounded border-gray-300 text-valorant-600 focus:ring-valorant-500"
                                                         />
-                                                        <span className="text-sm">
+                                                        <span className="text-sm text-gray-900">
                                                             {agent}
                                                         </span>
                                                     </label>
@@ -414,18 +475,6 @@ export default function ValorantCommunityPage() {
                                         )
                                     )}
                                 </div>
-                                {!showMoreAgents &&
-                                    Object.values(agentsByRole).flat().length >
-                                        10 && (
-                                        <button
-                                            onClick={() =>
-                                                setShowMoreAgents(true)
-                                            }
-                                            className="w-full text-xs text-valorant-600 hover:text-valorant-700 mt-1 px-2"
-                                        >
-                                            더 보기
-                                        </button>
-                                    )}
                             </div>
                         </div>
                     </div>
@@ -446,7 +495,7 @@ export default function ValorantCommunityPage() {
                             <>
                                 <div className="space-y-4">
                                     {posts.map((post) => (
-                                        <PostCard
+                                        <ModernPostCard
                                             key={post.id}
                                             post={post}
                                             gameType="valorant"
@@ -459,7 +508,7 @@ export default function ValorantCommunityPage() {
                                 </div>
 
                                 <div className="text-center mt-8">
-                                    <button className="px-6 py-3 bg-valorant-500 text-white rounded-lg hover:bg-valorant-600 transition-colors">
+                                    <button className="inline-flex items-center justify-center px-6 py-3 text-base font-medium text-white bg-[#EF4444] rounded-lg hover:bg-[#DC2626] transition-colors duration-200">
                                         더 많은 게시글 보기
                                     </button>
                                 </div>
@@ -529,12 +578,22 @@ export default function ValorantCommunityPage() {
                                 }}
                                 className="text-gray-400 hover:text-gray-600"
                             >
-                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                <svg
+                                    className="w-6 h-6"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M6 18L18 6M6 6l12 12"
+                                    />
                                 </svg>
                             </button>
                         </div>
-                        
+
                         <div className="mb-6">
                             <p className="text-gray-700 mb-2">
                                 정말로 이 게시글을 삭제하시겠습니까?
@@ -548,7 +607,7 @@ export default function ValorantCommunityPage() {
                                 이 작업은 되돌릴 수 없습니다.
                             </p>
                         </div>
-                        
+
                         <div className="flex justify-end space-x-3">
                             <button
                                 onClick={() => {
@@ -581,7 +640,7 @@ export default function ValorantCommunityPage() {
                     }
                 }
             `}</style>
-            
+
             <Snackbar
                 message={snackbar.message}
                 type={snackbar.type}

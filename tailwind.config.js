@@ -5,7 +5,7 @@ module.exports = {
         "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
         "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
     ],
-    darkMode: 'class',
+    darkMode: "class",
     theme: {
         extend: {
             colors: {
@@ -25,7 +25,7 @@ module.exports = {
                 // 다크 모드 배경색
                 dark: {
                     50: "#f8fafc",
-                    100: "#f1f5f9", 
+                    100: "#f1f5f9",
                     200: "#e2e8f0",
                     300: "#cbd5e1",
                     400: "#94a3b8",

@@ -23,19 +23,21 @@ export default function ValorantCommunityEditPage() {
     useEffect(() => {
         const loadPostData = async () => {
             try {
-                const response = await fetch(`/api/community/valorant/posts/${postId}`);
-                
+                const response = await fetch(
+                    `/api/community/valorant/posts/${postId}`
+                );
+
                 if (!response.ok) {
-                    throw new Error('게시글을 찾을 수 없습니다.');
+                    throw new Error("게시글을 찾을 수 없습니다.");
                 }
-                
+
                 const data = await response.json();
-                
+
                 if (data.success && data.post) {
                     // 로그인한 사용자인지 확인
                     const currentUser = session?.user || firebaseUser;
                     if (!currentUser) {
-                        setAuthError('로그인이 필요합니다.');
+                        setAuthError("로그인이 필요합니다.");
                         setLoading(false);
                         return;
                     }
@@ -47,31 +49,38 @@ export default function ValorantCommunityEditPage() {
                     if (currentUser.uid) userIdentifiers.add(currentUser.uid);
                     if (currentUser.email) {
                         userIdentifiers.add(currentUser.email);
-                        userIdentifiers.add(currentUser.email.replace(/[^a-zA-Z0-9]/g, '_'));
-                        userIdentifiers.add(currentUser.email.split('@')[0]);
+                        userIdentifiers.add(
+                            currentUser.email.replace(/[^a-zA-Z0-9]/g, "_")
+                        );
+                        userIdentifiers.add(currentUser.email.split("@")[0]);
                     }
                     if (currentUser.sub) userIdentifiers.add(currentUser.sub);
-                    
+
                     // All possible author identifiers from post
                     const authorIdentifiers = new Set();
-                    if (data.post.authorId) authorIdentifiers.add(data.post.authorId);
-                    if (data.post.authorUid) authorIdentifiers.add(data.post.authorUid);
-                    if (data.post.authorEmail) authorIdentifiers.add(data.post.authorEmail);
-                    
-                    console.log('🔍 VALORANT 수정 권한 확인:', {
+                    if (data.post.authorId)
+                        authorIdentifiers.add(data.post.authorId);
+                    if (data.post.authorUid)
+                        authorIdentifiers.add(data.post.authorUid);
+                    if (data.post.authorEmail)
+                        authorIdentifiers.add(data.post.authorEmail);
+
+                    console.log("🔍 VALORANT 수정 권한 확인:", {
                         currentUser: currentUser,
                         userIdentifiers: Array.from(userIdentifiers),
                         authorIdentifiers: Array.from(authorIdentifiers),
-                        post: data.post
+                        post: data.post,
                     });
-                    
+
                     // Check for any match
-                    const isAuthor = Array.from(userIdentifiers).some(userId => 
-                        authorIdentifiers.has(userId)
+                    const isAuthor = Array.from(userIdentifiers).some(
+                        (userId) => authorIdentifiers.has(userId)
                     );
-                    
+
                     if (!isAuthor) {
-                        setAuthError('수정 권한이 없습니다. 본인이 작성한 글만 수정할 수 있습니다.');
+                        setAuthError(
+                            "수정 권한이 없습니다. 본인이 작성한 글만 수정할 수 있습니다."
+                        );
                         setLoading(false);
                         return;
                     }
@@ -82,17 +91,19 @@ export default function ValorantCommunityEditPage() {
                         situations: [],
                         maps: [],
                         agents: [],
-                        roles: []
+                        roles: [],
                     };
 
                     // 더미 데이터의 경우 tags가 배열로 되어 있음
                     if (Array.isArray(data.post.tags)) {
                         // communityTags.json 데이터를 활용한 동적 태그 분류
                         const valorantTags = communityTags.valorant;
-                        
-                        data.post.tags.forEach(tag => {
+
+                        data.post.tags.forEach((tag) => {
                             // Valorant 에이전트 태그 (이름으로 매칭)
-                            const agentFound = valorantTags.agents.find(agent => agent.name === tag);
+                            const agentFound = valorantTags.agents.find(
+                                (agent) => agent.name === tag
+                            );
                             if (agentFound) {
                                 tagsData.agents.push(tag);
                                 // 에이전트와 함께 역할군도 자동 추가
@@ -109,7 +120,14 @@ export default function ValorantCommunityEditPage() {
                                 tagsData.situations.push(tag);
                             }
                             // 역할군 태그 (직접 역할군이 태그로 사용된 경우)
-                            else if (['타격대', '감시자', '척후대', '전략가'].includes(tag)) {
+                            else if (
+                                [
+                                    "타격대",
+                                    "감시자",
+                                    "척후대",
+                                    "전략가",
+                                ].includes(tag)
+                            ) {
                                 if (!tagsData.roles.includes(tag)) {
                                     tagsData.roles.push(tag);
                                 }
@@ -119,7 +137,10 @@ export default function ValorantCommunityEditPage() {
                                 tagsData.situations.push(tag);
                             }
                         });
-                    } else if (data.post.tags && typeof data.post.tags === 'object') {
+                    } else if (
+                        data.post.tags &&
+                        typeof data.post.tags === "object"
+                    ) {
                         // Firebase 데이터의 경우 객체 형태
                         tagsData = data.post.tags;
                     }
@@ -134,14 +155,14 @@ export default function ValorantCommunityEditPage() {
                         allowNeutral: data.post.allowNeutral || false,
                         voteDeadline: data.post.voteDeadline || "",
                     };
-                    
+
                     setInitialData(formattedData);
                 } else {
-                    throw new Error('게시글 데이터를 불러올 수 없습니다.');
+                    throw new Error("게시글 데이터를 불러올 수 없습니다.");
                 }
             } catch (error) {
                 console.error("게시글 로드 실패:", error);
-                alert(error.message || '게시글을 불러오는데 실패했습니다.');
+                alert(error.message || "게시글을 불러오는데 실패했습니다.");
                 // 에러 처리 (예: 404 페이지로 리다이렉트)
                 router.push("/valorant/community");
             } finally {
@@ -182,22 +203,27 @@ export default function ValorantCommunityEditPage() {
         try {
             console.log("발로란트 게시글 수정:", { postId, ...formData });
 
-            const response = await fetch(`/api/community/valorant/posts/${postId}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData)
-            });
+            const response = await fetch(
+                `/api/community/valorant/posts/${postId}`,
+                {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(formData),
+                }
+            );
 
             if (!response.ok) {
                 const errorData = await response.json();
-                throw new Error(errorData.error || '게시글 수정에 실패했습니다.');
+                throw new Error(
+                    errorData.error || "게시글 수정에 실패했습니다."
+                );
             }
 
             // 성공 시 상세 페이지로 리다이렉트
             router.push(`/valorant/community/post/${postId}`);
         } catch (error) {
             console.error("게시글 수정 실패:", error);
-            alert(error.message || '게시글 수정에 실패했습니다.');
+            alert(error.message || "게시글 수정에 실패했습니다.");
         }
     };
 

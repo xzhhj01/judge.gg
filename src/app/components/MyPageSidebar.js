@@ -16,64 +16,64 @@ const TierBadge = ({ tier, game }) => {
     // 영어 티어명을 한국어로 변환
     const tierTranslation = {
         // LoL 티어
-        'IRON': '아이언',
-        'BRONZE': '브론즈', 
-        'SILVER': '실버',
-        'GOLD': '골드',
-        'PLATINUM': '플래티넘',
-        'DIAMOND': '다이아몬드',
-        'MASTER': '마스터',
-        'GRANDMASTER': '그랜드마스터',
-        'CHALLENGER': '챌린저',
+        IRON: "아이언",
+        BRONZE: "브론즈",
+        SILVER: "실버",
+        GOLD: "골드",
+        PLATINUM: "플래티넘",
+        DIAMOND: "다이아몬드",
+        MASTER: "마스터",
+        GRANDMASTER: "그랜드마스터",
+        CHALLENGER: "챌린저",
         // Valorant 티어
-        'IMMORTAL': '불멸',
-        'RADIANT': '레디언트',
-        'ASCENDANT': '초월자'
+        IMMORTAL: "불멸",
+        RADIANT: "레디언트",
+        ASCENDANT: "초월자",
     };
 
     // 게임별 티어 색상 설정
     const getTierColor = (tier, game) => {
         const tierColors = {
             lol: {
-                'IRON': "text-gray-600 bg-gray-100",
-                'BRONZE': "text-orange-800 bg-orange-100",
-                'SILVER': "text-gray-600 bg-gray-200",
-                'GOLD': "text-yellow-800 bg-yellow-100",
-                'PLATINUM': "text-teal-800 bg-teal-100",
-                'DIAMOND': "text-blue-800 bg-blue-100",
-                'MASTER': "text-purple-800 bg-purple-100",
-                'GRANDMASTER': "text-pink-800 bg-pink-100",
-                'CHALLENGER': "text-red-800 bg-red-100",
+                IRON: "text-gray-600 bg-gray-100",
+                BRONZE: "text-orange-800 bg-orange-100",
+                SILVER: "text-gray-600 bg-gray-200",
+                GOLD: "text-yellow-800 bg-yellow-100",
+                PLATINUM: "text-teal-800 bg-teal-100",
+                DIAMOND: "text-blue-800 bg-blue-100",
+                MASTER: "text-purple-800 bg-purple-100",
+                GRANDMASTER: "text-pink-800 bg-pink-100",
+                CHALLENGER: "text-red-800 bg-red-100",
             },
             valorant: {
-                'IRON': "text-gray-600 bg-gray-100",
-                'BRONZE': "text-orange-800 bg-orange-100",
-                'SILVER': "text-gray-600 bg-gray-200",
-                'GOLD': "text-yellow-800 bg-yellow-100",
-                'PLATINUM': "text-teal-800 bg-teal-100",
-                'DIAMOND': "text-blue-800 bg-blue-100",
-                'ASCENDANT': "text-purple-800 bg-purple-100",
-                'IMMORTAL': "text-pink-800 bg-pink-100",
-                'RADIANT': "text-red-800 bg-red-100",
+                IRON: "text-gray-600 bg-gray-100",
+                BRONZE: "text-orange-800 bg-orange-100",
+                SILVER: "text-gray-600 bg-gray-200",
+                GOLD: "text-yellow-800 bg-yellow-100",
+                PLATINUM: "text-teal-800 bg-teal-100",
+                DIAMOND: "text-blue-800 bg-blue-100",
+                ASCENDANT: "text-purple-800 bg-purple-100",
+                IMMORTAL: "text-pink-800 bg-pink-100",
+                RADIANT: "text-red-800 bg-red-100",
             },
         };
 
         // 티어 문자열에서 실제 티어명 추출 (예: "GOLD II (123LP)" -> "GOLD")
-        const tierName = tier.split(' ')[0].toUpperCase();
+        const tierName = tier.split(" ")[0].toUpperCase();
         return tierColors[game]?.[tierName] || "text-gray-600 bg-gray-100";
     };
 
     // 티어 표시 텍스트 생성
     const getDisplayTier = (tier) => {
         // "GOLD II (123LP)" 형태의 문자열 파싱
-        const parts = tier.split(' ');
+        const parts = tier.split(" ");
         if (parts.length >= 2) {
             const tierName = parts[0].toUpperCase();
             const rank = parts[1];
             const lpMatch = tier.match(/\((\d+)LP\)/);
-            
+
             const koreanTier = tierTranslation[tierName] || tierName;
-            
+
             if (lpMatch) {
                 return `${koreanTier} ${rank} (${lpMatch[1]}LP)`;
             } else {
@@ -81,7 +81,7 @@ const TierBadge = ({ tier, game }) => {
             }
         } else {
             // 단일 티어명인 경우 (예: "MASTER", "CHALLENGER")
-            const tierName = tier.split(' ')[0].toUpperCase();
+            const tierName = tier.split(" ")[0].toUpperCase();
             return tierTranslation[tierName] || tier;
         }
     };
@@ -106,7 +106,7 @@ export default function MyPageSidebar({
     onRiotIdSubmit,
     selectedGame,
     onGameSelect,
-    riotId
+    riotId,
 }) {
     const [newRiotId, setNewRiotId] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -121,8 +121,8 @@ export default function MyPageSidebar({
                 // onRiotIdSubmit에 새로고침 신호를 보냄
                 await onRiotIdSubmit(user.riotIds.lol, gameType, true); // 세 번째 매개변수는 새로고침 플래그
             } catch (error) {
-                console.error('LoL 정보 새로고침 실패:', error);
-                alert('정보 새로고침에 실패했습니다: ' + error.message);
+                console.error("LoL 정보 새로고침 실패:", error);
+                alert("정보 새로고침에 실패했습니다: " + error.message);
             } finally {
                 setIsSubmitting(false);
             }
@@ -132,7 +132,7 @@ export default function MyPageSidebar({
     const handleRiotIdSubmit = async (e, gameType) => {
         e.preventDefault();
         const riotId = gameType === "lol" ? lolRiotId : valorantRiotId;
-        
+
         if (!riotId.includes("#")) {
             alert("Riot ID는 닉네임#태그 형식으로 입력해주세요.");
             return;
@@ -159,65 +159,104 @@ export default function MyPageSidebar({
             {/* 프로필 섹션 */}
             <div className="border-b border-gray-200 pb-4">
                 <div className="mb-4">
-                    <h3 className="font-medium text-lg mb-3">{user?.nickname || '사용자'}</h3>
-                    
+                    <h3 className="text-2xl font-bold !text-gray-900 text-left">
+                        {user?.nickname || "사용자"}님
+                    </h3>
+
                     {/* 연동된 게임 정보 표시 */}
-                    <div className="space-y-2">
+                    <div className="space-y-2 mt-4">
                         {/* LoL 정보 */}
                         {user?.riotIds?.lol && (
                             <div className="bg-blue-50 rounded-lg p-3 border border-blue-100">
                                 <div className="flex items-center justify-between mb-1">
                                     <div className="flex items-center gap-2">
-                                        <span className="text-sm font-medium">⚔️ LoL</span>
-                                        <span className="text-sm text-blue-700 font-medium">{user.riotIds.lol}</span>
+                                        <span className="text-sm font-medium">
+                                            ⚔️ LoL
+                                        </span>
+                                        <span className="text-sm text-blue-700 font-medium">
+                                            {user.riotIds.lol}
+                                        </span>
                                     </div>
-                                    <TierBadge tier={user.tiers?.lol} game="lol" />
+                                    <TierBadge
+                                        tier={user.tiers?.lol}
+                                        game="lol"
+                                    />
                                 </div>
                                 {user.lolProfile?.summoner && (
                                     <div className="text-xs text-gray-600 mt-1">
-                                        Lv.{user.lolProfile.summoner.summonerLevel}
+                                        Lv.
+                                        {user.lolProfile.summoner.summonerLevel}
                                         {user.lolProfile.ranks?.solo && (
                                             <span className="ml-2">
-                                                {user.lolProfile.ranks.solo.wins}W {user.lolProfile.ranks.solo.losses}L
-                                                ({user.lolProfile.ranks.solo.winRate}%)
+                                                {
+                                                    user.lolProfile.ranks.solo
+                                                        .wins
+                                                }
+                                                W{" "}
+                                                {
+                                                    user.lolProfile.ranks.solo
+                                                        .losses
+                                                }
+                                                L (
+                                                {
+                                                    user.lolProfile.ranks.solo
+                                                        .winRate
+                                                }
+                                                %)
                                             </span>
                                         )}
                                     </div>
                                 )}
                             </div>
                         )}
-                        
+
                         {/* 발로란트 정보 */}
                         {user?.riotIds?.valorant && (
                             <div className="bg-red-50 rounded-lg p-3 border border-red-100">
                                 <div className="flex items-center justify-between mb-1">
                                     <div className="flex items-center gap-2">
-                                        <span className="text-sm font-medium">🎯 VALORANT</span>
-                                        <span className="text-sm text-red-700 font-medium">{user.riotIds.valorant}</span>
+                                        <span className="text-sm font-medium">
+                                            🎯 VALORANT
+                                        </span>
+                                        <span className="text-sm text-red-700 font-medium">
+                                            {user.riotIds.valorant}
+                                        </span>
                                     </div>
-                                    <TierBadge tier={user.tiers?.valorant} game="valorant" />
+                                    <TierBadge
+                                        tier={user.tiers?.valorant}
+                                        game="valorant"
+                                    />
                                 </div>
                                 {user.valorantProfile && (
                                     <div className="text-xs text-gray-600 mt-1">
-                                        최근 {user.valorantProfile.recentGames}경기
-                                        {user.valorantProfile.avgKDA && user.valorantProfile.avgKDA !== 'N/A' && (
-                                            <span className="ml-2">평균 KDA: {user.valorantProfile.avgKDA}</span>
-                                        )}
+                                        최근 {user.valorantProfile.recentGames}
+                                        경기
+                                        {user.valorantProfile.avgKDA &&
+                                            user.valorantProfile.avgKDA !==
+                                                "N/A" && (
+                                                <span className="ml-2">
+                                                    평균 KDA:{" "}
+                                                    {
+                                                        user.valorantProfile
+                                                            .avgKDA
+                                                    }
+                                                </span>
+                                            )}
                                     </div>
                                 )}
                             </div>
                         )}
-                        
+
                         {/* 연동된 게임이 없는 경우 */}
                         {!user?.riotIds?.lol && !user?.riotIds?.valorant && (
-                            <div className="text-sm text-gray-500 text-center py-2">
-                                아직 연동된 게임이 없습니다
+                            <div className="text-sm text-gray-500">
+                                {user?.nickname || "사용자"}님의 게임 정보를
+                                연동해보세요
                             </div>
                         )}
                     </div>
                 </div>
             </div>
-
 
             {/* Riot ID 연동 섹션 */}
             {selectedGame === "all" ? (
@@ -238,8 +277,16 @@ export default function MyPageSidebar({
                                         <span className="text-sm text-blue-600 font-medium">
                                             연동됨
                                         </span>
-                                        <svg className="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                        <svg
+                                            className="w-4 h-4 text-green-500"
+                                            fill="currentColor"
+                                            viewBox="0 0 20 20"
+                                        >
+                                            <path
+                                                fillRule="evenodd"
+                                                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                                                clipRule="evenodd"
+                                            />
                                         </svg>
                                     </div>
                                 ) : (
@@ -255,23 +302,34 @@ export default function MyPageSidebar({
                                     disabled={isSubmitting}
                                     type="button"
                                 >
-                                    {isSubmitting ? "처리중..." : "LoL 정보 새로고침 ↻"}
+                                    {isSubmitting
+                                        ? "처리중..."
+                                        : "LoL 정보 새로고침 ↻"}
                                 </button>
                             ) : (
-                                <form onSubmit={(e) => handleRiotIdSubmit(e, "lol")} className="mt-2">
+                                <form
+                                    onSubmit={(e) =>
+                                        handleRiotIdSubmit(e, "lol")
+                                    }
+                                    className="mt-2"
+                                >
                                     <input
                                         type="text"
-                                        value={lolRiotId}
-                                        onChange={(e) => setLolRiotId(e.target.value)}
-                                        placeholder="닉네임#태그"
+                                        placeholder="Riot ID를 입력하세요"
                                         className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2"
+                                        value={lolRiotId}
+                                        onChange={(e) =>
+                                            setLolRiotId(e.target.value)
+                                        }
                                     />
                                     <button
                                         type="submit"
                                         disabled={isSubmitting}
                                         className="w-full py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
                                     >
-                                        {isSubmitting ? "연동 중..." : "LoL 계정 연동하기"}
+                                        {isSubmitting
+                                            ? "연동 중..."
+                                            : "LoL 계정 연동하기"}
                                     </button>
                                 </form>
                             )}
@@ -289,8 +347,16 @@ export default function MyPageSidebar({
                                         <span className="text-sm text-red-600 font-medium">
                                             연동됨
                                         </span>
-                                        <svg className="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                        <svg
+                                            className="w-4 h-4 text-green-500"
+                                            fill="currentColor"
+                                            viewBox="0 0 20 20"
+                                        >
+                                            <path
+                                                fillRule="evenodd"
+                                                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                                                clipRule="evenodd"
+                                            />
                                         </svg>
                                     </div>
                                 ) : (
@@ -300,20 +366,29 @@ export default function MyPageSidebar({
                                 )}
                             </div>
                             {!user?.riotIds?.valorant && (
-                                <form onSubmit={(e) => handleRiotIdSubmit(e, "valorant")} className="mt-2">
+                                <form
+                                    onSubmit={(e) =>
+                                        handleRiotIdSubmit(e, "valorant")
+                                    }
+                                    className="mt-2"
+                                >
                                     <input
                                         type="text"
+                                        placeholder="Riot ID를 입력하세요"
+                                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2"
                                         value={valorantRiotId}
-                                        onChange={(e) => setValorantRiotId(e.target.value)}
-                                        placeholder="닉네임#태그"
-                                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 mb-2"
+                                        onChange={(e) =>
+                                            setValorantRiotId(e.target.value)
+                                        }
                                     />
                                     <button
                                         type="submit"
                                         disabled={isSubmitting}
                                         className="w-full py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
                                     >
-                                        {isSubmitting ? "연동 중..." : "발로란트 계정 연동하기"}
+                                        {isSubmitting
+                                            ? "연동 중..."
+                                            : "발로란트 계정 연동하기"}
                                     </button>
                                 </form>
                             )}
@@ -339,10 +414,10 @@ export default function MyPageSidebar({
                         <form onSubmit={handleRiotIdSubmit}>
                             <input
                                 type="text"
+                                placeholder="Riot ID를 입력하세요"
+                                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2"
                                 value={newRiotId}
                                 onChange={(e) => setNewRiotId(e.target.value)}
-                                placeholder="닉네임#태그"
-                                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2"
                             />
                             <button
                                 type="submit"
@@ -501,10 +576,10 @@ export default function MyPageSidebar({
 
             {/* 멘토 활동 현황 섹션 */}
             {(() => {
-                console.log('🔍 MyPageSidebar - 멘토 섹션 체크:', {
+                console.log("🔍 MyPageSidebar - 멘토 섹션 체크:", {
                     user: user,
                     isMentor: user?.isMentor,
-                    mentorStats: user?.mentorStats
+                    mentorStats: user?.mentorStats,
                 });
                 return user?.isMentor;
             })() && (

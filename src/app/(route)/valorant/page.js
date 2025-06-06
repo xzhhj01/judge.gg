@@ -82,24 +82,20 @@ const PostCard = ({ post }) => {
 const bannerData = [
     {
         id: 1,
-        title: "VALORANT 법정",
-        description: "여러분의 게임 판단을 공유하고 토론하세요",
-        imageUrl:
-            "https://images.contentstack.io/v3/assets/bltb6530b271fddd0b1/blt81e8a3c8e7bbb140/65be265adc7e3c6a11eea3b5/VAL_Ep8_Homepage-CG-Still_4K_3440x1308.jpg",
+        title: "VALORANT 법원",
+        description: "발로란트에서 발생한 분쟁을 공유하고 판단해 보세요.",
+        imageUrl: "/main-banner-1-2.webp",
     },
     {
         id: 2,
-        title: "새로운 에피소드가 시작됐습니다",
-        description: "에피소드 8의 새로운 변화에 대해 토론해보세요",
-        imageUrl:
-            "https://images.contentstack.io/v3/assets/bltb6530b271fddd0b1/blt516d37c47b7caf01/65bf97cd6d23b74d63c93dd7/Patch_Notes_8_01_Header.jpg",
+        title: "Judge.gg 도움말",
+        description: "Judge.gg와 함께 새로운 게임 커뮤니티를 경험하세요.",
+        imageUrl: "/logo.svg",
     },
     {
-        id: 3,
-        title: "새로운 요원 ISO",
-        description: "ISO의 플레이 스타일에 대해 의견을 나눠보세요",
-        imageUrl:
-            "https://images.contentstack.io/v3/assets/bltb6530b271fddd0b1/blt0bb2db683f703d4c/659ef80d8a4a4c6a31e5c713/ISO_KeyArt_10x10_3440x1308.jpg",
+        title: "피드백 신청하기",
+        description: "멘토에게 부담 없이 피드백을 신청하고 답변을 받아 보세요.",
+        imageUrl: "/banner-mentor.jpg",
     },
 ];
 
@@ -119,19 +115,38 @@ export default function ValorantMainPage() {
         const loadPosts = async () => {
             try {
                 // Firebase에서 실제 게시물 조회
-                const popularResult = await communityService.getPosts('valorant', [], '', 1, 10, 'popular');
-                const recentResult = await communityService.getPosts('valorant', [], '', 1, 10, 'recent');
-                
+                const popularResult = await communityService.getPosts(
+                    "valorant",
+                    [],
+                    "",
+                    1,
+                    10,
+                    "popular"
+                );
+                const recentResult = await communityService.getPosts(
+                    "valorant",
+                    [],
+                    "",
+                    1,
+                    10,
+                    "recent"
+                );
+
                 // 인기 게시물 (가중치 기반 정렬)
-                const popular = communityService.sortPosts(popularResult.posts, 'popular').slice(0, 3);
+                const popular = communityService
+                    .sortPosts(popularResult.posts, "popular")
+                    .slice(0, 3);
                 setPopularPosts(popular);
 
                 // 최신 게시물 (최신순 정렬)
-                const recent = communityService.sortPosts(recentResult.posts, 'recent').slice(0, 3);
+                const recent = communityService
+                    .sortPosts(recentResult.posts, "recent")
+                    .slice(0, 3);
                 setRecentPosts(recent);
 
                 // 분쟁 활발 게시물 조회
-                const controversial = await communityService.getControversialPosts('valorant', 1);
+                const controversial =
+                    await communityService.getControversialPosts("valorant", 1);
                 setControversialPosts(controversial);
 
                 // 마감 임박 게시물은 빈 상태로 설정 (투표 기능 구현 후 추가 예정)
@@ -140,7 +155,7 @@ export default function ValorantMainPage() {
                 console.log("인기 게시물:", popular);
                 console.log("최신 게시물:", recent);
             } catch (error) {
-                console.error('게시물 로드 실패:', error);
+                console.error("게시물 로드 실패:", error);
                 // 에러 발생 시 빈 배열로 설정
                 setPopularPosts([]);
                 setRecentPosts([]);
@@ -157,13 +172,20 @@ export default function ValorantMainPage() {
         const loadUserPosts = async () => {
             if (user && user.uid) {
                 try {
-                    const result = await communityService.getUserPosts('valorant', user.uid, 3);
+                    const result = await communityService.getUserPosts(
+                        "valorant",
+                        user.uid,
+                        3
+                    );
                     setUserPosts(result.posts);
-                    
+
                     // 모든 게임의 사용자 게시물도 로드
-                    const allResult = await communityService.getAllUserPosts(user.uid, 5);
+                    const allResult = await communityService.getAllUserPosts(
+                        user.uid,
+                        5
+                    );
                     setAllUserPosts(allResult.posts);
-                    
+
                     console.log("사용자 게시물:", result.posts);
                     console.log("전체 사용자 게시물:", allResult.posts);
                 } catch (error) {
@@ -192,18 +214,30 @@ export default function ValorantMainPage() {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50">
+        <div className="min-h-screen bg-gradient-to-b from-[#0c0032] to-[#190061]">
             {/* 히어로 섹션 */}
             <div className="relative h-[280px] overflow-hidden">
                 {/* 현재 배너 */}
                 <div
-                    className="absolute inset-0 w-full h-full transition-transform duration-500 ease-in-out"
+                    className="absolute inset-0 w-full h-full transition-transform duration-500 ease-in-out cursor-pointer"
                     style={{
                         transform: `translateX(0%)`,
-                        backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url(${bannerData[currentBanner].imageUrl})`,
+                        backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), url(${bannerData[currentBanner].imageUrl})`,
                         backgroundSize: "cover",
                         backgroundPosition: "center",
                         backgroundRepeat: "no-repeat",
+                    }}
+                    onClick={() => {
+                        if (currentBanner === 0) {
+                            window.location.href = "/valorant/community";
+                        } else if (currentBanner === 1) {
+                            window.open(
+                                "https://judgegg.notion.site/?source=copy_link",
+                                "_blank"
+                            );
+                        } else if (currentBanner === 2) {
+                            window.location.href = "/mentor";
+                        }
                     }}
                 >
                     <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-center">
@@ -225,7 +259,7 @@ export default function ValorantMainPage() {
                         transform: `translateX(${
                             slideDirection === "right" ? "100%" : "-100%"
                         })`,
-                        backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url(${
+                        backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), url(${
                             bannerData[
                                 (currentBanner +
                                     (slideDirection === "right" ? 1 : -1) +
@@ -287,7 +321,7 @@ export default function ValorantMainPage() {
                     {/* 분쟁 활발 섹션 */}
                     <section>
                         <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-2xl font-bold text-gray-900">
+                            <h2 className="text-2xl font-bold text-white">
                                 🔥 분쟁 활발
                             </h2>
                         </div>
@@ -305,7 +339,7 @@ export default function ValorantMainPage() {
                     {/* 마감 임박 섹션 */}
                     <section>
                         <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-2xl font-bold text-gray-900">
+                            <h2 className="text-2xl font-bold text-white">
                                 ⏰ 마감 임박
                             </h2>
                         </div>
@@ -324,7 +358,7 @@ export default function ValorantMainPage() {
                 {/* 인기 재판 섹션 */}
                 <section className="mb-12">
                     <div className="flex justify-between items-center mb-6">
-                        <h2 className="text-2xl font-bold text-gray-900">
+                        <h2 className="text-2xl font-bold text-white">
                             ⚖️ 인기 재판
                         </h2>
                         <Link
@@ -350,7 +384,7 @@ export default function ValorantMainPage() {
                 {/* 최신 재판 섹션 */}
                 <section className="mb-12">
                     <div className="flex justify-between items-center mb-6">
-                        <h2 className="text-2xl font-bold text-gray-900">
+                        <h2 className="text-2xl font-bold text-white">
                             📝 최신 재판
                         </h2>
                         <Link
@@ -377,7 +411,7 @@ export default function ValorantMainPage() {
                 {user && allUserPosts.length > 0 && (
                     <section className="mb-12">
                         <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-2xl font-bold text-gray-900">
+                            <h2 className="text-2xl font-bold text-white">
                                 ✍️ 내가 작성한 모든 게시글
                             </h2>
                             <Link
@@ -405,7 +439,7 @@ export default function ValorantMainPage() {
                 {user && userPosts.length > 0 && (
                     <section className="mb-12">
                         <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-2xl font-bold text-gray-900">
+                            <h2 className="text-2xl font-bold text-white">
                                 🎯 내가 작성한 Valorant 게시글
                             </h2>
                             <Link
@@ -437,7 +471,8 @@ export default function ValorantMainPage() {
                                 나만의 재판 기록을 남겨보세요!
                             </h2>
                             <p className="text-gray-600 mb-4">
-                                로그인하시면 작성한 글들을 여기서 확인할 수 있습니다.
+                                로그인하시면 작성한 글들을 여기서 확인할 수
+                                있습니다.
                             </p>
                             <Link
                                 href="/login"

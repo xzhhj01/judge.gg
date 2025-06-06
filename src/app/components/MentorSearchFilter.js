@@ -29,7 +29,9 @@ export default function MentorSearchFilter({
                                 onClick={() => setSelectedGame(game.key)}
                                 className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                                     selectedGame === game.key
-                                        ? "bg-white text-primary-600 shadow-sm"
+                                        ? game.key === "all"
+                                            ? "bg-white !text-black shadow-sm"
+                                            : "bg-white text-primary-600 shadow-sm"
                                         : "text-gray-600 hover:text-gray-900"
                                 }`}
                             >

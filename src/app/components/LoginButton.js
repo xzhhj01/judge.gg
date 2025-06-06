@@ -12,9 +12,9 @@ export default function LoginButton() {
     const handleLogin = async () => {
         try {
             setLoading(true);
-            const result = await signIn('google', { 
-                callbackUrl: '/',
-                redirect: true 
+            const result = await signIn("google", {
+                callbackUrl: "/",
+                redirect: true,
             });
         } catch (error) {
             console.error("로그인 실패:", error);
@@ -27,20 +27,20 @@ export default function LoginButton() {
     const handleLogout = async () => {
         try {
             setLoading(true);
-            
+
             // NextAuth 로그아웃
-            await signOut({ 
-                callbackUrl: '/',
-                redirect: false 
+            await signOut({
+                callbackUrl: "/login",
+                redirect: false,
             });
-            
-            // 페이지 새로고침으로 모든 상태 초기화
-            router.push('/');
+
+            // 로그인 페이지로 이동 및 상태 새로고침
+            router.push("/login");
             router.refresh();
         } catch (error) {
             console.error("로그아웃 실패:", error);
-            // 에러가 발생해도 메인 페이지로 이동
-            router.push('/');
+            // 에러가 발생해도 로그인 페이지로 이동
+            router.push("/login");
         } finally {
             setLoading(false);
         }
@@ -62,16 +62,16 @@ export default function LoginButton() {
                         <img
                             src={session.user.image}
                             alt="프로필"
-                            className="w-8 h-8 rounded-full"
+                            className="w-6 h-6 rounded-full"
                         />
                     )}
-                    <span className="text-sm text-gray-700">
+                    <span className="text-sm text-white">
                         {session.user.name || session.user.email}
                     </span>
                 </div>
                 <button
                     onClick={handleLogout}
-                    className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
+                    className="px-3 py-1.5 bg-red-500 text-white rounded hover:bg-red-600 transition-colors text-sm"
                 >
                     로그아웃
                 </button>

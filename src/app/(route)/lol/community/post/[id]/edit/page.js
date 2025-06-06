@@ -23,19 +23,21 @@ export default function LoLCommunityEditPage() {
     useEffect(() => {
         const loadPostData = async () => {
             try {
-                const response = await fetch(`/api/community/lol/posts/${postId}`);
-                
+                const response = await fetch(
+                    `/api/community/lol/posts/${postId}`
+                );
+
                 if (!response.ok) {
-                    throw new Error('게시글을 찾을 수 없습니다.');
+                    throw new Error("게시글을 찾을 수 없습니다.");
                 }
-                
+
                 const data = await response.json();
-                
+
                 if (data.success && data.post) {
                     // 로그인한 사용자인지 확인
                     const currentUser = session?.user || firebaseUser;
                     if (!currentUser) {
-                        setAuthError('로그인이 필요합니다.');
+                        setAuthError("로그인이 필요합니다.");
                         setLoading(false);
                         return;
                     }
@@ -47,31 +49,38 @@ export default function LoLCommunityEditPage() {
                     if (currentUser.uid) userIdentifiers.add(currentUser.uid);
                     if (currentUser.email) {
                         userIdentifiers.add(currentUser.email);
-                        userIdentifiers.add(currentUser.email.replace(/[^a-zA-Z0-9]/g, '_'));
-                        userIdentifiers.add(currentUser.email.split('@')[0]);
+                        userIdentifiers.add(
+                            currentUser.email.replace(/[^a-zA-Z0-9]/g, "_")
+                        );
+                        userIdentifiers.add(currentUser.email.split("@")[0]);
                     }
                     if (currentUser.sub) userIdentifiers.add(currentUser.sub);
-                    
+
                     // All possible author identifiers from post
                     const authorIdentifiers = new Set();
-                    if (data.post.authorId) authorIdentifiers.add(data.post.authorId);
-                    if (data.post.authorUid) authorIdentifiers.add(data.post.authorUid);
-                    if (data.post.authorEmail) authorIdentifiers.add(data.post.authorEmail);
-                    
-                    console.log('🔍 수정 권한 확인:', {
+                    if (data.post.authorId)
+                        authorIdentifiers.add(data.post.authorId);
+                    if (data.post.authorUid)
+                        authorIdentifiers.add(data.post.authorUid);
+                    if (data.post.authorEmail)
+                        authorIdentifiers.add(data.post.authorEmail);
+
+                    console.log("🔍 수정 권한 확인:", {
                         currentUser: currentUser,
                         userIdentifiers: Array.from(userIdentifiers),
                         authorIdentifiers: Array.from(authorIdentifiers),
-                        post: data.post
+                        post: data.post,
                     });
-                    
+
                     // Check for any match
-                    const isAuthor = Array.from(userIdentifiers).some(userId => 
-                        authorIdentifiers.has(userId)
+                    const isAuthor = Array.from(userIdentifiers).some(
+                        (userId) => authorIdentifiers.has(userId)
                     );
-                    
+
                     if (!isAuthor) {
-                        setAuthError('수정 권한이 없습니다. 본인이 작성한 글만 수정할 수 있습니다.');
+                        setAuthError(
+                            "수정 권한이 없습니다. 본인이 작성한 글만 수정할 수 있습니다."
+                        );
                         setLoading(false);
                         return;
                     }
@@ -82,15 +91,15 @@ export default function LoLCommunityEditPage() {
                         situations: [],
                         maps: [],
                         agents: [],
-                        roles: []
+                        roles: [],
                     };
 
                     // 더미 데이터의 경우 tags가 배열로 되어 있음
                     if (Array.isArray(data.post.tags)) {
                         // communityTags.json 데이터를 활용한 동적 태그 분류
                         const lolTags = communityTags.lol;
-                        
-                        data.post.tags.forEach(tag => {
+
+                        data.post.tags.forEach((tag) => {
                             // LoL 챔피언 태그
                             if (lolTags.champions.includes(tag)) {
                                 tagsData.champions.push(tag);
@@ -104,7 +113,10 @@ export default function LoLCommunityEditPage() {
                                 tagsData.situations.push(tag);
                             }
                             // 오브젝트 태그가 있다면 상황에 추가
-                            else if (lolTags.objects && lolTags.objects.includes(tag)) {
+                            else if (
+                                lolTags.objects &&
+                                lolTags.objects.includes(tag)
+                            ) {
                                 tagsData.situations.push(tag);
                             }
                             // 기타는 상황에 추가
@@ -112,7 +124,10 @@ export default function LoLCommunityEditPage() {
                                 tagsData.situations.push(tag);
                             }
                         });
-                    } else if (data.post.tags && typeof data.post.tags === 'object') {
+                    } else if (
+                        data.post.tags &&
+                        typeof data.post.tags === "object"
+                    ) {
                         // Firebase 데이터의 경우 객체 형태
                         tagsData = data.post.tags;
                     }
@@ -127,18 +142,21 @@ export default function LoLCommunityEditPage() {
                         allowNeutral: data.post.allowNeutral || false,
                         voteDeadline: data.post.voteDeadline || "",
                     };
-                    
+
                     console.log("수정 페이지 - 원본 데이터:", data.post);
                     console.log("수정 페이지 - 변환된 태그 데이터:", tagsData);
-                    console.log("수정 페이지 - PostForm에 전달할 데이터:", formattedData);
-                    
+                    console.log(
+                        "수정 페이지 - PostForm에 전달할 데이터:",
+                        formattedData
+                    );
+
                     setInitialData(formattedData);
                 } else {
-                    throw new Error('게시글 데이터를 불러올 수 없습니다.');
+                    throw new Error("게시글 데이터를 불러올 수 없습니다.");
                 }
             } catch (error) {
                 console.error("게시글 로드 실패:", error);
-                alert(error.message || '게시글을 불러오는데 실패했습니다.');
+                alert(error.message || "게시글을 불러오는데 실패했습니다.");
                 // 에러 처리 (예: 404 페이지로 리다이렉트)
                 router.push("/lol/community");
             } finally {
@@ -180,21 +198,23 @@ export default function LoLCommunityEditPage() {
             console.log("LoL 게시글 수정:", { postId, ...formData });
 
             const response = await fetch(`/api/community/lol/posts/${postId}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData)
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(formData),
             });
 
             if (!response.ok) {
                 const errorData = await response.json();
-                throw new Error(errorData.error || '게시글 수정에 실패했습니다.');
+                throw new Error(
+                    errorData.error || "게시글 수정에 실패했습니다."
+                );
             }
 
             // 성공 시 상세 페이지로 리다이렉트
             router.push(`/lol/community/post/${postId}`);
         } catch (error) {
             console.error("게시글 수정 실패:", error);
-            alert(error.message || '게시글 수정에 실패했습니다.');
+            alert(error.message || "게시글 수정에 실패했습니다.");
         }
     };
 
