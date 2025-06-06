@@ -1034,22 +1034,24 @@ export const userService = {
     }
   },
 
-  // 찜한 멘토 수 조회
+  // 찜한 멘토 수 조회 (삭제된 멘토 제외)
   async getUserLikedMentorsCount(userId) {
     try {
-      const mentorIds = await this.getUserLikedMentors(userId);
-      return mentorIds.length;
+      // 삭제된 멘토를 제외한 실제 존재하는 멘토만 카운트
+      const mentorsData = await this.getUserLikedMentorsData(userId);
+      return mentorsData.length;
     } catch (error) {
       console.error('찜한 멘토 수 조회 실패:', error);
       return 0;
     }
   },
 
-  // 찜한 멘토의 상세 정보 조회
+  // 찜한 멘토의 상세 정보 조회 (삭제된 멘토 제외)
   async getUserLikedMentorsData(userId) {
     try {
       const mentorIds = await this.getUserLikedMentors(userId);
       const mentors = [];
+      const deletedMentorIds = []; // 삭제된 멘토 ID 추적
       
       for (const mentorId of mentorIds) {
         try {
@@ -1061,9 +1063,26 @@ export const userService = {
               id: mentorSnap.id,
               ...mentorSnap.data()
             });
+          } else {
+            // 멘토 문서가 존재하지 않는 경우 (삭제됨)
+            console.log(`삭제된 멘토 발견: ${mentorId}`);
+            deletedMentorIds.push(mentorId);
           }
         } catch (error) {
           console.error(`멘토 ${mentorId} 정보 조회 실패:`, error);
+        }
+      }
+      
+      // 삭제된 멘토들을 liked_mentors에서 제거
+      if (deletedMentorIds.length > 0) {
+        console.log(`삭제된 멘토 ${deletedMentorIds.length}개를 찜 목록에서 제거 중...`);
+        for (const mentorId of deletedMentorIds) {
+          try {
+            await this.removeLikedMentor(userId, mentorId);
+            console.log(`찜 목록에서 삭제된 멘토 제거 완료: ${mentorId}`);
+          } catch (error) {
+            console.error(`찜 목록에서 멘토 제거 실패 ${mentorId}:`, error);
+          }
         }
       }
       

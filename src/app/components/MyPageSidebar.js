@@ -500,7 +500,14 @@ export default function MyPageSidebar({
             </div>
 
             {/* 멘토 활동 현황 섹션 */}
-            {user?.isMentor && (
+            {(() => {
+                console.log('🔍 MyPageSidebar - 멘토 섹션 체크:', {
+                    user: user,
+                    isMentor: user?.isMentor,
+                    mentorStats: user?.mentorStats
+                });
+                return user?.isMentor;
+            })() && (
                 <div className="py-4 border-b border-gray-200">
                     <h3 className="text-sm font-medium text-gray-900 mb-4">
                         멘토 활동 현황

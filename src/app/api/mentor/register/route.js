@@ -124,7 +124,19 @@ export async function POST(request) {
     }
 
     // Register mentor using the service with user info
+    console.log('🔍 멘토 등록 API - session.user:', {
+      id: session.user.id,
+      email: session.user.email,
+      name: session.user.name,
+      image: session.user.image
+    });
+    
     const result = await mentorService.registerMentor(mentorData, session.user);
+    
+    console.log('🔍 멘토 등록 결과:', {
+      mentorId: result.id,
+      userId: result.userId
+    });
 
     return NextResponse.json({
       success: true,

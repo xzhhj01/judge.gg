@@ -64,7 +64,7 @@ export default function MyPage() {
 
     // 페이지 마운트 시 캐시된 데이터 즉시 로드
     useEffect(() => {
-        const currentUser = user || session?.user;
+        const currentUser = session?.user || user;
         if (currentUser) {
             const currentUserId = communityService.generateConsistentUserId(currentUser);
             const cachedData = loadCachedUserData(currentUserId);
@@ -86,7 +86,8 @@ export default function MyPage() {
     const loadUserData = async () => {
         if (!(user || session)) return;
 
-        const currentUser = user || session?.user;
+        // Always prioritize session.user for consistency with mentor registration
+        const currentUser = session?.user || user;
         const currentUserId = communityService.generateConsistentUserId(currentUser);
         console.log('🔍 마이페이지 - 사용자 데이터 로딩 시작:', { currentUserId, currentUser });
         
@@ -151,6 +152,12 @@ export default function MyPage() {
         const cachedData = loadCachedUserData(currentUserId);
         console.log('🔍 캐시된 데이터:', cachedData);
         console.log('🔍 Firebase 데이터:', info);
+        console.log('🔍 현재 사용자 정보:', {
+            currentUser: currentUser,
+            currentUserId: currentUserId,
+            userType: currentUser?.id ? 'NextAuth' : currentUser?.uid ? 'Firebase' : 'Unknown',
+            email: currentUser?.email
+        });
         
         // 멘토 정보 확인 (mentors 컬렉션에서 모든 멘토 프로필 조회)
         let isMentor = false;
@@ -160,9 +167,15 @@ export default function MyPage() {
             // 승인/미승인 관계없이 사용자의 모든 멘토 프로필 조회
             allMentorProfiles = await mentorService.getAllMentorsByUserId(currentUserId);
             
+            console.log('🔍 멘토 프로필 조회 결과:', {
+                userId: currentUserId,
+                profileCount: allMentorProfiles.length,
+                profiles: allMentorProfiles
+            });
+            
             if (allMentorProfiles.length > 0) {
                 isMentor = true;
-                console.log('🔍 사용자의 멘토 프로필들:', allMentorProfiles.map(m => ({
+                console.log('🔍 멘토로 확인됨! 사용자의 멘토 프로필들:', allMentorProfiles.map(m => ({
                     id: m.id,
                     nickname: m.nickname,
                     isApproved: m.isApproved,
@@ -185,6 +198,8 @@ export default function MyPage() {
                         rating: bestMentor.rating || 0,
                     };
                 }
+            } else {
+                console.log('🔍 멘토 프로필이 없음');
             }
         } catch (error) {
             console.error('멘토 정보 조회 실패:', error);
@@ -428,7 +443,7 @@ export default function MyPage() {
             setLoading(true);
             try {
                 if (user || session) {
-                    const currentUser = user || session?.user;
+                    const currentUser = session?.user || user;
                     const currentUserId = communityService.generateConsistentUserId(currentUser);
                     
                     console.log("🔍 마이페이지 - 현재 사용자 정보:", {
@@ -543,12 +558,12 @@ export default function MyPage() {
                 if (isRefresh) {
                     console.log("LoL 정보 새로고침 시작:", riotId);
                     // 새로고침의 경우 기존 PUUID로 최신 티어 정보 조회
-                    const currentUser = user || session?.user;
+                    const currentUser = session?.user || user;
                     const result = await userService.getLolTierInfo(currentUser);
                     console.log("LoL 티어 정보 새로고침 성공:", result);
                 } else {
                     // 새로운 연동의 경우 Riot API 검증을 통한 연동
-                    const currentUser = user || session?.user;
+                    const currentUser = session?.user || user;
                     const result = await userService.verifyAndConnectLolAccount(riotId, currentUser);
                     console.log("LoL 계정 검증 및 연동 성공:", result);
                 }
@@ -561,7 +576,7 @@ export default function MyPage() {
                 showSnackbar(message, "success");
             } else if (game === 'valorant') {
                 // 발로란트의 경우 Riot API 검증을 통한 연동
-                const currentUser = user || session?.user;
+                const currentUser = session?.user || user;
                 const result = await userService.verifyAndConnectValorantAccount(riotId, currentUser);
                 console.log("발로란트 계정 검증 및 연동 성공:", result);
                 
@@ -721,7 +736,7 @@ export default function MyPage() {
             
             if (response.ok) {
                 // Reload posts after deletion
-                const currentUser = user || session?.user;
+                const currentUser = session?.user || user;
                 const currentUserId = communityService.generateConsistentUserId(currentUser);
                 
                 if (selectedMenu === 'posts') {
@@ -755,7 +770,7 @@ export default function MyPage() {
                 
                 // 통계 다시 로드
                 try {
-                    const currentUser = user || session?.user;
+                    const currentUser = session?.user || user;
                     const currentUserId = communityService.generateConsistentUserId(currentUser);
                     const userStats = await userService.getUserStats(currentUserId, currentUser);
                     setStats(userStats);
@@ -827,7 +842,7 @@ export default function MyPage() {
 
     if (authLoading || status === 'loading') {
         // 로딩 중에도 캐시된 데이터가 있으면 표시
-        const currentUser = user || session?.user;
+        const currentUser = session?.user || user;
         if (currentUser) {
             const currentUserId = communityService.generateConsistentUserId(currentUser);
             const cachedData = loadCachedUserData(currentUserId);
@@ -857,7 +872,18 @@ export default function MyPage() {
                     {/* 사이드바 */}
                     {userInfo && (
                         <MyPageSidebar
-                            user={userInfo}
+                            user={{
+                                ...userInfo,
+                                // 디버깅을 위해 멘토 상태 명시적으로 로그
+                                isMentor: (() => {
+                                    console.log('🔍 사이드바에 전달되는 멘토 상태:', {
+                                        userInfo: userInfo,
+                                        isMentor: userInfo.isMentor,
+                                        mentorStats: userInfo.mentorStats
+                                    });
+                                    return userInfo.isMentor;
+                                })()
+                            }}
                             stats={stats[selectedGame]}
                             selectedMenu={selectedMenu}
                             onMenuSelect={setSelectedMenu}

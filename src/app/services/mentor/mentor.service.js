@@ -598,7 +598,36 @@ export const mentorService = {
         return [];
       }
 
-      // 사용자 ID의 다양한 형태 생성 (일관된 ID 검색)
+      // 먼저 모든 멘토를 조회하여 디버깅
+      const allMentorsQuery = query(collection(db, 'mentors'));
+      const allMentorsSnapshot = await getDocs(allMentorsQuery);
+      console.log('🔍 전체 멘토 수:', allMentorsSnapshot.size);
+      
+      // userId 매칭 테스트
+      const matchingMentors = [];
+      const allMentorUserIds = new Set();
+      allMentorsSnapshot.forEach(doc => {
+        const data = doc.data();
+        allMentorUserIds.add(data.userId);
+        console.log(`🔍 멘토 비교 - DB userId: "${data.userId}" vs 요청 userId: "${userId}" 일치: ${data.userId === userId}`);
+        if (data.userId === userId) {
+          matchingMentors.push({
+            id: doc.id,
+            ...data
+          });
+        }
+      });
+      
+      console.log('🔍 DB에 있는 모든 멘토의 userId 목록:', Array.from(allMentorUserIds));
+      console.log('🔍 요청한 userId:', userId);
+
+      console.log(`🔍 정확히 일치하는 멘토: ${matchingMentors.length}개`);
+      
+      if (matchingMentors.length > 0) {
+        return matchingMentors;
+      }
+
+      // 정확한 매칭이 없으면 다양한 형태로 시도
       const possibleIds = new Set([
         userId,
         userId?.toString(),
