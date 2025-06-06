@@ -79,7 +79,7 @@ export default function LoLCommunityPostPage() {
                 setPost(postData);
                 
                 // 사용자의 투표 여부 확인
-                const currentUser = user || session?.user;
+                const currentUser = session?.user || user;
                 if (currentUser) {
                     const userId = communityService.generateConsistentUserId(currentUser);
                     if (process.env.NODE_ENV === 'development') {
@@ -136,7 +136,7 @@ export default function LoLCommunityPostPage() {
         
         try {
             setIsVoting(true);
-            const currentUser = user || session?.user;
+            const currentUser = session?.user || user;
             
             // 투표 전에 한 번 더 기존 투표 확인 (이중 투표 방지)
             const existingVote = await communityService.checkUserVote('lol', postId, currentUser);
@@ -176,7 +176,7 @@ export default function LoLCommunityPostPage() {
         
         try {
             setIsRecommending(true);
-            const currentUser = user || session?.user;
+            const currentUser = session?.user || user;
             
             const result = await communityService.recommendPost('lol', postId, recommendationType, currentUser);
             
@@ -212,7 +212,7 @@ export default function LoLCommunityPostPage() {
         e.preventDefault();
         if (!newComment.trim()) return;
         
-        const currentUser = user || session?.user;
+        const currentUser = session?.user || user;
         if (!currentUser) {
             showSnackbar('로그인이 필요합니다.', 'error');
             return;
@@ -252,7 +252,7 @@ export default function LoLCommunityPostPage() {
         try {
             setCommentVoting(prev => ({ ...prev, [commentId]: true }));
             
-            const currentUser = user || session?.user;
+            const currentUser = session?.user || user;
             const result = await communityService.voteComment('lol', commentId, voteType, currentUser);
             
             // 댓글 데이터 새로고침
@@ -417,7 +417,7 @@ export default function LoLCommunityPostPage() {
                         <div className="flex space-x-2">
                             {/* 작성자만 수정/삭제 버튼 표시 */}
                             {(() => {
-                                const currentUser = user || session?.user;
+                                const currentUser = session?.user || user;
                                 if (!currentUser) return false;
                                 
                                 // All possible user identifiers from currentUser

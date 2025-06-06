@@ -482,7 +482,7 @@ export default function LoLCommunityPage() {
                                             key={post.id}
                                             post={post}
                                             gameType="lol"
-                                            currentUser={user || session?.user}
+                                            currentUser={session?.user || user}
                                             onEdit={handlePostEdit}
                                             onDelete={handlePostDelete}
                                             onShare={handlePostShare}

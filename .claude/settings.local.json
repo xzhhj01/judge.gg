@@ -19,7 +19,14 @@
       "Bash(node:*)",
       "Bash(npx next lint:*)",
       "Bash(/Users/phillip/.npm-global/lib/node_modules/@anthropic-ai/claude-code/vendor/ripgrep/arm64-darwin/rg -n \"authorName\" \"/Users/phillip/judge.gg/src/app/(route)/valorant/community/post/[id]/page.js\")",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(/Users/phillip/.npm-global/lib/node_modules/@anthropic-ai/claude-code/vendor/ripgrep/arm64-darwin/rg -n \"user \\|\\| session\" /Users/phillip/judge.gg/src/app)",
+      "Bash(/Users/phillip/.npm-global/lib/node_modules/@anthropic-ai/claude-code/vendor/ripgrep/arm64-darwin/rg -n \"user\\.\" /Users/phillip/judge.gg/src/app/services/user/user.service.js)",
+      "Bash(/Users/phillip/.npm-global/lib/node_modules/@anthropic-ai/claude-code/vendor/ripgrep/arm64-darwin/rg -n -A 5 -B 5 \"verifyAndConnectValorantAccount\" /Users/phillip/judge.gg/src/app/services/user/user.service.js)",
+      "Bash(/Users/phillip/.npm-global/lib/node_modules/@anthropic-ai/claude-code/vendor/ripgrep/arm64-darwin/rg -n -A 10 \"getUserPosts.*=\" /Users/phillip/judge.gg/src/app/services/user/user.service.js)",
+      "Bash(/Users/phillip/.npm-global/lib/node_modules/@anthropic-ai/claude-code/vendor/ripgrep/arm64-darwin/rg -n -A 15 \"debugUserContent\" /Users/phillip/judge.gg/src/app/services/user/user.service.js)",
+      "Bash(/Users/phillip/.npm-global/lib/node_modules/@anthropic-ai/claude-code/vendor/ripgrep/arm64-darwin/rg -n -A 10 \"getUserCommentedPostsData\" /Users/phillip/judge.gg/src/app/services/user/user.service.js)",
+      "Bash(/Users/phillip/.npm-global/lib/node_modules/@anthropic-ai/claude-code/vendor/ripgrep/arm64-darwin/rg -n -A 30 \"async getUserCommentedPosts\\(\" /Users/phillip/judge.gg/src/app/services/user/user.service.js)"
     ],
     "deny": []
   }

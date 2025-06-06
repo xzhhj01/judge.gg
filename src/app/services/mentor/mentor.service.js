@@ -36,7 +36,14 @@ export const mentorService = {
 
       // Use consistent user ID generation from community service
       const userId = communityService.generateConsistentUserId(currentUser);
-      console.log('생성된 userId:', userId);
+      console.log('🔍 멘토 등록 - 사용자 ID 생성:', {
+        userId: userId,
+        currentUser: currentUser,
+        sessionUserId: currentUser?.id,
+        sessionUserEmail: currentUser?.email,
+        firebaseUid: currentUser?.uid,
+        firebaseEmail: currentUser?.email
+      });
       
       if (!userId) {
         console.log('userId 생성 실패');
@@ -589,9 +596,14 @@ export const mentorService = {
   },
 
   // userId로 사용자의 모든 멘토 프로필 조회 (승인/미승인 관계없이)
-  async getAllMentorsByUserId(userId) {
+  async getAllMentorsByUserId(userId, userEmail = null) {
     try {
-      console.log('🔍 getAllMentorsByUserId 시작 - userId:', userId);
+      console.log('🔍 getAllMentorsByUserId 시작:', {
+        userId: userId,
+        userEmail: userEmail,
+        userIdType: typeof userId,
+        userEmailType: typeof userEmail
+      });
       
       if (!userId) {
         console.log('🔍 userId가 없음');
@@ -609,7 +621,14 @@ export const mentorService = {
       allMentorsSnapshot.forEach(doc => {
         const data = doc.data();
         allMentorUserIds.add(data.userId);
-        console.log(`🔍 멘토 비교 - DB userId: "${data.userId}" vs 요청 userId: "${userId}" 일치: ${data.userId === userId}`);
+        console.log(`🔍 멘토 비교:`, {
+          mentorId: doc.id,
+          mentorNickname: data.nickname,
+          dbUserId: data.userId,
+          requestUserId: userId,
+          isMatch: data.userId === userId,
+          userEmail: data.userEmail
+        });
         if (data.userId === userId) {
           matchingMentors.push({
             id: doc.id,
@@ -627,7 +646,39 @@ export const mentorService = {
         return matchingMentors;
       }
 
-      // 정확한 매칭이 없으면 다양한 형태로 시도
+      // 정확한 매칭이 없으면 이메일 기반으로도 찾아보기
+      console.log('🔍 정확한 userId 매칭 실패, 이메일 기반으로 재검색');
+      
+      // 현재 사용자의 이메일을 가져와서 이메일 기반으로 검색
+      let currentUserEmail = userEmail; // 전달받은 이메일 우선 사용
+      if (!currentUserEmail && userId?.includes('@')) {
+        currentUserEmail = userId; // userId가 이메일인 경우
+      }
+      
+      if (currentUserEmail) {
+        console.log('🔍 이메일 기반 검색:', currentUserEmail);
+        allMentorsSnapshot.forEach(doc => {
+          const data = doc.data();
+          if (data.userEmail === currentUserEmail) {
+            console.log('🔍 이메일로 멘토 발견:', {
+              mentorId: doc.id,
+              mentorNickname: data.nickname,
+              mentorEmail: data.userEmail
+            });
+            matchingMentors.push({
+              id: doc.id,
+              ...data
+            });
+          }
+        });
+        
+        if (matchingMentors.length > 0) {
+          console.log(`🔍 이메일 기반으로 ${matchingMentors.length}개 멘토 발견`);
+          return matchingMentors;
+        }
+      }
+
+      // 그래도 없으면 다양한 형태로 시도
       const possibleIds = new Set([
         userId,
         userId?.toString(),

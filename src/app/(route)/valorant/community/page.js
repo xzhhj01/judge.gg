@@ -450,7 +450,7 @@ export default function ValorantCommunityPage() {
                                             key={post.id}
                                             post={post}
                                             gameType="valorant"
-                                            currentUser={user || session?.user}
+                                            currentUser={session?.user || user}
                                             onEdit={handlePostEdit}
                                             onDelete={handlePostDelete}
                                             onShare={handlePostShare}

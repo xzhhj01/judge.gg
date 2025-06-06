@@ -257,10 +257,10 @@ export const userService = {
       if (!userDoc.exists()) {
         // 문서가 없으면 생성
         await setDoc(userRef, {
-          uid: user.uid,
-          email: user.email,
-          displayName: user.displayName,
-          photoURL: user.photoURL,
+          uid: sessionUser?.uid || sessionUser?.id,
+          email: sessionUser?.email,
+          displayName: sessionUser?.displayName || sessionUser?.name,
+          photoURL: sessionUser?.photoURL || sessionUser?.image,
           createdAt: serverTimestamp(),
           lolRiotId: riotId,
           lolPuuid: accountData.puuid,
@@ -364,13 +364,20 @@ export const userService = {
   // 사용자의 LoL 프로필 정보 조회
   async getLolProfile(sessionUser = null) {
     try {
-      const user = auth.currentUser;
-      if (!user) {
-        throw new Error('로그인이 필요합니다.');
+      let userId;
+      if (sessionUser) {
+        const { communityService } = await import('@/app/services/community/community.service');
+        userId = communityService.generateConsistentUserId(sessionUser);
+      } else {
+        const user = auth.currentUser;
+        if (!user) {
+          throw new Error('로그인이 필요합니다.');
+        }
+        userId = user.uid;
       }
 
       // 사용자 정보에서 LoL 프로필 데이터 조회
-      const userRef = doc(db, 'users', user.uid);
+      const userRef = doc(db, 'users', userId);
       const userSnap = await getDoc(userRef);
       
       if (!userSnap.exists()) {
@@ -498,22 +505,43 @@ export const userService = {
         return [];
       }
       
-      // 사용자 ID의 다양한 형태 생성 (사용자 객체가 있으면 이메일도 포함)
+      // 사용자 ID의 모든 가능한 형태 생성 (이전 방식들과의 호환성 보장)
       const possibleIds = new Set([
         userId,
         userId?.toString(),
-        // 이메일 형태 변환 (기존 로직 유지)
+        // 이메일 형태 변환
         userId?.includes('@') ? userId.replace(/[^a-zA-Z0-9]/g, '_') : null,
         userId?.includes('@') ? userId.split('@')[0] : null,
       ]);
       
-      // 사용자 객체에서 이메일 정보가 있으면 추가 검색 ID 생성
-      if (userObject && userObject.email) {
-        const email = userObject.email;
-        possibleIds.add(email);
-        possibleIds.add(email.replace(/[^a-zA-Z0-9]/g, '_'));
-        possibleIds.add(email.split('@')[0]);
-        console.log(`🔍 사용자 이메일 추가: ${email}`);
+      // 사용자 객체에서 모든 가능한 ID 형태 추가
+      if (userObject) {
+        // NextAuth ID
+        if (userObject.id) {
+          possibleIds.add(userObject.id);
+          possibleIds.add(userObject.id.toString());
+        }
+        
+        // Firebase UID
+        if (userObject.uid) {
+          possibleIds.add(userObject.uid);
+          possibleIds.add(userObject.uid.toString());
+        }
+        
+        // 이메일 기반 ID들
+        if (userObject.email) {
+          const email = userObject.email;
+          possibleIds.add(email);
+          possibleIds.add(email.replace(/[^a-zA-Z0-9]/g, '_'));
+          possibleIds.add(email.split('@')[0]);
+          console.log(`🔍 사용자 이메일 기반 ID 추가: ${email}`);
+        }
+        
+        // sub 필드 (JWT에서 사용되는 경우)
+        if (userObject.sub) {
+          possibleIds.add(userObject.sub);
+          possibleIds.add(userObject.sub.toString());
+        }
       }
       
       // null 값 제거
@@ -683,8 +711,8 @@ export const userService = {
       stats.all.commentedPosts = lolCommentedPostsData.length + valorantCommentedPostsData.length;
 
       // 투표한 게시글 수 계산 (실제 존재하는 게시글만)
-      const lolVotedPostsData = await this.getUserVotedPostsData(userId, 'lol');
-      const valorantVotedPostsData = await this.getUserVotedPostsData(userId, 'valorant');
+      const lolVotedPostsData = await this.getUserVotedPostsData(userId, 'lol', userObject);
+      const valorantVotedPostsData = await this.getUserVotedPostsData(userId, 'valorant', userObject);
       
       console.log(`🔍 통계 계산 - LoL 투표 (실존): ${lolVotedPostsData.length}개, Valorant 투표 (실존): ${valorantVotedPostsData.length}개`);
       
@@ -699,12 +727,12 @@ export const userService = {
       stats.all.likedMentors = likedMentorsCount;
 
       // 피드백 통계 계산
-      const requestedFeedbacks = await this.getUserRequestedFeedbacks(userId);
+      const requestedFeedbacks = await this.getUserRequestedFeedbacks(userId, userObject);
       
       // 받은 피드백 계산 (userId로 직접 조회)
       let receivedFeedbacks = [];
       try {
-        receivedFeedbacks = await this.getMentorReceivedFeedbacks(userId);
+        receivedFeedbacks = await this.getMentorReceivedFeedbacks(userId, userObject);
         console.log(`🔍 사용자 ${userId}의 받은 피드백: ${receivedFeedbacks.length}개`);
       } catch (error) {
         console.error('받은 피드백 조회 실패:', error);
@@ -1126,7 +1154,7 @@ export const userService = {
   },
 
   // 멘토가 받은 피드백 요청 목록 조회 (userId로 모든 멘토 프로필의 피드백 조회)
-  async getMentorReceivedFeedbacks(userId) {
+  async getMentorReceivedFeedbacks(userId, userObject = null) {
     try {
       console.log('🔍 getMentorReceivedFeedbacks 시작 - userId:', userId);
       
@@ -1137,7 +1165,8 @@ export const userService = {
       
       // 1. 해당 사용자의 모든 멘토 프로필 조회 (승인/미승인 관계없이)
       const { mentorService } = await import('@/app/services/mentor/mentor.service');
-      const allMentors = await mentorService.getAllMentorsByUserId(userId);
+      const userEmail = userObject?.email;
+      const allMentors = await mentorService.getAllMentorsByUserId(userId, userEmail);
       
       if (allMentors.length === 0) {
         console.log('🔍 해당 userId의 멘토 프로필 없음:', userId);

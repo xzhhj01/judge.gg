@@ -71,7 +71,7 @@ export default function MentorDetailPage() {
                 
                 // 로그인한 사용자의 찜하기 상태 확인
                 if (user || session) {
-                    const currentUser = user || session?.user;
+                    const currentUser = session?.user || user;
                     const currentUserId = communityService.generateConsistentUserId(currentUser);
                     console.log('🔍 찜하기 상태 확인:', { currentUser, currentUserId });
                     const liked = await userService.isLikedMentor(currentUserId, mentorId);
@@ -160,7 +160,7 @@ export default function MentorDetailPage() {
         try {
             setSubmittingFeedback(true);
             
-            const currentUser = user || session?.user;
+            const currentUser = session?.user || user;
             const serviceInfo = mentor.curriculum?.mentoring_types?.[selectedService];
             
             const requestData = {
@@ -198,7 +198,7 @@ export default function MentorDetailPage() {
         }
         
         try {
-            const currentUser = user || session?.user;
+            const currentUser = session?.user || user;
             const currentUserId = communityService.generateConsistentUserId(currentUser);
             console.log('🔍 찜하기 요청:', { currentUser, currentUserId, isLiked });
             
@@ -236,7 +236,7 @@ export default function MentorDetailPage() {
 
         setSubmittingReview(true);
         try {
-            const currentUser = user || session?.user;
+            const currentUser = session?.user || user;
             const reviewData = {
                 mentorId: mentorId,
                 rating: rating,

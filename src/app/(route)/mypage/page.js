@@ -89,7 +89,14 @@ export default function MyPage() {
         // Always prioritize session.user for consistency with mentor registration
         const currentUser = session?.user || user;
         const currentUserId = communityService.generateConsistentUserId(currentUser);
-        console.log('🔍 마이페이지 - 사용자 데이터 로딩 시작:', { currentUserId, currentUser });
+        console.log('🔍 마이페이지 - 사용자 데이터 로딩 시작:', { 
+            currentUserId, 
+            currentUser,
+            sessionUserId: session?.user?.id,
+            sessionUserEmail: session?.user?.email,
+            firebaseUid: user?.uid,
+            firebaseEmail: user?.email
+        });
         
         // 먼저 캐시된 데이터 로드 (즉시 UI 업데이트)
         const cachedData = loadCachedUserData(currentUserId);
@@ -164,11 +171,13 @@ export default function MyPage() {
         let mentorStats = { totalFeedbacks: 0, totalReviews: 0, rating: 0 };
         let allMentorProfiles = [];
         try {
-            // 승인/미승인 관계없이 사용자의 모든 멘토 프로필 조회
-            allMentorProfiles = await mentorService.getAllMentorsByUserId(currentUserId);
+            // 승인/미승인 관계없이 사용자의 모든 멘토 프로필 조회 (이메일 정보도 함께 전달)
+            const userEmail = currentUser?.email;
+            allMentorProfiles = await mentorService.getAllMentorsByUserId(currentUserId, userEmail);
             
             console.log('🔍 멘토 프로필 조회 결과:', {
                 userId: currentUserId,
+                userEmail: userEmail,
                 profileCount: allMentorProfiles.length,
                 profiles: allMentorProfiles
             });
@@ -305,10 +314,10 @@ export default function MyPage() {
         
         // 피드백 데이터 로드
         try {
-            const requestedData = await userService.getUserRequestedFeedbacks(currentUserId);
+            const requestedData = await userService.getUserRequestedFeedbacks(currentUserId, currentUser);
             setRequestedFeedbacks(requestedData);
             
-            const receivedData = await userService.getMentorReceivedFeedbacks(currentUserId);
+            const receivedData = await userService.getMentorReceivedFeedbacks(currentUserId, currentUser);
             setReceivedFeedbacks(receivedData);
         } catch (error) {
             console.error('피드백 데이터 로드 실패:', error);
@@ -490,8 +499,8 @@ export default function MyPage() {
                     } else if (selectedMenu === 'votedPosts') {
                         // 좋아요/투표한 게시글 가져오기
                         const [lolVotedPosts, valorantVotedPosts] = await Promise.all([
-                            userService.getUserVotedPostsData(currentUserId, 'lol'),
-                            userService.getUserVotedPostsData(currentUserId, 'valorant')
+                            userService.getUserVotedPostsData(currentUserId, 'lol', currentUser),
+                            userService.getUserVotedPostsData(currentUserId, 'valorant', currentUser)
                         ]);
                         userPosts = [...lolVotedPosts, ...valorantVotedPosts];
                         
@@ -592,7 +601,7 @@ export default function MyPage() {
                 
                 // 성공 후 사용자 정보 다시 로드
                 if (user || session) {
-                    const currentUser = user || session.user;
+                    const currentUser = session?.user || user;
                     const currentUserId = communityService.generateConsistentUserId(currentUser);
                     const info = await userService.getUserInfo(currentUserId);
                     setUserInfo({
@@ -954,7 +963,7 @@ export default function MyPage() {
                                                     key={post.id}
                                                     post={post}
                                                     gameType={post.gameType}
-                                                    currentUser={user || session?.user}
+                                                    currentUser={session?.user || user}
                                                     onEdit={handlePostEdit}
                                                     onDelete={handlePostDelete}
                                                     onShare={handlePostShare}

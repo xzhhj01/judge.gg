@@ -21,6 +21,15 @@ export const communityService = {
   // 사용자 랭크 정보 캐시 (세션 동안 유지)
   _userTierCache: new Map(),
   
+  // 캐시 무효화 함수
+  clearTierCache(userId, gameType) {
+    if (userId && gameType) {
+      const cacheKey = `${userId}_${gameType}`;
+      this._userTierCache.delete(cacheKey);
+      console.log(`🎮 캐시 무효화 - ${cacheKey}`);
+    }
+  },
+  
   // 투표 옵션 유효성 검사
   validateVoteOptions(voteOptions) {
     if (!voteOptions || !Array.isArray(voteOptions)) {
@@ -74,60 +83,117 @@ export const communityService = {
     }
   },
 
-  // 특정 사용자의 게임별 랭크 정보 조회 (캐싱 적용)
-  async getUserTierInfo(userId, gameType) {
+  // 특정 사용자의 게임별 랭크 정보 조회 (실시간 API 사용)
+  async getUserTierInfo(userId, gameType, sessionUser = null) {
     try {
-      if (!userId) return 'Unranked';
+      if (!userId) {
+        console.log('🎮 getUserTierInfo: userId가 없음');
+        return 'Unranked';
+      }
+      
+      console.log(`🎮 getUserTierInfo 시작 - userId: "${userId}", gameType: "${gameType}"`);
       
       // 캐시 키 생성
       const cacheKey = `${userId}_${gameType}`;
       
-      // 캐시에서 먼저 확인 (5분간 캐시)
+      // 캐시에서 먼저 확인 (1분간 캐시 - 매우 짧게 하여 최신 정보 보장)
       const cached = this._userTierCache.get(cacheKey);
-      if (cached && (Date.now() - cached.timestamp < 5 * 60 * 1000)) {
+      if (cached && (Date.now() - cached.timestamp < 1 * 60 * 1000)) {
+        console.log(`🎮 캐시에서 티어 반환 - userId: ${userId}, tier: ${cached.tier}`);
         return cached.tier;
       }
       
       // Firebase에서 사용자 정보 조회
+      let userData = null;
+      let foundUser = false;
+      
+      // 첫 번째 시도: 정확한 userId로 검색
       const userRef = doc(db, 'users', userId);
       const userSnap = await getDoc(userRef);
       
-      if (!userSnap.exists()) {
+      if (userSnap.exists()) {
+        userData = userSnap.data();
+        foundUser = true;
+        console.log(`🎮 사용자 문서 발견 (정확한 ID) - userId: ${userId}`);
+      } else {
+        console.log(`🎮 정확한 userId로 사용자 문서를 찾을 수 없음 - userId: ${userId}`);
+        
+        // 두 번째 시도: sessionUser의 이메일로 검색
+        if (sessionUser?.email) {
+          console.log(`🎮 이메일로 사용자 검색 시도 - email: ${sessionUser.email}`);
+          const emailUserRef = doc(db, 'users', sessionUser.email);
+          const emailUserSnap = await getDoc(emailUserRef);
+          
+          if (emailUserSnap.exists()) {
+            userData = emailUserSnap.data();
+            foundUser = true;
+            console.log(`🎮 사용자 문서 발견 (이메일) - email: ${sessionUser.email}`);
+          }
+        }
+      }
+      
+      if (!foundUser) {
+        console.log(`🎮 사용자 문서를 찾을 수 없음 - userId: ${userId}`);
         const tier = 'Unranked';
         this._userTierCache.set(cacheKey, { tier, timestamp: Date.now() });
         return tier;
       }
-      
-      const userData = userSnap.data();
       let tier = 'Unranked';
       
+      console.log(`🎮 사용자 데이터 확인 - userId: ${userId}`, {
+        lolVerified: userData.lolVerified,
+        valorantVerified: userData.valorantVerified,
+        hasLolPuuid: !!userData.lolPuuid,
+        hasValorantData: !!userData.valorantVerified
+      });
+      
       if (gameType === 'lol') {
-        // Firebase에 저장된 LoL 랭크 정보 사용
-        if (userData.lolVerified && userData.lolProfileData) {
-          // lolProfileData.ranks.solo에서 티어 정보 추출
-          if (userData.lolProfileData.ranks?.solo) {
-            const soloRank = userData.lolProfileData.ranks.solo;
-            tier = `${soloRank.tier} ${soloRank.rank}`;
-            console.log(`🎮 LoL 티어 조회 성공 - userId: ${userId}, tier: ${tier}`);
-          } else {
-            console.log(`🎮 LoL 솔로랭크 정보 없음 - userId: ${userId}`);
+        // LoL 연동이 되어 있으면 실시간 API로 티어 조회
+        if (userData.lolVerified && userData.lolPuuid) {
+          try {
+            console.log(`🎮 LoL 실시간 티어 조회 시작 - userId: ${userId}, puuid: ${userData.lolPuuid}`);
+            
+            // Riot API를 직접 호출하여 실시간 티어 조회
+            const tierResponse = await fetch(`/api/riot/lol?puuid=${userData.lolPuuid}&tierOnly=true`);
+            
+            if (tierResponse.ok) {
+              const tierData = await tierResponse.json();
+              
+              console.log(`🎮 LoL API 응답 - userId: ${userId}:`, tierData);
+              
+              if (tierData.verified && tierData.ranks?.solo) {
+                const soloRank = tierData.ranks.solo;
+                tier = `${soloRank.tier} ${soloRank.rank}`;
+                console.log(`🎮 LoL 실시간 티어 조회 성공 - userId: ${userId}, tier: ${tier}`);
+              } else {
+                console.log(`🎮 LoL 실시간 티어 조회 실패 또는 솔로랭크 없음 - userId: ${userId}`, tierData);
+              }
+            } else {
+              console.log(`🎮 LoL API 호출 실패 - userId: ${userId}, status: ${tierResponse.status}`);
+            }
+          } catch (apiError) {
+            console.error(`🎮 LoL 실시간 티어 조회 오류 - userId: ${userId}:`, apiError);
+            // API 실패 시 Firebase에 저장된 정적 데이터 사용 (fallback)
+            if (userData.lolProfileData?.ranks?.solo) {
+              const soloRank = userData.lolProfileData.ranks.solo;
+              tier = `${soloRank.tier} ${soloRank.rank}`;
+              console.log(`🎮 LoL 정적 데이터 fallback - userId: ${userId}, tier: ${tier}`);
+            }
           }
         } else {
-          console.log(`🎮 LoL 연동되지 않음 - userId: ${userId}, verified: ${userData.lolVerified}`);
+          console.log(`🎮 LoL 연동되지 않음 - userId: ${userId}, verified: ${userData.lolVerified}, hasPuuid: ${!!userData.lolPuuid}`);
         }
       } else if (gameType === 'valorant') {
-        // Firebase에 저장된 Valorant 랭크 정보 사용
+        // Valorant 연동이 되어 있으면 Firebase 데이터 사용 (실시간 API 없음)
         if (userData.valorantVerified && userData.valorantProfileData) {
-          // valorantProfileData에서 현재 티어 정보 추출
           if (userData.valorantProfileData.currentTier) {
             tier = userData.valorantProfileData.currentTier;
             console.log(`🎮 Valorant 티어 조회 성공 - userId: ${userId}, tier: ${tier}`);
           } else if (userData.valorantCurrentTier) {
-            // 대체 필드 사용
             tier = userData.valorantCurrentTier;
             console.log(`🎮 Valorant 티어 조회 성공 (대체 필드) - userId: ${userId}, tier: ${tier}`);
           } else {
-            console.log(`🎮 Valorant 티어 정보 없음 - userId: ${userId}`);
+            console.log(`🎮 Valorant 티어 정보 없음 - userId: ${userId}`, userData.valorantProfileData);
           }
         } else {
           console.log(`🎮 Valorant 연동되지 않음 - userId: ${userId}, verified: ${userData.valorantVerified}`);
@@ -144,7 +210,7 @@ export const communityService = {
     }
   },
 
-  // 일관된 사용자 ID 생성
+  // 일관된 사용자 ID 생성 (기존 우선순위 복원 + 이메일 지원)
   generateConsistentUserId(user) {
     if (!user) {
       if (process.env.NODE_ENV === 'development') {
@@ -155,7 +221,7 @@ export const communityService = {
     
     let userId = null;
     
-    // NextAuth 사용자 (Google OAuth)
+    // NextAuth 사용자 (Google OAuth) - 기존 우선순위 복원
     if (user.id) {
       userId = user.id;
       if (process.env.NODE_ENV === 'development') {
@@ -173,7 +239,7 @@ export const communityService = {
       return userId;
     }
     
-    // 이메일만 있는 경우 (fallback)
+    // 이메일 fallback (마지막 우선순위)
     if (user.email) {
       userId = user.email;
       if (process.env.NODE_ENV === 'development') {
@@ -290,11 +356,13 @@ export const communityService = {
       const userName = currentUser.name || currentUser.displayName || currentUser.email;
       const userPhoto = currentUser.image || currentUser.photoURL || null;
       
-      // 사용자의 실제 랭크 정보 조회 (Firebase에서 직접)
+      // 사용자의 실제 랭크 정보 조회 (캐시 무효화 후 최신 정보 가져오기)
       let userTier = "Unranked";
       try {
         console.log('🔍 게시글 작성 - 랭크 정보 조회 시작');
-        userTier = await this.getUserTierInfo(userId, gameType);
+        // 게시글 작성 시에는 항상 최신 티어 정보를 사용
+        this.clearTierCache(userId, gameType);
+        userTier = await this.getUserTierInfo(userId, gameType, currentUser);
         console.log('🔍 게시글 작성 - 사용자 랭크:', userTier);
       } catch (error) {
         console.error('🔍 게시글 작성 - 랭크 정보 조회 실패:', error);
@@ -579,11 +647,13 @@ export const communityService = {
       const userName = currentUser.name || currentUser.displayName || currentUser.email;
       const userPhoto = currentUser.image || currentUser.photoURL || null;
       
-      // 사용자의 실제 랭크 정보 조회 (Firebase에서 직접)
+      // 사용자의 실제 랭크 정보 조회 (캐시 무효화 후 최신 정보 가져오기)
       let userTier = "Unranked";
       try {
         console.log('🔍 댓글 작성 - 랭크 정보 조회 시작');
-        userTier = await this.getUserTierInfo(userId, gameType);
+        // 댓글 작성 시에는 항상 최신 티어 정보를 사용
+        this.clearTierCache(userId, gameType);
+        userTier = await this.getUserTierInfo(userId, gameType, currentUser);
         console.log('🔍 댓글 작성 - 사용자 랭크:', userTier);
       } catch (error) {
         console.error('🔍 댓글 작성 - 랭크 정보 조회 실패:', error);
