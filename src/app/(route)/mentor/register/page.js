@@ -3,7 +3,6 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/app/utils/providers";
-import MentorRegisterForm from "@/app/components/MentorRegisterForm";
 
 export default function MentorRegisterPage() {
     const router = useRouter();
