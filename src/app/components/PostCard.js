@@ -202,17 +202,16 @@ export default function PostCard({ post, gameType, currentUser, onEdit, onDelete
                 <div className="flex justify-between items-center text-sm text-gray-500">
                     <div className="flex items-center space-x-3">
                         {/* 유저 정보 */}
-                        <div className="flex items-center space-x-1">
+                        <div className="flex items-center space-x-2">
                             <span className="font-medium text-gray-700">
-                                {post.author.nickname}
+                                {post.author?.nickname || post.authorName || '알 수 없음'}
                             </span>
-                            <span
-                                className={`${getTierColor(
-                                    post.author.tier
-                                )} font-medium`}
-                            >
-                                {post.author.tier}
-                            </span>
+                            {/* 티어 뱃지 */}
+                            {(post.authorTier && post.authorTier !== 'Unranked') && (
+                                <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                    🏆 {post.authorTier}
+                                </span>
+                            )}
                         </div>
 
                         {/* 작성시간 */}

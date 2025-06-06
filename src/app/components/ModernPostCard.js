@@ -224,10 +224,17 @@ export default function ModernPostCard({ post, gameType = 'lol', currentUser, on
                         <div className="flex items-center space-x-2">
                             <div className="w-6 h-6 bg-gray-200 dark:bg-dark-600 rounded-full flex items-center justify-center">
                                 <span className="text-xs font-medium text-gray-600 dark:text-gray-400">
-                                    {post.author?.nickname?.[0] || 'U'}
+                                    {post.author?.nickname?.[0] || post.authorName?.[0] || 'U'}
                                 </span>
                             </div>
-                            <span className="font-medium">{post.author?.nickname || '알 수 없음'}</span>
+                            <span className="font-medium">{post.author?.nickname || post.authorName || '알 수 없음'}</span>
+                            
+                            {/* 티어 뱃지 */}
+                            {(post.authorTier && post.authorTier !== 'Unranked') && (
+                                <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+                                    🏆 {post.authorTier}
+                                </span>
+                            )}
                         </div>
 
                         {/* 작성 시간 */}

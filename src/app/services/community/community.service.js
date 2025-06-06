@@ -51,7 +51,7 @@ export const communityService = {
   },
 
   // 게시글 목록에 사용자 랭크 정보 추가
-  async enrichPostsWithUserTiers(posts, gameType) {
+  async enrichPostsWithUserTiers(posts, gameType, sessionUser = null) {
     try {
       // 각 게시글의 authorTier가 없는 경우 동적으로 조회
       const enrichedPosts = await Promise.all(posts.map(async (post) => {
@@ -61,8 +61,8 @@ export const communityService = {
         }
         
         try {
-          // 작성자의 랭크 정보 조회
-          const userTier = await this.getUserTierInfo(post.authorId, gameType);
+          // 작성자의 랭크 정보 조회 (sessionUser 전달)
+          const userTier = await this.getUserTierInfo(post.authorId, gameType, sessionUser);
           return {
             ...post,
             authorTier: userTier
@@ -103,37 +103,74 @@ export const communityService = {
         return cached.tier;
       }
       
-      // Firebase에서 사용자 정보 조회
+      // Firebase에서 사용자 정보 조회 (포괄적 검색)
       let userData = null;
       let foundUser = false;
       
-      // 첫 번째 시도: 정확한 userId로 검색
-      const userRef = doc(db, 'users', userId);
-      const userSnap = await getDoc(userRef);
+      // 이메일 기반 ID를 우선적으로 검색 (일관된 ID 생성 전략과 일치)
+      const possibleIds = new Set();
       
-      if (userSnap.exists()) {
-        userData = userSnap.data();
-        foundUser = true;
-        console.log(`🎮 사용자 문서 발견 (정확한 ID) - userId: ${userId}`);
-      } else {
-        console.log(`🎮 정확한 userId로 사용자 문서를 찾을 수 없음 - userId: ${userId}`);
-        
-        // 두 번째 시도: sessionUser의 이메일로 검색
-        if (sessionUser?.email) {
-          console.log(`🎮 이메일로 사용자 검색 시도 - email: ${sessionUser.email}`);
-          const emailUserRef = doc(db, 'users', sessionUser.email);
-          const emailUserSnap = await getDoc(emailUserRef);
-          
-          if (emailUserSnap.exists()) {
-            userData = emailUserSnap.data();
-            foundUser = true;
-            console.log(`🎮 사용자 문서 발견 (이메일) - email: ${sessionUser.email}`);
-          }
+      // 1. 이메일 우선 (generateConsistentUserId와 동일한 우선순위)
+      if (sessionUser?.email) {
+        possibleIds.add(sessionUser.email);
+      }
+      if (userId?.includes('@')) {
+        possibleIds.add(userId);
+      }
+      
+      // 2. 기존 ID들 (호환성 유지)
+      possibleIds.add(userId);
+      possibleIds.add(userId?.toString());
+      
+      // 3. sessionUser의 다른 ID 형태들
+      if (sessionUser) {
+        if (sessionUser.id) {
+          possibleIds.add(sessionUser.id);
+          possibleIds.add(sessionUser.id.toString());
+        }
+        if (sessionUser.uid) {
+          possibleIds.add(sessionUser.uid);
+          possibleIds.add(sessionUser.uid.toString());
+        }
+        if (sessionUser.sub) {
+          possibleIds.add(sessionUser.sub);
+          possibleIds.add(sessionUser.sub.toString());
         }
       }
       
-      if (!foundUser) {
-        console.log(`🎮 사용자 문서를 찾을 수 없음 - userId: ${userId}`);
+      // 4. 변환된 이메일 형태들 (레거시 호환성)
+      if (userId?.includes('@')) {
+        possibleIds.add(userId.replace(/[^a-zA-Z0-9]/g, '_'));
+        possibleIds.add(userId.split('@')[0]);
+      }
+      if (sessionUser?.email) {
+        possibleIds.add(sessionUser.email.replace(/[^a-zA-Z0-9]/g, '_'));
+        possibleIds.add(sessionUser.email.split('@')[0]);
+      }
+      
+      // null 값 제거
+      const finalIds = Array.from(possibleIds).filter(Boolean);
+      console.log(`🎮 티어 조회용 검색할 ID 목록:`, finalIds);
+      
+      // 각 ID에 대해 순차적으로 검색
+      for (const searchId of finalIds) {
+        try {
+          const userRef = doc(db, 'users', searchId);
+          const userSnap = await getDoc(userRef);
+          
+          if (userSnap.exists()) {
+            userData = userSnap.data();
+            foundUser = true;
+            console.log(`🎮 사용자 문서 발견 - searchId: ${searchId}`);
+            break; // 첫 번째 매치에서 중단
+          }
+        } catch (error) {
+          console.error(`🎮 사용자 검색 오류 - searchId: ${searchId}:`, error);
+        }
+      }
+      
+      if (!foundUser || !userData) {
+        console.log(`🎮 사용자 문서를 찾을 수 없음 - userId: ${userId}, finalIds:`, finalIds);
         const tier = 'Unranked';
         this._userTierCache.set(cacheKey, { tier, timestamp: Date.now() });
         return tier;
@@ -210,7 +247,7 @@ export const communityService = {
     }
   },
 
-  // 일관된 사용자 ID 생성 (기존 우선순위 복원 + 이메일 지원)
+  // 일관된 사용자 ID 생성 (이메일 기반으로 항상 동일한 ID 보장)
   generateConsistentUserId(user) {
     if (!user) {
       if (process.env.NODE_ENV === 'development') {
@@ -219,33 +256,29 @@ export const communityService = {
       return null;
     }
     
-    let userId = null;
-    
-    // NextAuth 사용자 (Google OAuth) - 기존 우선순위 복원
-    if (user.id) {
-      userId = user.id;
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`🔍 generateConsistentUserId: NextAuth ID 사용 - ${userId}`);
-      }
-      return userId;
-    }
-    
-    // Firebase 사용자
-    if (user.uid) {
-      userId = user.uid;
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`🔍 generateConsistentUserId: Firebase UID 사용 - ${userId}`);
-      }
-      return userId;
-    }
-    
-    // 이메일 fallback (마지막 우선순위)
+    // 이메일을 최우선으로 하여 일관된 ID 생성
+    // 이메일이 가장 안정적이고 변하지 않는 식별자
     if (user.email) {
-      userId = user.email;
+      const emailBasedId = user.email;
       if (process.env.NODE_ENV === 'development') {
-        console.log(`🔍 generateConsistentUserId: 이메일 사용 - ${userId}`);
+        console.log(`🔍 generateConsistentUserId: 이메일 기반 ID 사용 - ${emailBasedId}`);
       }
-      return userId;
+      return emailBasedId;
+    }
+    
+    // 이메일이 없는 경우에만 다른 ID 사용 (fallback)
+    if (user.id) {
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`🔍 generateConsistentUserId: NextAuth ID fallback - ${user.id}`);
+      }
+      return user.id;
+    }
+    
+    if (user.uid) {
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`🔍 generateConsistentUserId: Firebase UID fallback - ${user.uid}`);
+      }
+      return user.uid;
     }
     
     if (process.env.NODE_ENV === 'development') {
@@ -254,7 +287,7 @@ export const communityService = {
     return null;
   },
   // 게시글 목록 조회
-  async getPosts(gameType, tags = [], searchQuery = '', page = 1, limit = 10, sortBy = 'recent') {
+  async getPosts(gameType, tags = [], searchQuery = '', page = 1, limit = 10, sortBy = 'recent', sessionUser = null) {
     try {
       let q = collection(db, `${gameType}_posts`);
       
@@ -295,7 +328,7 @@ export const communityService = {
       posts = posts.slice(0, limit);
       
       // 각 게시글의 작성자 랭크 정보 보완
-      posts = await this.enrichPostsWithUserTiers(posts, gameType);
+      posts = await this.enrichPostsWithUserTiers(posts, gameType, sessionUser);
       
       return {
         posts,
@@ -442,7 +475,7 @@ export const communityService = {
   },
 
   // 개별 게시글 조회
-  async getPostById(gameType, postId) {
+  async getPostById(gameType, postId, sessionUser = null) {
     try {
       const docRef = doc(db, `${gameType}_posts`, postId);
       const docSnap = await getDoc(docRef);
@@ -458,10 +491,10 @@ export const communityService = {
           views: (docSnap.data().views || 0) + 1
         };
         
-        // 랭크 정보 보완
+        // 랭크 정보 보완 (sessionUser 전달)
         if (!postData.authorTier || postData.authorTier === 'Unranked') {
           try {
-            const userTier = await this.getUserTierInfo(postData.authorId, gameType);
+            const userTier = await this.getUserTierInfo(postData.authorId, gameType, sessionUser);
             postData.authorTier = userTier;
           } catch (error) {
             console.error('게시글 작성자 랭크 조회 실패:', error);
@@ -694,7 +727,7 @@ export const communityService = {
   },
 
   // 댓글 조회
-  async getComments(gameType, postId) {
+  async getComments(gameType, postId, sessionUser = null) {
     try {
       const q = query(
         collection(db, `${gameType}_comments`),
@@ -718,11 +751,11 @@ export const communityService = {
         return dateA - dateB;
       });
       
-      // 각 댓글의 작성자 랭크 정보 보완
+      // 각 댓글의 작성자 랭크 정보 보완 (sessionUser 전달)
       const enrichedComments = await Promise.all(comments.map(async (comment) => {
         if (!comment.authorTier || comment.authorTier === 'Unranked') {
           try {
-            const userTier = await this.getUserTierInfo(comment.authorId, gameType);
+            const userTier = await this.getUserTierInfo(comment.authorId, gameType, sessionUser);
             return {
               ...comment,
               authorTier: userTier

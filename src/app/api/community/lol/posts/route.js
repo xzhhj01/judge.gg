@@ -46,6 +46,7 @@ export async function POST(request) {
 
 export async function GET(request) {
   try {
+    const session = await getServerSession();
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page')) || 1;
     const limit = parseInt(searchParams.get('limit')) || 10;
@@ -53,7 +54,9 @@ export async function GET(request) {
     const tags = searchParams.get('tags') ? searchParams.get('tags').split(',') : [];
     const searchQuery = searchParams.get('search') || '';
 
-    const result = await communityService.getPosts('lol', tags, searchQuery, page, limit, sortBy);
+    console.log('🔍 [API] LoL 게시글 목록 조회 - 세션 사용자:', session?.user);
+
+    const result = await communityService.getPosts('lol', tags, searchQuery, page, limit, sortBy, session?.user);
 
     return NextResponse.json({
       success: true,

@@ -230,23 +230,57 @@ export default function MyPage() {
         let lolTier = cachedData?.tiers?.lol || null;
         if (lolRiotId && lolVerified) {
             try {
-                const lolTierData = await userService.getLolTierInfo(currentUser);
-                if (lolTierData.verified) {
+                // 먼저 기존 저장된 프로필 데이터에서 티어 정보 확인
+                if (info?.lolProfileData?.ranks?.solo) {
+                    const soloRank = info.lolProfileData.ranks.solo;
                     lolProfile = {
-                        summoner: lolTierData.summoner,
-                        ranks: lolTierData.ranks
+                        summoner: info.lolProfileData.summoner,
+                        ranks: info.lolProfileData.ranks
                     };
-                    
-                    // 솔로랭크 티어 정보 구성
-                    if (lolTierData.ranks?.solo) {
-                        const soloRank = lolTierData.ranks.solo;
-                        lolTier = `${soloRank.tier} ${soloRank.rank} (${soloRank.leaguePoints}LP)`;
+                    lolTier = `${soloRank.tier} ${soloRank.rank} (${soloRank.leaguePoints}LP)`;
+                    console.log('🔍 Firebase에서 LoL 티어 정보 로드 성공:', lolTier);
+                } else {
+                    // Firebase에 저장된 데이터가 없으면 Riot API에서 새로 가져오기
+                    console.log('🔍 Firebase에 LoL 프로필 데이터가 없음, Riot API에서 새로 조회');
+                    const lolTierData = await userService.getLolTierInfo(currentUser);
+                    if (lolTierData.verified) {
+                        lolProfile = {
+                            summoner: lolTierData.summoner,
+                            ranks: lolTierData.ranks
+                        };
+                        
+                        // 솔로랭크 티어 정보 구성
+                        if (lolTierData.ranks?.solo) {
+                            const soloRank = lolTierData.ranks.solo;
+                            lolTier = `${soloRank.tier} ${soloRank.rank} (${soloRank.leaguePoints}LP)`;
+                            console.log('🔍 Riot API에서 LoL 티어 정보 로드 성공:', lolTier);
+                        } else {
+                            lolTier = "Unranked";
+                            console.log('🔍 Riot API에서 솔로랭크 정보 없음, Unranked로 설정');
+                        }
                     } else {
+                        console.log('🔍 Riot API 조회 실패, 연동 상태 확인 필요');
                         lolTier = "Unranked";
                     }
                 }
+                
+                // 추가로 커뮤니티 서비스에서 실시간 티어 조회도 시도
+                try {
+                    console.log('🔍 커뮤니티 서비스를 통한 실시간 티어 조회 시도');
+                    const realTimeTier = await communityService.getUserTierInfo(currentUserId, 'lol', currentUser);
+                    if (realTimeTier && realTimeTier !== 'Unranked') {
+                        lolTier = realTimeTier;
+                        console.log('🔍 커뮤니티 서비스에서 실시간 티어 정보 로드 성공:', realTimeTier);
+                    }
+                } catch (tierError) {
+                    console.error('🔍 실시간 티어 조회 실패:', tierError);
+                }
             } catch (error) {
                 console.error('LoL 티어 정보 로드 실패:', error);
+                // 에러가 발생해도 기존 캐시된 데이터가 있으면 사용
+                if (!lolTier && cachedData?.tiers?.lol) {
+                    lolTier = cachedData.tiers.lol;
+                }
             }
         }
 

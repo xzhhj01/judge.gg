@@ -39,9 +39,12 @@ export async function PUT(request, { params }) {
 
 export async function GET(request, { params }) {
   try {
+    const session = await getServerSession();
     const { id: postId } = params;
     
-    const post = await communityService.getPostById('valorant', postId);
+    console.log('🔍 [API] Valorant 게시글 상세 조회 - 세션 사용자:', session?.user);
+    
+    const post = await communityService.getPostById('valorant', postId, session?.user);
 
     return NextResponse.json({
       success: true,

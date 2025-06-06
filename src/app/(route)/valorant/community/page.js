@@ -101,7 +101,9 @@ export default function ValorantCommunityPage() {
                     allSelectedTags,
                     searchQuery,
                     1,
-                    20
+                    20,
+                    'recent',
+                    session?.user || user // sessionUser 전달
                 );
                 
                 let filteredPosts = result.posts || [];

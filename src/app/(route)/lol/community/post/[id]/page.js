@@ -68,7 +68,7 @@ export default function LoLCommunityPostPage() {
         const loadPost = async () => {
             try {
                 setLoading(true);
-                const postData = await communityService.getPostById('lol', postId);
+                const postData = await communityService.getPostById('lol', postId, session?.user || user);
                 if (process.env.NODE_ENV === 'development') {
                     console.log('🔍 로드된 게시글 데이터:', postData);
                     console.log('🔍 투표 옵션:', postData.voteOptions);
@@ -493,13 +493,16 @@ export default function LoLCommunityPostPage() {
                     <div className="flex justify-between items-center text-sm text-gray-500">
                         <div className="flex items-center space-x-3">
                             {/* 유저 정보 */}
-                            <div className="flex items-center space-x-1">
+                            <div className="flex items-center space-x-2">
                                 <span className="font-medium text-gray-700">
                                     {post.authorName || '알 수 없음'}
                                 </span>
-                                <span className={`font-medium ${getTierColor(post.authorTier?.split(' ')[0] || 'Unranked')}`}>
-                                    {post.authorTier || 'Unranked'}
-                                </span>
+                                {/* 티어 뱃지 */}
+                                {(post.authorTier && post.authorTier !== 'Unranked') && (
+                                    <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                        🏆 {post.authorTier}
+                                    </span>
+                                )}
                             </div>
 
                             {/* 작성시간 */}
@@ -913,9 +916,12 @@ export default function LoLCommunityPostPage() {
                                         <span className="font-medium text-gray-900">
                                             {comment.authorName || '알 수 없음'}
                                         </span>
-                                        <span className={`text-sm font-medium ${getTierColor(comment.authorTier?.split(' ')[0] || 'Unranked')}`}>
-                                            {comment.authorTier || 'Unranked'}
-                                        </span>
+                                        {/* 티어 뱃지 */}
+                                        {(comment.authorTier && comment.authorTier !== 'Unranked') && (
+                                            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                                🏆 {comment.authorTier}
+                                            </span>
+                                        )}
                                         <span className="text-sm text-gray-500">
                                             {formatDate(comment.createdAt?.toDate ? comment.createdAt.toDate() : comment.createdAt)}
                                         </span>

@@ -66,6 +66,20 @@ export default function MentorDetailPage() {
             try {
                 setLoading(true);
                 const mentorData = await mentorService.getMentorById(mentorId);
+                
+                // 멘토의 실시간 티어 정보 가져오기
+                try {
+                    if (mentorData.userId && mentorData.selectedGame) {
+                        console.log('🔍 멘토 티어 조회 시작:', { userId: mentorData.userId, game: mentorData.selectedGame });
+                        const tierInfo = await communityService.getUserTierInfo(mentorData.userId, mentorData.selectedGame);
+                        console.log('🔍 멘토 티어 조회 결과:', tierInfo);
+                        mentorData.currentTier = tierInfo;
+                    }
+                } catch (tierError) {
+                    console.error('멘토 티어 정보 조회 실패:', tierError);
+                    mentorData.currentTier = 'Unranked';
+                }
+                
                 setMentor(mentorData);
                 setError(null);
                 
@@ -428,6 +442,14 @@ export default function MentorDetailPage() {
                                     <h1 className="text-xl font-bold text-gray-900 mt-4">
                                         {mentor.nickname || mentor.userName || mentor.name || '멘토'}
                                     </h1>
+                                    {/* 티어 정보 표시 */}
+                                    {mentor.currentTier && mentor.currentTier !== 'Unranked' && (
+                                        <div className="mt-2">
+                                            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                                                🏆 {mentor.currentTier}
+                                            </span>
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* 멘토 소개 */}

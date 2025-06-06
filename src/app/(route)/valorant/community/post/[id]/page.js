@@ -55,7 +55,7 @@ export default function ValorantCommunityPostPage() {
         const loadPost = async () => {
             try {
                 setLoading(true);
-                const postData = await communityService.getPostById('valorant', postId);
+                const postData = await communityService.getPostById('valorant', postId, session?.user || user);
                 setPost(postData);
                 
                 // 사용자의 투표 여부 확인

@@ -115,6 +115,15 @@ export default function MentorCard({ mentor }) {
                     {mentor.nickname || mentor.userName || '알 수 없음'}
                 </h3>
 
+                {/* 티어 정보 */}
+                {mentor.currentTier && mentor.currentTier !== 'Unranked' && (
+                    <div className="text-center mb-2">
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            🏆 {mentor.currentTier}
+                        </span>
+                    </div>
+                )}
+
                 {/* 평점 */}
                 <div className="flex items-center justify-center mb-3">
                     <div className="flex items-center mr-2">

@@ -505,16 +505,23 @@ export const userService = {
         return [];
       }
       
-      // 사용자 ID의 모든 가능한 형태 생성 (이전 방식들과의 호환성 보장)
-      const possibleIds = new Set([
-        userId,
-        userId?.toString(),
-        // 이메일 형태 변환
-        userId?.includes('@') ? userId.replace(/[^a-zA-Z0-9]/g, '_') : null,
-        userId?.includes('@') ? userId.split('@')[0] : null,
-      ]);
+      // 이메일 기반 ID를 우선적으로 검색 (일관된 ID 생성 전략과 일치)
+      const possibleIds = new Set();
       
-      // 사용자 객체에서 모든 가능한 ID 형태 추가
+      // 1. 이메일 우선 (generateConsistentUserId와 동일한 우선순위)
+      if (userObject?.email) {
+        possibleIds.add(userObject.email);
+        console.log(`🔍 사용자 이메일 기반 ID 우선 추가: ${userObject.email}`);
+      }
+      if (userId?.includes('@')) {
+        possibleIds.add(userId);
+      }
+      
+      // 2. 기존 ID들 (호환성 유지)
+      possibleIds.add(userId);
+      possibleIds.add(userId?.toString());
+      
+      // 3. 사용자 객체에서 다른 ID 형태 추가
       if (userObject) {
         // NextAuth ID
         if (userObject.id) {
@@ -528,20 +535,21 @@ export const userService = {
           possibleIds.add(userObject.uid.toString());
         }
         
-        // 이메일 기반 ID들
-        if (userObject.email) {
-          const email = userObject.email;
-          possibleIds.add(email);
-          possibleIds.add(email.replace(/[^a-zA-Z0-9]/g, '_'));
-          possibleIds.add(email.split('@')[0]);
-          console.log(`🔍 사용자 이메일 기반 ID 추가: ${email}`);
-        }
-        
         // sub 필드 (JWT에서 사용되는 경우)
         if (userObject.sub) {
           possibleIds.add(userObject.sub);
           possibleIds.add(userObject.sub.toString());
         }
+      }
+      
+      // 4. 변환된 이메일 형태들 (레거시 호환성)
+      if (userId?.includes('@')) {
+        possibleIds.add(userId.replace(/[^a-zA-Z0-9]/g, '_'));
+        possibleIds.add(userId.split('@')[0]);
+      }
+      if (userObject?.email) {
+        possibleIds.add(userObject.email.replace(/[^a-zA-Z0-9]/g, '_'));
+        possibleIds.add(userObject.email.split('@')[0]);
       }
       
       // null 값 제거
@@ -775,22 +783,46 @@ export const userService = {
         return [];
       }
       
-      // 사용자 ID의 다양한 형태 생성 (게시글 검색과 동일한 로직)
-      const possibleIds = new Set([
-        userId,
-        userId?.toString(),
-        // 이메일 형태일 경우 변환 (Firebase Auth의 경우)
-        userId?.includes('@') ? userId.replace(/[^a-zA-Z0-9]/g, '_') : null,
-        userId?.includes('@') ? userId.split('@')[0] : null,
-      ]);
+      // 이메일 기반 ID를 우선적으로 검색 (일관된 ID 생성 전략과 일치)
+      const possibleIds = new Set();
       
-      // 사용자 객체에서 이메일 정보가 있으면 추가 검색 ID 생성
-      if (userObject && userObject.email) {
-        const email = userObject.email;
-        possibleIds.add(email);
-        possibleIds.add(email.replace(/[^a-zA-Z0-9]/g, '_'));
-        possibleIds.add(email.split('@')[0]);
-        console.log(`🔍 댓글용 사용자 이메일 추가: ${email}`);
+      // 1. 이메일 우선 (generateConsistentUserId와 동일한 우선순위)
+      if (userObject?.email) {
+        possibleIds.add(userObject.email);
+        console.log(`🔍 댓글용 사용자 이메일 기반 ID 우선 추가: ${userObject.email}`);
+      }
+      if (userId?.includes('@')) {
+        possibleIds.add(userId);
+      }
+      
+      // 2. 기존 ID들 (호환성 유지)
+      possibleIds.add(userId);
+      possibleIds.add(userId?.toString());
+      
+      // 3. 사용자 객체에서 다른 ID 형태 추가
+      if (userObject) {
+        if (userObject.id) {
+          possibleIds.add(userObject.id);
+          possibleIds.add(userObject.id.toString());
+        }
+        if (userObject.uid) {
+          possibleIds.add(userObject.uid);
+          possibleIds.add(userObject.uid.toString());
+        }
+        if (userObject.sub) {
+          possibleIds.add(userObject.sub);
+          possibleIds.add(userObject.sub.toString());
+        }
+      }
+      
+      // 4. 변환된 이메일 형태들 (레거시 호환성)
+      if (userId?.includes('@')) {
+        possibleIds.add(userId.replace(/[^a-zA-Z0-9]/g, '_'));
+        possibleIds.add(userId.split('@')[0]);
+      }
+      if (userObject?.email) {
+        possibleIds.add(userObject.email.replace(/[^a-zA-Z0-9]/g, '_'));
+        possibleIds.add(userObject.email.split('@')[0]);
       }
       
       // null 값 제거
@@ -906,7 +938,7 @@ export const userService = {
   },
 
   // 좋아요/투표한 게시글 목록
-  async getUserVotedPosts(userId, gameType) {
+  async getUserVotedPosts(userId, gameType, userObject = null) {
     try {
       console.log(`🔍 getUserVotedPosts 시작 - userId: ${userId}, gameType: ${gameType}`);
       
@@ -915,21 +947,81 @@ export const userService = {
         return [];
       }
       
-      // 투표 기록에서 사용자의 투표한 게시글 ID 목록 가져오기
-      const q = query(
-        collection(db, `${gameType}_post_votes`),
-        where('userId', '==', userId)
-      );
+      // 이메일 기반 ID를 우선적으로 검색 (일관된 ID 생성 전략과 일치)
+      const possibleIds = new Set();
       
-      const snapshot = await getDocs(q);
+      // 1. 이메일 우선 (generateConsistentUserId와 동일한 우선순위)
+      if (userObject?.email) {
+        possibleIds.add(userObject.email);
+        console.log(`🔍 투표용 사용자 이메일 기반 ID 우선 추가: ${userObject.email}`);
+      }
+      if (userId?.includes('@')) {
+        possibleIds.add(userId);
+      }
+      
+      // 2. 기존 ID들 (호환성 유지)
+      possibleIds.add(userId);
+      possibleIds.add(userId?.toString());
+      
+      // 3. 사용자 객체에서 다른 ID 형태 추가
+      if (userObject) {
+        if (userObject.id) {
+          possibleIds.add(userObject.id);
+          possibleIds.add(userObject.id.toString());
+        }
+        if (userObject.uid) {
+          possibleIds.add(userObject.uid);
+          possibleIds.add(userObject.uid.toString());
+        }
+        if (userObject.sub) {
+          possibleIds.add(userObject.sub);
+          possibleIds.add(userObject.sub.toString());
+        }
+      }
+      
+      // 4. 변환된 이메일 형태들 (레거시 호환성)
+      if (userId?.includes('@')) {
+        possibleIds.add(userId.replace(/[^a-zA-Z0-9]/g, '_'));
+        possibleIds.add(userId.split('@')[0]);
+      }
+      if (userObject?.email) {
+        possibleIds.add(userObject.email.replace(/[^a-zA-Z0-9]/g, '_'));
+        possibleIds.add(userObject.email.split('@')[0]);
+      }
+      
+      // null 값 제거
+      const finalIds = Array.from(possibleIds).filter(Boolean);
+      console.log(`🔍 투표 검색할 ID 목록:`, finalIds);
+      
+      // 각 ID에 대해 투표 기록 검색
       const postIds = new Set(); // 중복 제거를 위한 Set 사용
       
-      snapshot.forEach((doc) => {
-        const data = doc.data();
-        if (data.postId) {
-          postIds.add(data.postId);
+      for (const searchId of finalIds) {
+        try {
+          const q = query(
+            collection(db, `${gameType}_post_votes`),
+            where('userId', '==', searchId)
+          );
+          
+          const snapshot = await getDocs(q);
+          console.log(`🔍 ID ${searchId}로 찾은 투표: ${snapshot.size}개`);
+          
+          snapshot.forEach((doc) => {
+            const data = doc.data();
+            if (data.postId) {
+              postIds.add(data.postId);
+              console.log(`🔍 투표한 게시글 발견: ${data.postId} (voteType: ${data.voteType})`);
+            }
+          });
+          
+          // 첫 번째 결과가 있으면 더 이상 검색하지 않음
+          if (snapshot.size > 0) {
+            break;
+          }
+        } catch (error) {
+          console.error(`🔍 ID ${searchId} 투표 검색 오류:`, error);
         }
-      });
+      }
       
       console.log(`🔍 ${gameType} 투표한 게시글 ${postIds.size}개 발견`);
       return Array.from(postIds);
@@ -940,12 +1032,12 @@ export const userService = {
   },
 
   // 좋아요/투표한 게시글의 실제 게시글 데이터 가져오기
-  async getUserVotedPostsData(userId, gameType) {
+  async getUserVotedPostsData(userId, gameType, userObject = null) {
     try {
       console.log(`🔍 getUserVotedPostsData 시작 - userId: ${userId}, gameType: ${gameType}`);
       
-      // 투표한 게시글 ID 목록 가져오기
-      const postIds = await this.getUserVotedPosts(userId, gameType);
+      // 투표한 게시글 ID 목록 가져오기 (userObject 전달)
+      const postIds = await this.getUserVotedPosts(userId, gameType, userObject);
       const posts = [];
       const existingPostIds = [];
       
@@ -1122,31 +1214,112 @@ export const userService = {
   },
 
   // 사용자가 신청한 피드백 목록 조회
-  async getUserRequestedFeedbacks(userId) {
+  async getUserRequestedFeedbacks(userId, userObject = null) {
     try {
-      const q = query(
-        collection(db, 'feedback_requests'),
-        where('userId', '==', userId)
-      );
+      console.log(`🔍 getUserRequestedFeedbacks 시작 - userId: ${userId}`);
       
-      const snapshot = await getDocs(q);
-      const feedbacks = [];
+      if (!userId) {
+        console.log('🔍 userId가 없음, 빈 배열 반환');
+        return [];
+      }
       
-      snapshot.forEach((doc) => {
-        feedbacks.push({
-          id: doc.id,
-          ...doc.data()
-        });
-      });
+      // 이메일 기반 ID를 우선적으로 검색 (일관된 ID 생성 전략과 일치)
+      const possibleIds = new Set();
+      
+      // 1. 이메일 우선 (generateConsistentUserId와 동일한 우선순위)
+      if (userObject?.email) {
+        possibleIds.add(userObject.email);
+        console.log(`🔍 피드백용 사용자 이메일 기반 ID 우선 추가: ${userObject.email}`);
+      }
+      if (userId?.includes('@')) {
+        possibleIds.add(userId);
+      }
+      
+      // 2. 기존 ID들 (호환성 유지)
+      possibleIds.add(userId);
+      possibleIds.add(userId?.toString());
+      
+      // 3. 사용자 객체에서 다른 ID 형태 추가
+      if (userObject) {
+        if (userObject.id) {
+          possibleIds.add(userObject.id);
+          possibleIds.add(userObject.id.toString());
+        }
+        if (userObject.uid) {
+          possibleIds.add(userObject.uid);
+          possibleIds.add(userObject.uid.toString());
+        }
+        if (userObject.sub) {
+          possibleIds.add(userObject.sub);
+          possibleIds.add(userObject.sub.toString());
+        }
+      }
+      
+      // 4. 변환된 이메일 형태들 (레거시 호환성)
+      if (userId?.includes('@')) {
+        possibleIds.add(userId.replace(/[^a-zA-Z0-9]/g, '_'));
+        possibleIds.add(userId.split('@')[0]);
+      }
+      if (userObject?.email) {
+        possibleIds.add(userObject.email.replace(/[^a-zA-Z0-9]/g, '_'));
+        possibleIds.add(userObject.email.split('@')[0]);
+      }
+      
+      // null 값 제거
+      const finalIds = Array.from(possibleIds).filter(Boolean);
+      console.log(`🔍 피드백 검색할 ID 목록:`, finalIds);
+      
+      // 각 ID에 대해 피드백 요청 검색
+      const allFeedbacks = [];
+      const feedbackIds = new Set(); // 중복 제거용
+      
+      for (const searchId of finalIds) {
+        try {
+          const q = query(
+            collection(db, 'feedback_requests'),
+            where('userId', '==', searchId)
+          );
+          
+          const snapshot = await getDocs(q);
+          console.log(`🔍 ID ${searchId}로 찾은 피드백 요청: ${snapshot.size}개`);
+          
+          snapshot.forEach((doc) => {
+            if (!feedbackIds.has(doc.id)) {
+              const data = doc.data();
+              console.log(`🔍 피드백 요청 발견: ${doc.id} (서비스: ${data.service})`, {
+                id: doc.id,
+                service: data.service,
+                mentorId: data.mentorId,
+                status: data.status,
+                createdAt: data.createdAt
+              });
+              allFeedbacks.push({
+                id: doc.id,
+                ...data
+              });
+              feedbackIds.add(doc.id);
+            }
+          });
+          
+          // 첫 번째 결과가 있으면 더 이상 검색하지 않음
+          if (snapshot.size > 0) {
+            break;
+          }
+        } catch (error) {
+          console.error(`🔍 ID ${searchId} 피드백 검색 오류:`, error);
+        }
+      }
+      
+      console.log(`🔍 총 찾은 피드백 요청: ${allFeedbacks.length}개`);
       
       // 클라이언트에서 날짜순 정렬 (최신순)
-      feedbacks.sort((a, b) => {
+      allFeedbacks.sort((a, b) => {
         const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0);
         const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0);
         return dateB - dateA;
       });
       
-      return feedbacks;
+      return allFeedbacks;
     } catch (error) {
       console.error('신청한 피드백 목록 조회 실패:', error);
       return [];
@@ -1311,13 +1484,24 @@ export const userService = {
     try {
       const { collection, query, where, getDocs } = await import('firebase/firestore');
       
-      // 사용자 ID의 다양한 형태 생성
-      const possibleIds = new Set([
-        userId,
-        userId?.toString(),
-        userId?.includes('@') ? userId.replace(/[^a-zA-Z0-9]/g, '_') : null,
-        userId?.includes('@') ? userId.split('@')[0] : null,
-      ]);
+      // 이메일 기반 ID를 우선적으로 검색 (일관된 ID 생성 전략과 일치)
+      const possibleIds = new Set();
+      
+      // 이메일 우선 (generateConsistentUserId와 동일한 우선순위)  
+      if (userId?.includes('@')) {
+        possibleIds.add(userId);
+      }
+      
+      // 기존 ID들 (호환성 유지)
+      possibleIds.add(userId);
+      possibleIds.add(userId?.toString());
+      
+      // 변환된 이메일 형태들 (레거시 호환성)
+      if (userId?.includes('@')) {
+        possibleIds.add(userId.replace(/[^a-zA-Z0-9]/g, '_'));
+        possibleIds.add(userId.split('@')[0]);
+      }
+      
       const finalIds = Array.from(possibleIds).filter(Boolean);
 
       const queries = [];

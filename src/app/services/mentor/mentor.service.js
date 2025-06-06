@@ -176,10 +176,33 @@ export const mentorService = {
         });
       });
       
-      // 클라이언트에서 정렬 (평점순)
-      mentors.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+      // 멘토들의 티어 정보 병렬로 가져오기 (성능을 위해 배치 처리)
+      console.log('🔍 멘토 티어 정보 조회 시작, 총', mentors.length, '명');
+      const mentorsWithTiers = await Promise.all(
+        mentors.map(async (mentor) => {
+          try {
+            if (mentor.userId && mentor.selectedGame) {
+              const tierInfo = await communityService.getUserTierInfo(mentor.userId, mentor.selectedGame);
+              console.log('🔍 멘토', mentor.nickname, '티어:', tierInfo);
+              return {
+                ...mentor,
+                currentTier: tierInfo
+              };
+            }
+          } catch (error) {
+            console.error(`멘토 ${mentor.id} 티어 조회 실패:`, error);
+          }
+          return {
+            ...mentor,
+            currentTier: 'Unranked'
+          };
+        })
+      );
       
-      return mentors;
+      // 클라이언트에서 정렬 (평점순)
+      mentorsWithTiers.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+      
+      return mentorsWithTiers;
     } catch (error) {
       console.error('멘토 목록 조회 실패:', error);
       throw error;
@@ -678,14 +701,30 @@ export const mentorService = {
         }
       }
 
-      // 그래도 없으면 다양한 형태로 시도
-      const possibleIds = new Set([
-        userId,
-        userId?.toString(),
-        // 이메일 형태일 경우 변환
-        userId?.includes('@') ? userId.replace(/[^a-zA-Z0-9]/g, '_') : null,
-        userId?.includes('@') ? userId.split('@')[0] : null,
-      ]);
+      // 이메일 기반 ID 검색 (일관된 ID 생성 전략과 일치)
+      const possibleIds = new Set();
+      
+      // 이메일 우선 (generateConsistentUserId와 동일한 우선순위)
+      if (currentUserEmail) {
+        possibleIds.add(currentUserEmail);
+      }
+      if (userId?.includes('@')) {
+        possibleIds.add(userId);
+      }
+      
+      // 기존 ID들 (호환성 유지)
+      possibleIds.add(userId);
+      possibleIds.add(userId?.toString());
+      
+      // 변환된 이메일 형태들 (레거시 호환성)
+      if (userId?.includes('@')) {
+        possibleIds.add(userId.replace(/[^a-zA-Z0-9]/g, '_'));
+        possibleIds.add(userId.split('@')[0]);
+      }
+      if (currentUserEmail) {
+        possibleIds.add(currentUserEmail.replace(/[^a-zA-Z0-9]/g, '_'));
+        possibleIds.add(currentUserEmail.split('@')[0]);
+      }
       
       // null 값 제거
       const finalIds = Array.from(possibleIds).filter(Boolean);
@@ -734,14 +773,23 @@ export const mentorService = {
         return null;
       }
 
-      // 사용자 ID의 다양한 형태 생성 (일관된 ID 검색)
-      const possibleIds = new Set([
-        userId,
-        userId?.toString(),
-        // 이메일 형태일 경우 변환
-        userId?.includes('@') ? userId.replace(/[^a-zA-Z0-9]/g, '_') : null,
-        userId?.includes('@') ? userId.split('@')[0] : null,
-      ]);
+      // 이메일 기반 ID를 우선적으로 검색 (일관된 ID 생성 전략과 일치)
+      const possibleIds = new Set();
+      
+      // 이메일 우선 (generateConsistentUserId와 동일한 우선순위)
+      if (userId?.includes('@')) {
+        possibleIds.add(userId);
+      }
+      
+      // 기존 ID들 (호환성 유지)
+      possibleIds.add(userId);
+      possibleIds.add(userId?.toString());
+      
+      // 변환된 이메일 형태들 (레거시 호환성)
+      if (userId?.includes('@')) {
+        possibleIds.add(userId.replace(/[^a-zA-Z0-9]/g, '_'));
+        possibleIds.add(userId.split('@')[0]);
+      }
       
       // null 값 제거
       const finalIds = Array.from(possibleIds).filter(Boolean);
