@@ -83,7 +83,7 @@ const bannerData = [
     {
         id: 1,
         title: "VALORANT 법원",
-        description: "여러분의 게임 판단을 공유하고 토론하세요",
+        description: "발로란트에서 발생한 분쟁을 공유하고 판단해 보세요.",
         imageUrl: "/main-banner-1-2.webp",
     },
     {
