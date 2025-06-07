@@ -198,12 +198,35 @@ export const communityService = {
               
               console.log(`🎮 LoL API 응답 - userId: ${userId}:`, tierData);
               
-              if (tierData.verified && tierData.ranks?.solo) {
-                const soloRank = tierData.ranks.solo;
-                tier = `${soloRank.tier} ${soloRank.rank}`;
-                console.log(`🎮 LoL 실시간 티어 조회 성공 - userId: ${userId}, tier: ${tier}`);
+              if (tierData.verified && tierData.ranks) {
+                // 솔로랭크 우선, 없으면 자유랭크, 그것도 없으면 다른 랭크
+                let rankData = null;
+                let rankType = '';
+                
+                if (tierData.ranks.solo) {
+                  rankData = tierData.ranks.solo;
+                  rankType = '솔로';
+                } else if (tierData.ranks.flex) {
+                  rankData = tierData.ranks.flex;
+                  rankType = '자유';
+                } else {
+                  // 다른 랭크가 있는지 확인 (TFT 등)
+                  const availableRanks = Object.keys(tierData.ranks);
+                  if (availableRanks.length > 0) {
+                    const firstRankKey = availableRanks[0];
+                    rankData = tierData.ranks[firstRankKey];
+                    rankType = firstRankKey;
+                  }
+                }
+                
+                if (rankData && rankData.tier) {
+                  tier = `${rankData.tier} ${rankData.rank || ''}`.trim();
+                  console.log(`🎮 LoL 실시간 티어 조회 성공 (${rankType}) - userId: ${userId}, tier: ${tier}`);
+                } else {
+                  console.log(`🎮 LoL 실시간 티어 조회 - 랭크 정보 없음 - userId: ${userId}`, tierData);
+                }
               } else {
-                console.log(`🎮 LoL 실시간 티어 조회 실패 또는 솔로랭크 없음 - userId: ${userId}`, tierData);
+                console.log(`🎮 LoL 실시간 티어 조회 실패 - userId: ${userId}`, tierData);
               }
             } else {
               console.log(`🎮 LoL API 호출 실패 - userId: ${userId}, status: ${tierResponse.status}`);
@@ -211,10 +234,30 @@ export const communityService = {
           } catch (apiError) {
             console.error(`🎮 LoL 실시간 티어 조회 오류 - userId: ${userId}:`, apiError);
             // API 실패 시 Firebase에 저장된 정적 데이터 사용 (fallback)
-            if (userData.lolProfileData?.ranks?.solo) {
-              const soloRank = userData.lolProfileData.ranks.solo;
-              tier = `${soloRank.tier} ${soloRank.rank}`;
-              console.log(`🎮 LoL 정적 데이터 fallback - userId: ${userId}, tier: ${tier}`);
+            if (userData.lolProfileData?.ranks) {
+              let rankData = null;
+              let rankType = '';
+              
+              if (userData.lolProfileData.ranks.solo) {
+                rankData = userData.lolProfileData.ranks.solo;
+                rankType = '솔로';
+              } else if (userData.lolProfileData.ranks.flex) {
+                rankData = userData.lolProfileData.ranks.flex;
+                rankType = '자유';
+              } else {
+                // 다른 랭크가 있는지 확인
+                const availableRanks = Object.keys(userData.lolProfileData.ranks);
+                if (availableRanks.length > 0) {
+                  const firstRankKey = availableRanks[0];
+                  rankData = userData.lolProfileData.ranks[firstRankKey];
+                  rankType = firstRankKey;
+                }
+              }
+              
+              if (rankData && rankData.tier) {
+                tier = `${rankData.tier} ${rankData.rank || ''}`.trim();
+                console.log(`🎮 LoL 정적 데이터 fallback (${rankType}) - userId: ${userId}, tier: ${tier}`);
+              }
             }
           }
         } else {

@@ -231,15 +231,40 @@ export default function MyPage() {
         if (lolRiotId && lolVerified) {
             try {
                 // 먼저 기존 저장된 프로필 데이터에서 티어 정보 확인
-                if (info?.lolProfileData?.ranks?.solo) {
-                    const soloRank = info.lolProfileData.ranks.solo;
-                    lolProfile = {
-                        summoner: info.lolProfileData.summoner,
-                        ranks: info.lolProfileData.ranks
-                    };
-                    lolTier = `${soloRank.tier} ${soloRank.rank} (${soloRank.leaguePoints}LP)`;
-                    console.log('🔍 Firebase에서 LoL 티어 정보 로드 성공:', lolTier);
-                } else {
+                if (info?.lolProfileData?.ranks) {
+                    let rankData = null;
+                    let rankType = '';
+                    
+                    // 솔로랭크 우선, 없으면 자유랭크, 그것도 없으면 다른 랭크
+                    if (info.lolProfileData.ranks.solo) {
+                        rankData = info.lolProfileData.ranks.solo;
+                        rankType = '솔로';
+                    } else if (info.lolProfileData.ranks.flex) {
+                        rankData = info.lolProfileData.ranks.flex;
+                        rankType = '자유';
+                    } else {
+                        // 다른 랭크가 있는지 확인
+                        const availableRanks = Object.keys(info.lolProfileData.ranks);
+                        if (availableRanks.length > 0) {
+                            const firstRankKey = availableRanks[0];
+                            rankData = info.lolProfileData.ranks[firstRankKey];
+                            rankType = firstRankKey;
+                        }
+                    }
+                    
+                    if (rankData && rankData.tier) {
+                        lolProfile = {
+                            summoner: info.lolProfileData.summoner,
+                            ranks: info.lolProfileData.ranks
+                        };
+                        lolTier = `${rankData.tier} ${rankData.rank} (${rankData.leaguePoints || 0}LP)`;
+                        console.log(`🔍 Firebase에서 LoL 티어 정보 로드 성공 (${rankType}):`, lolTier);
+                    } else {
+                        console.log('🔍 Firebase에 LoL 랭크 정보가 없음');
+                    }
+                }
+                
+                if (!lolTier) {
                     // Firebase에 저장된 데이터가 없으면 Riot API에서 새로 가져오기
                     console.log('🔍 Firebase에 LoL 프로필 데이터가 없음, Riot API에서 새로 조회');
                     const lolTierData = await userService.getLolTierInfo(currentUser);
@@ -249,14 +274,37 @@ export default function MyPage() {
                             ranks: lolTierData.ranks
                         };
                         
-                        // 솔로랭크 티어 정보 구성
-                        if (lolTierData.ranks?.solo) {
-                            const soloRank = lolTierData.ranks.solo;
-                            lolTier = `${soloRank.tier} ${soloRank.rank} (${soloRank.leaguePoints}LP)`;
-                            console.log('🔍 Riot API에서 LoL 티어 정보 로드 성공:', lolTier);
+                        // 랭크 티어 정보 구성 (솔로랭크 우선, 없으면 다른 랭크)
+                        if (lolTierData.ranks) {
+                            let rankData = null;
+                            let rankType = '';
+                            
+                            if (lolTierData.ranks.solo) {
+                                rankData = lolTierData.ranks.solo;
+                                rankType = '솔로';
+                            } else if (lolTierData.ranks.flex) {
+                                rankData = lolTierData.ranks.flex;
+                                rankType = '자유';
+                            } else {
+                                // 다른 랭크가 있는지 확인
+                                const availableRanks = Object.keys(lolTierData.ranks);
+                                if (availableRanks.length > 0) {
+                                    const firstRankKey = availableRanks[0];
+                                    rankData = lolTierData.ranks[firstRankKey];
+                                    rankType = firstRankKey;
+                                }
+                            }
+                            
+                            if (rankData && rankData.tier) {
+                                lolTier = `${rankData.tier} ${rankData.rank} (${rankData.leaguePoints || 0}LP)`;
+                                console.log(`🔍 Riot API에서 LoL 티어 정보 로드 성공 (${rankType}):`, lolTier);
+                            } else {
+                                lolTier = "Unranked";
+                                console.log('🔍 Riot API에서 랭크 정보 없음, Unranked로 설정');
+                            }
                         } else {
                             lolTier = "Unranked";
-                            console.log('🔍 Riot API에서 솔로랭크 정보 없음, Unranked로 설정');
+                            console.log('🔍 Riot API에서 ranks 객체 없음, Unranked로 설정');
                         }
                     } else {
                         console.log('🔍 Riot API 조회 실패, 연동 상태 확인 필요');
