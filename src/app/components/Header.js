@@ -98,7 +98,7 @@ export default function Header() {
                             className="flex items-center hover:opacity-80 transition-opacity"
                         >
                             <img
-                                src="/Logo.svg"
+                                src="/logo.svg"
                                 alt="Judge.gg"
                                 className="w-40 h-40"
                             />
